@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custodia - Smart Animal Tracking Systems</title>
+    <meta name="description" content="Custodia builds smart animal tracking systems for wildlife conservation and livestock management in remote areas.">
+    
+    <!-- Shared Styles -->
+    <link rel="stylesheet" href="/frontend/styles/variables.css">
+    <link rel="stylesheet" href="/frontend/styles/buttons.css">
+    <link rel="stylesheet" href="/frontend/styles/forms.css">
+    <link rel="stylesheet" href="/frontend/shared/layout.css">
+    
+    <!-- Landing Page Styles -->
+    <link rel="stylesheet" href="/frontend/pages/landing/landing.css">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="nav">
+            <div class="nav-container">
+                <div class="nav-logo">
+                    <img src="/frontend/assets/images/custodia_logo_header_white.webp" alt="Custodia Logo" class="logo">
+                    <span class="logo-text">Custodia</span>
+                </div>
+                <ul class="nav-menu">
+                    <li><a href="#partners" class="nav-link">Partners</a></li>
+                    <li><a href="#products" class="nav-link">Our Products</a></li>
+                    <li><a href="#about" class="nav-link">About</a></li>
+                    <li><a href="#team" class="nav-link">Team</a></li>
+                    <li><a href="#contact" class="nav-link cta-button">Contact Us</a></li>
+                </ul>
+                <div class="hamburger">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1 class="hero-title">Real-time insight. Full coverage. Zero compromise.</h1>
+                <p class="hero-description">Custodia is building a new generation of smart animal tracking systems for wildlife conservation and livestock management in remote areas.</p>
+                <div class="hero-buttons">
+                    <a href="#products" class="btn btn-primary">Explore Products</a>
+                    <a href="#contact" class="btn btn-secondary">Contact Us</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Partners Section -->
+    <section id="partners" class="partners">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Built With Field Experts & Piloted in Real Environments</h2>
+                <p class="section-description">Our devices are co-developed and tested by those who rely on them every day.</p>
+            </div>
+            <div class="partners-logos">
+                <div class="partner-logo">
+                    <img src="/frontend/assets/images/partner_camelclub_logo.jpg" alt="Camel Club Partner">
+                </div>
+                <div class="partner-logo">
+                    <img src="/frontend/assets/images/partner_imam_logo.png" alt="IMAM Partner">
+                </div>
+                <div class="partner-logo">
+                    <img src="/frontend/assets/images/partner_kaust_logo.png" alt="KAUST Partner">
+                </div>
+                <div class="partner-logo">
+                    <img src="/frontend/assets/images/partner_neom_logo.jpg" alt="NEOM Partner">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Products Section -->
+    <section id="products" class="products">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Smart Devices for Tracking and Protection</h2>
+                <p class="section-description">Custodia's hardware lineup ensures safety, visibility, and peace of mind</p>
+            </div>
+            <div class="products-grid">
+                <!-- Product 1: Myriota HyperPulse -->
+                <div class="product-card">
+                    <div class="product-image">
+                        <img src="/frontend/assets/images/myriota_logo.png" alt="Myriota HyperPulse Model">
+                    </div>
+                    <div class="product-content">
+                        <h3 class="product-title">Myriota HyperPulse Model</h3>
+                        <p class="product-description">New generation of global tracking — smarter, faster, and more efficient</p>
+                        <p class="product-details">Myriota HyperPulse™ enables direct-to-satellite communication with ultra-low power consumption and high message reliability. Unlike traditional satellite systems, HyperPulse™ allows frequent GPS updates (as fast as every 15 minutes) while keeping battery life measured in years, not months.</p>
+                        <div class="product-assets product-assets-horizontal">
+                            <img src="/frontend/assets/images/model_1_icons.svg" alt="Model 1 Icons A">
+                            <img src="/frontend/assets/images/model_1_icons_1.svg" alt="Model 1 Icons B">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product 2: LoRa + Mesh Repeaters -->
+                <div class="product-card product-reverse">
+                    <div class="product-content">
+                        <h3 class="product-title">LoRa + Mesh of Repeaters</h3>
+                        <p class="product-description">Cost-efficient tracking using local infrastructure</p>
+                        <p class="product-details">Repeaters cover up to 7 km each radius LoS based on terrain. Ideal for defined zones and fenced reserves</p>
+                        <div class="product-assets">
+                            <img src="/frontend/assets/images/model_2_icons.svg" alt="Model 2 Icons A">
+                            <img src="/frontend/assets/images/model_2_icons_1.svg" alt="Model 2 Icons B">
+                        </div>
+                    </div>
+                    <div class="product-image">
+                        <img src="/frontend/assets/images/mesh_repeaters_scheme.png" alt="LoRa + Mesh of Repeaters">
+                    </div>
+                </div>
+
+                <!-- Product 3: LoRa + Satellite Model -->
+                <div class="product-card">
+                    <div class="product-image">
+                        <img src="/frontend/assets/images/satellite_mesh_scheme.png" alt="LoRa + Satellite Model">
+                    </div>
+                    <div class="product-content">
+                        <h3 class="product-title">LoRa + Satellite Model</h3>
+                        <p class="product-description">Works anywhere, no infrastructure required</p>
+                        <p class="product-details">Ideal for pack animals - only lead animal wears a collar with satellite connectivity, while the rest of the group uses LoRa</p>
+                        <div class="product-assets product-assets-horizontal">
+                            <img src="/frontend/assets/images/model_1_icons.svg" alt="Model 1 Icons A">
+                            <img src="/frontend/assets/images/model_1_icons_1.svg" alt="Model 1 Icons B">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Why Custodia Section -->
+    <section id="about" class="why-custodia">
+        <div class="why-custodia-bg">
+            <img src="/frontend/assets/images/leopard.webp" alt="Background" class="bg-image">
+            <div class="bg-overlay"></div>
+        </div>
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Why Custodia</h2>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <div class="feature-icon">
+                            <img src="/frontend/assets/images/hybrid_uplink_icon.svg" alt="Hybrid Uplink">
+                        </div>
+                        <h3 class="feature-title">Hybrid Uplink Options</h3>
+                    </div>
+                    <p class="feature-description">Operate entirely on LoRa repeaters for defined areas or add a satellite collar for wide‑roaming animals.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <div class="feature-icon">
+                            <img src="/frontend/assets/images/lora_mesh_icon.svg" alt="LoRa Mesh">
+                        </div>
+                        <h3 class="feature-title">LoRa Mesh</h3>
+                    </div>
+                    <p class="feature-description">Ultra‑low‑power radios shrink collar size and extend battery life, using LoRa makes the system energy efficient and cost-effective.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <div class="feature-icon">
+                            <img src="/frontend/assets/images/complient_data_icon.svg" alt="Compliant Data">
+                        </div>
+                        <h3 class="feature-title">Compliant Data Operations</h3>
+                    </div>
+                    <p class="feature-description">All data is processed and stored on Saudi servers in compliance with local regulations.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <div class="feature-icon">
+                            <img src="/frontend/assets/images/custom_fir_hardware_icon.svg" alt="Custom Hardware">
+                        </div>
+                        <h3 class="feature-title">Custom‑fit Hardware</h3>
+                    </div>
+                    <p class="feature-description">Choose collar weight, battery capacity, and strap material to suit species of different types, weights, and sizes.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact">
+        <div class="container">
+            <div class="contact-content">
+                <div class="contact-visual">
+                    <img src="/frontend/assets/images/oryx.webp" alt="Oryx">
+                </div>
+                <div class="contact-form-container">
+                    <div class="contact-info">
+                        <h2 class="section-title">Become Our Customer</h2>
+                        <p class="section-description">Leave your info and we will contact you with more details about our product, early releases, special discounts and partnership information</p>
+                    </div>
+                    <form class="contact-form" id="contactForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="firstName">First Name</label>
+                                <input type="text" id="firstName" name="firstName" placeholder="Enter your first name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="lastName">Last Name</label>
+                                <input type="text" id="lastName" name="lastName" placeholder="Enter your last name" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="email">Email</label>
+                                <input type="email" id="email" name="email" placeholder="Enter your email address" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">Phone Number</label>
+                                <input type="tel" id="phone" name="phone" placeholder="Enter your phone number" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="message">Message</label>
+                            <textarea id="message" name="message" rows="5" placeholder="Tell us about your tracking needs..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-submit">
+                            <span class="btn-text">Send Message</span>
+                            <span class="btn-loading" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i> Sending...
+                            </span>
+                        </button>
+                    </form>
+                    <p class="contact-alternative">Or reach out to us at <a href="mailto:info@custodia.world">info@custodia.world</a></p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Team Section -->
+    <section id="team" class="team">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Meet The Team</h2>
+                <p class="section-description">We are MSc students from KAUST's Technology and Entrepreneurship program, passionate about safety and connectivity.</p>
+            </div>
+            <div class="team-grid">
+                <div class="team-member">
+                    <div class="member-photo">
+                        <img src="/frontend/assets/images/julia.JPG" alt="Iuliia Sergeeva">
+                    </div>
+                    <div class="member-info">
+                        <h3 class="member-name">Iuliia Sergeeva</h3>
+                        <p class="member-role">Product Manager & Data Specialist</p>
+                        <p class="member-description">Background in website development, data analysis, and product strategy. Holds a Bachelor degree in Applied Mathematics. Passionate about creating user-friendly, data-driven solutions.</p>
+                        <div class="member-contact">
+                            <a href="mailto:julia@custodia.world" class="contact-link">
+                                <i class="fas fa-envelope"></i> julia@custodia.world
+                            </a>
+                            <a href="https://wa.me/79147636223" class="contact-link">
+                                <i class="fab fa-whatsapp"></i> +79147636223
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="team-member">
+                    <div class="member-photo">
+                        <img src="/frontend/assets/images/gilberto.JPG" alt="Gilberto Castro Sustaita">
+                    </div>
+                    <div class="member-info">
+                        <h3 class="member-name">Gilberto Castro Sustaita</h3>
+                        <p class="member-role">Electrical Engineer & Hardware Specialist</p>
+                        <p class="member-description">Expertise in R&D for electric motors, hardware systems, and renewable energy. Holds a BSc in Renewable Energy. Focused on developing energy-efficient tracking technology.</p>
+                        <div class="member-contact">
+                            <a href="mailto:gilberto@custodia.world" class="contact-link">
+                                <i class="fas fa-envelope"></i> gilberto@custodia.world
+                            </a>
+                            <a href="https://wa.me/528992460122" class="contact-link">
+                                <i class="fab fa-whatsapp"></i> +528992460122
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <img src="/frontend/assets/images/custodia_logo_header_white.webp" alt="Custodia Logo">
+                </div>
+                <p class="footer-text">&copy; 2024 Custodia. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Landing Page Scripts -->
+    <script type="module" src="/frontend/pages/landing/landing.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,64 @@
+/* Design system variables */
+
+:root {
+    /* Color Palette (Custodia) */
+    --primary-color: #183227;       /* Deep green (brand) */
+    --primary-light: #254f3b;       /* Slightly lighter */
+    --secondary-color: #5C6B58;     /* Muted olive */
+    --accent-color: #74875E;        /* Accent green */
+    --accent-2-color: #8B9C74;      /* Lighter accent */
+    --text-primary: #183227;        /* Primary text */
+    --text-secondary: #5C6B58;      /* Secondary text */
+    --text-light: #8B9C74;          /* Light text */
+    --background-primary: #ffffff;  /* White */
+    --background-secondary: #f6f8f6; /* Subtle light */
+    --background-dark: #183227;     /* Brand dark */
+    --border-color: #e2e8f0;       /* Light border */
+    --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-heavy: 0 10px 25px rgba(0, 0, 0, 0.15);
+    
+    /* Typography */
+    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 1.875rem;
+    --font-size-4xl: 2.25rem;
+    --font-size-5xl: 3rem;
+    
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-2xl: 3rem;
+    --spacing-3xl: 4rem;
+    --spacing-4xl: 6rem;
+    
+    /* Border Radius */
+    --radius-sm: 0.25rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    
+    /* Transitions */
+    --transition-fast: 0.15s ease-in-out;
+    --transition-normal: 0.3s ease-in-out;
+    --transition-slow: 0.5s ease-in-out;
+}
+
+/* Base body styles */
+body {
+    font-family: var(--font-family);
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+    color: var(--text-primary);
+    background-color: var(--background-primary);
+    overflow-x: hidden;
+}
+

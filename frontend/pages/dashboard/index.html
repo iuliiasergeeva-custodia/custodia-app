@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Custodia Animal Tracking</title>
+    <meta name="description" content="Real-time animal tracking dashboard for wildlife conservation and livestock management.">
+    
+    <!-- Shared Styles -->
+    <link rel="stylesheet" href="../../styles/variables.css">
+    <link rel="stylesheet" href="../../styles/buttons.css">
+    <link rel="stylesheet" href="../../styles/forms.css">
+    <link rel="stylesheet" href="../../shared/layout.css">
+    
+    <!-- Dashboard Styles -->
+    <link rel="stylesheet" href="dashboard.css">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet CSS for map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+    <!-- Header -->
+    <header class="dashboard-header">
+        <nav class="dashboard-nav">
+            <div class="nav-container">
+                <div class="nav-logo">
+                    <a href="/">
+                        <img src="../../assets/images/custodia_logo_header_white.webp" alt="Custodia Logo" class="logo">
+                        <span class="logo-text">Custodia</span>
+                    </a>
+                </div>
+                <div class="nav-actions">
+                    <div class="last-update">
+                        <i class="fas fa-clock"></i>
+                        <span id="lastUpdateTime">--</span>
+                    </div>
+                    <button class="btn btn-icon" id="refreshBtn" title="Refresh Data">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div class="hamburger">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Dashboard -->
+    <main class="dashboard-main">
+        <!-- Sidebar -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <h2>Tracked Animals</h2>
+                <div class="animal-count">
+                    <span id="animalCount">0</span> active
+                </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="sidebar-filters">
+                <div class="filter-group">
+                    <div class="filter-group-header">
+                        <label for="trackerFilter">Filter by Tracker</label>
+                        <button type="button" id="toggleAllTrackers" class="toggle-all-btn" title="Toggle all trackers">
+                            <span id="toggleAllText">Select All</span>
+                        </button>
+                    </div>
+                    <div id="trackerFilter" class="tracker-filter-list">
+                        <!-- Trackers will be populated by JavaScript -->
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label for="statusFilter">Filter by Status</label>
+                    <select id="statusFilter" class="filter-select">
+                        <option value="all">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="alert">Alert</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="dateFrom">Date From</label>
+                    <input type="date" id="dateFrom" class="filter-select" />
+                </div>
+                <div class="filter-group">
+                    <label for="dateTo">Date To</label>
+                    <input type="date" id="dateTo" class="filter-select" />
+                </div>
+                <div class="filter-group">
+                    <label for="visualizationMode">Visualization Mode</label>
+                    <select id="visualizationMode" class="filter-select">
+                        <option value="markers">Only Markers</option>
+                        <option value="path">Show Path</option>
+                        <option value="pathWithDirections">Show Path with Directions</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Animal List -->
+            <div class="animal-list" id="animalList">
+                <!-- Animal items will be inserted here by JavaScript -->
+                <div class="animal-list-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading animals...</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="dashboard-content">
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 class="stat-value" id="totalLocations">0</h3>
+                        <p class="stat-label">Total Locations</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 class="stat-value" id="avgUpdateTime">--</h3>
+                        <p class="stat-label">Avg Update Time</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-battery-full"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 class="stat-value" id="avgBattery">--</h3>
+                        <p class="stat-label">Avg Battery</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 class="stat-value" id="alertsCount">0</h3>
+                        <p class="stat-label">Active Alerts</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Container -->
+            <div class="map-container">
+                <div id="map" class="map"></div>
+                <div class="map-controls">
+                    <button class="map-control-btn" id="zoomInBtn" title="Zoom In">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button class="map-control-btn" id="zoomOutBtn" title="Zoom Out">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <button class="map-control-btn" id="centerMapBtn" title="Center Map">
+                        <i class="fas fa-crosshairs"></i>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Leaflet JS for map -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Dashboard Scripts -->
+    <script src="dashboard.js"></script>
+</body>
+</html>
+
