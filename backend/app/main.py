@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, field_validator
+from contextlib import asynccontextmanager
 import os
 import sys
 from pathlib import Path
@@ -24,12 +25,23 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 # Import database initialization
-from .database import init_db
+from app.database import init_db
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    # Startup
+    init_db()
+    yield
+    # Shutdown (if needed in the future)
+
 
 app = FastAPI(
     title="Custodia API",
     description="Custodia - Smart Animal Tracking Systems",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS middleware
@@ -394,12 +406,6 @@ async def handle_contact_form(data: ContactFormData):
 async def test_api():
     """Test API endpoint."""
     return {"message": "Custodia backend is running 🚀"}
-
-
-@app.on_event("startup")
-def on_startup():
-    """Initialize database on application startup."""
-    init_db()
 
 
 if __name__ == "__main__":
