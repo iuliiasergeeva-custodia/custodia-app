@@ -1,23 +1,19 @@
 services:
   - type: web
     name: custodia-web
-    env: node
+    env: python
     plan: free
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: NODE_ENV
-        value: production
       - key: PORT
         fromService:
           type: web
           name: custodia-web
           property: port
-      - key: EMAIL_USER
-        sync: false  # Set manually in Render dashboard
-      - key: EMAIL_PASS
-        sync: false  # Set manually in Render dashboard
-      - key: EMAIL_TEST_MODE
-        value: "false"  # Set to "true" to disable email sending
+      - key: DATABASE_URL
+        sync: false  # Set manually in Render dashboard (PostgreSQL connection string)
+      - key: PYTHON_VERSION
+        value: 3.11
     healthCheckPath: /api/health
 
