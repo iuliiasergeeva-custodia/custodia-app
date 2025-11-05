@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 import os
 import sys
 from pathlib import Path
@@ -211,22 +211,24 @@ class ContactFormData(BaseModel):
     message: Optional[str] = ""
     timestamp: str
 
-    @validator('email')
-    def validate_email(cls, v):
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v: str) -> str:
         email_regex = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
         if not re.match(email_regex, v):
             raise ValueError('Invalid email format')
         return v
 
-    @validator('firstName', 'lastName', 'phone')
-    def validate_required(cls, v, field):
+    @field_validator('firstName', 'lastName', 'phone')
+    @classmethod
+    def validate_required(cls, v: str) -> str:
         if not v or not v.strip():
-            raise ValueError(f'{field.name} is required')
+            raise ValueError('Field is required')
         return v.strip()
 
 
-async def send_email(email_data: ContactFormData) -> bool:
-    """Send email using SMTP."""
+def send_email_sync(email_data: ContactFormData) -> bool:
+    """Send email using SMTP (synchronous)."""
     email_user = os.getenv("EMAIL_USER")
     email_pass = os.getenv("EMAIL_PASS")
     email_test_mode = os.getenv("EMAIL_TEST_MODE", "false").lower() == "true"
@@ -312,12 +314,19 @@ async def send_email(email_data: ContactFormData) -> bool:
         return False
 
 
+async def send_email(email_data: ContactFormData) -> bool:
+    """Send email using SMTP (async wrapper)."""
+    import asyncio
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, send_email_sync, email_data)
+
+
 @app.post("/api/contact")
 async def handle_contact_form(data: ContactFormData):
     """Handle contact form submissions."""
     print(f"\n=== Contact Form Submission ===")
     print(f"Timestamp: {datetime.utcnow().isoformat()}")
-    print(f"Form data: {data.dict()}")
+    print(f"Form data: {data.model_dump()}")
     
     try:
         # Validate data (Pydantic handles this automatically)
