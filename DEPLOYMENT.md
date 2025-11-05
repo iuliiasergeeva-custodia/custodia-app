@@ -36,8 +36,8 @@ git push origin main
 - **Region**: Choose closest to your users
 - **Branch**: `main` (or your default branch)
 - **Root Directory**: Leave empty (root of repo)
-- **Build Command**: `pip install -r backend/requirements.txt`
-- **Start Command**: `cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- **Build Command**: `pip install --upgrade pip && pip install -r backend/requirements.txt`
+- **Start Command**: `python -m uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`
 - **Plan**: Free (or paid if you need more resources)
 
 **Or use `render.yaml`** (recommended):
