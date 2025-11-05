@@ -23,6 +23,9 @@ project_root = Path(__file__).parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
+# Import database initialization
+from .database import init_db
+
 app = FastAPI(
     title="Custodia API",
     description="Custodia - Smart Animal Tracking Systems",
@@ -391,6 +394,12 @@ async def handle_contact_form(data: ContactFormData):
 async def test_api():
     """Test API endpoint."""
     return {"message": "Custodia backend is running 🚀"}
+
+
+@app.on_event("startup")
+def on_startup():
+    """Initialize database on application startup."""
+    init_db()
 
 
 if __name__ == "__main__":
