@@ -52,11 +52,12 @@ if STATIC_DIR.exists():
     app.mount("/assets", StaticFiles(directory=str(STATIC_DIR)), name="assets")
     app.mount("/frontend/assets", StaticFiles(directory=str(STATIC_DIR)), name="frontend-assets")
 
-# Serve styles directory
+# Serve styles directory (multiple paths for compatibility)
 if STYLES_DIR.exists():
     app.mount("/frontend/styles", StaticFiles(directory=str(STYLES_DIR)), name="frontend-styles")
+    app.mount("/styles", StaticFiles(directory=str(STYLES_DIR)), name="styles")
 
-# Serve shared resources
+# Serve shared resources (multiple paths for compatibility)
 if SHARED_DIR.exists():
     app.mount("/shared", StaticFiles(directory=str(SHARED_DIR)), name="shared")
     app.mount("/frontend/shared", StaticFiles(directory=str(SHARED_DIR)), name="frontend-shared")
@@ -186,6 +187,31 @@ async def serve_shared(file_path: str):
     # Security: prevent directory traversal
     try:
         file_full_path.resolve().relative_to(SHARED_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if not file_full_path.exists() or not file_full_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Determine content type
+    content_type = "text/plain"
+    if file_path.endswith(".css"):
+        content_type = "text/css"
+    elif file_path.endswith(".js"):
+        content_type = "application/javascript"
+    
+    return FileResponse(path=str(file_full_path), media_type=content_type)
+
+
+# Serve styles directory files (for relative paths from dashboard)
+@app.get("/styles/{file_path:path}")
+async def serve_styles(file_path: str):
+    """Serve files from the styles directory."""
+    file_full_path = STYLES_DIR / file_path
+    
+    # Security: prevent directory traversal
+    try:
+        file_full_path.resolve().relative_to(STYLES_DIR.resolve())
     except ValueError:
         raise HTTPException(status_code=403, detail="Access denied")
     
