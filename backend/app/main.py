@@ -8,7 +8,6 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, field_validator
-from contextlib import asynccontextmanager
 import os
 import sys
 from pathlib import Path
@@ -19,29 +18,21 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import re
 
+from .database import init_db
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
+
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-# Import database initialization
-from app.database import init_db
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Lifespan context manager for startup and shutdown events."""
-    # Startup
-    init_db()
-    yield
-    # Shutdown (if needed in the future)
-
-
 app = FastAPI(
     title="Custodia API",
     description="Custodia - Smart Animal Tracking Systems",
-    version="1.0.0",
-    lifespan=lifespan
+    version="1.0.0"
 )
 
 # CORS middleware
@@ -67,12 +58,11 @@ if STATIC_DIR.exists():
     app.mount("/assets", StaticFiles(directory=str(STATIC_DIR)), name="assets")
     app.mount("/frontend/assets", StaticFiles(directory=str(STATIC_DIR)), name="frontend-assets")
 
-# Serve styles directory (multiple paths for compatibility)
+# Serve styles directory
 if STYLES_DIR.exists():
     app.mount("/frontend/styles", StaticFiles(directory=str(STYLES_DIR)), name="frontend-styles")
-    app.mount("/styles", StaticFiles(directory=str(STYLES_DIR)), name="styles")
 
-# Serve shared resources (multiple paths for compatibility)
+# Serve shared resources
 if SHARED_DIR.exists():
     app.mount("/shared", StaticFiles(directory=str(SHARED_DIR)), name="shared")
     app.mount("/frontend/shared", StaticFiles(directory=str(SHARED_DIR)), name="frontend-shared")
@@ -202,31 +192,6 @@ async def serve_shared(file_path: str):
     # Security: prevent directory traversal
     try:
         file_full_path.resolve().relative_to(SHARED_DIR.resolve())
-    except ValueError:
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    if not file_full_path.exists() or not file_full_path.is_file():
-        raise HTTPException(status_code=404, detail="File not found")
-    
-    # Determine content type
-    content_type = "text/plain"
-    if file_path.endswith(".css"):
-        content_type = "text/css"
-    elif file_path.endswith(".js"):
-        content_type = "application/javascript"
-    
-    return FileResponse(path=str(file_full_path), media_type=content_type)
-
-
-# Serve styles directory files (for relative paths from dashboard)
-@app.get("/styles/{file_path:path}")
-async def serve_styles(file_path: str):
-    """Serve files from the styles directory."""
-    file_full_path = STYLES_DIR / file_path
-    
-    # Security: prevent directory traversal
-    try:
-        file_full_path.resolve().relative_to(STYLES_DIR.resolve())
     except ValueError:
         raise HTTPException(status_code=403, detail="Access denied")
     
