@@ -91,22 +91,61 @@ async def get_mock_locations():
     )
 
 
+# Serve dashboard static files explicitly (JS, CSS) - must come BEFORE /pages/dashboard route
+@app.get("/pages/dashboard/{file_path:path}")
+async def serve_dashboard_static(file_path: str, request: Request):
+    """Serve static files from dashboard directory (CSS, JS, etc.)."""
+    # Only serve non-HTML files
+    if file_path.endswith('.html'):
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    file_full_path = DASHBOARD_DIR / file_path
+    
+    if not file_full_path.exists() or not file_full_path.is_file():
+        print(f"⚠️ Dashboard file not found: {file_full_path} (requested: /pages/dashboard/{file_path})")
+        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+    
+    # Determine content type
+    content_type = "text/plain"
+    if file_path.endswith(".css"):
+        content_type = "text/css"
+    elif file_path.endswith(".js"):
+        content_type = "application/javascript"
+    elif file_path.endswith(".json"):
+        content_type = "application/json"
+    
+    print(f"✅ Serving dashboard file: /pages/dashboard/{file_path} -> {file_full_path} (type: {content_type})")
+    return FileResponse(path=str(file_full_path), media_type=content_type)
+
+
 # Serve static files from frontend root (CSS, JS files in pages subdirectories)
 # IMPORTANT: This route must come BEFORE the page routes to ensure static files are served correctly
+# FastAPI matches routes in order, so this must be first to catch /pages/dashboard/dashboard.js
 @app.get("/pages/{page_name}/{file_path:path}")
-async def serve_page_static(page_name: str, file_path: str):
+async def serve_page_static(page_name: str, file_path: str, request: Request):
     """Serve static files from page directories (CSS, JS, etc.)."""
+    # Log the request for debugging
+    print(f"🔍 Static file request: /pages/{page_name}/{file_path}")
+    
     file_full_path = FRONTEND_DIR / "pages" / page_name / file_path
     
     # Security: prevent directory traversal
     try:
-        file_full_path.resolve().relative_to(FRONTEND_DIR.resolve())
-    except ValueError:
+        resolved_path = file_full_path.resolve()
+        frontend_resolved = FRONTEND_DIR.resolve()
+        if not str(resolved_path).startswith(str(frontend_resolved)):
+            print(f"❌ Security check failed: {resolved_path} not in {frontend_resolved}")
+            raise HTTPException(status_code=403, detail="Access denied")
+    except ValueError as e:
+        print(f"❌ Path resolution error: {e}")
         raise HTTPException(status_code=403, detail="Access denied")
     
-    if not file_full_path.exists() or not file_full_path.is_file():
-        # Log for debugging
-        print(f"⚠️ File not found: {file_full_path} (requested: /pages/{page_name}/{file_path})")
+    if not file_full_path.exists():
+        print(f"⚠️ File does not exist: {file_full_path}")
+        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+    
+    if not file_full_path.is_file():
+        print(f"⚠️ Path is not a file: {file_full_path}")
         raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
     
     # Determine content type
@@ -120,7 +159,7 @@ async def serve_page_static(page_name: str, file_path: str):
     elif file_path.endswith(".json"):
         content_type = "application/json"
     
-    print(f"✅ Serving file: /pages/{page_name}/{file_path} -> {file_full_path}")
+    print(f"✅ Serving file: /pages/{page_name}/{file_path} -> {file_full_path} (type: {content_type})")
     return FileResponse(path=str(file_full_path), media_type=content_type)
 
 
