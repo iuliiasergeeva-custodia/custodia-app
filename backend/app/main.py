@@ -18,12 +18,6 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import re
 
-from .database import init_db
-
-@app.on_event("startup")
-def on_startup():
-    init_db()
-
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent
 if str(project_root) not in sys.path:
@@ -97,6 +91,36 @@ async def get_mock_locations():
     )
 
 
+# Serve static files from frontend root (CSS, JS files in pages subdirectories)
+# IMPORTANT: This route must come BEFORE the page routes to ensure static files are served correctly
+@app.get("/pages/{page_name}/{file_path:path}")
+async def serve_page_static(page_name: str, file_path: str):
+    """Serve static files from page directories (CSS, JS, etc.)."""
+    file_full_path = FRONTEND_DIR / "pages" / page_name / file_path
+    
+    # Security: prevent directory traversal
+    try:
+        file_full_path.resolve().relative_to(FRONTEND_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if not file_full_path.exists() or not file_full_path.is_file():
+        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+    
+    # Determine content type
+    content_type = "text/plain"
+    if file_path.endswith(".css"):
+        content_type = "text/css"
+    elif file_path.endswith(".js"):
+        content_type = "application/javascript"
+    elif file_path.endswith(".html"):
+        content_type = "text/html"
+    elif file_path.endswith(".json"):
+        content_type = "application/json"
+    
+    return FileResponse(path=str(file_full_path), media_type=content_type)
+
+
 # Serve landing page
 @app.get("/")
 async def serve_landing():
@@ -125,35 +149,6 @@ async def serve_page(page_name: str):
     if not page_path.exists():
         raise HTTPException(status_code=404, detail=f"Page '{page_name}' not found")
     return FileResponse(path=str(page_path))
-
-
-# Serve static files from frontend root (CSS, JS files in pages subdirectories)
-@app.get("/pages/{page_name}/{file_path:path}")
-async def serve_page_static(page_name: str, file_path: str):
-    """Serve static files from page directories (CSS, JS, etc.)."""
-    file_full_path = FRONTEND_DIR / "pages" / page_name / file_path
-    
-    # Security: prevent directory traversal
-    try:
-        file_full_path.resolve().relative_to(FRONTEND_DIR.resolve())
-    except ValueError:
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    if not file_full_path.exists() or not file_full_path.is_file():
-        raise HTTPException(status_code=404, detail="File not found")
-    
-    # Determine content type
-    content_type = "text/plain"
-    if file_path.endswith(".css"):
-        content_type = "text/css"
-    elif file_path.endswith(".js"):
-        content_type = "application/javascript"
-    elif file_path.endswith(".html"):
-        content_type = "text/html"
-    elif file_path.endswith(".json"):
-        content_type = "application/json"
-    
-    return FileResponse(path=str(file_full_path), media_type=content_type)
 
 
 # Serve frontend paths with absolute paths (for landing page)
