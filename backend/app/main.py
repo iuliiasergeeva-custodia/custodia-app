@@ -66,6 +66,11 @@ if SHARED_DIR.exists():
 if DASHBOARD_ASSETS_DIR.exists():
     app.mount("/pages/dashboard/assets", StaticFiles(directory=str(DASHBOARD_ASSETS_DIR)), name="dashboard-assets")
 
+# Serve dashboard static files (JS, CSS) using mount - this takes precedence over routes
+# IMPORTANT: Mounts are checked before routes, so this will serve dashboard.js and dashboard.css
+if DASHBOARD_DIR.exists():
+    app.mount("/pages/dashboard", StaticFiles(directory=str(DASHBOARD_DIR), html=False), name="dashboard-static")
+
 
 # Health check endpoint
 @app.get("/api/health")
@@ -90,33 +95,6 @@ async def get_mock_locations():
         media_type="text/csv",
         filename="mock_locations.csv"
     )
-
-
-# Serve dashboard static files explicitly (JS, CSS) - must come BEFORE /pages/dashboard route
-@app.get("/pages/dashboard/{file_path:path}")
-async def serve_dashboard_static(file_path: str, request: Request):
-    """Serve static files from dashboard directory (CSS, JS, etc.)."""
-    # Only serve non-HTML files
-    if file_path.endswith('.html'):
-        raise HTTPException(status_code=404, detail="File not found")
-    
-    file_full_path = DASHBOARD_DIR / file_path
-    
-    if not file_full_path.exists() or not file_full_path.is_file():
-        print(f"⚠️ Dashboard file not found: {file_full_path} (requested: /pages/dashboard/{file_path})")
-        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
-    
-    # Determine content type
-    content_type = "text/plain"
-    if file_path.endswith(".css"):
-        content_type = "text/css"
-    elif file_path.endswith(".js"):
-        content_type = "application/javascript"
-    elif file_path.endswith(".json"):
-        content_type = "application/json"
-    
-    print(f"✅ Serving dashboard file: /pages/dashboard/{file_path} -> {file_full_path} (type: {content_type})")
-    return FileResponse(path=str(file_full_path), media_type=content_type)
 
 
 # Serve static files from frontend root (CSS, JS files in pages subdirectories)
