@@ -66,10 +66,11 @@ if SHARED_DIR.exists():
 if DASHBOARD_ASSETS_DIR.exists():
     app.mount("/pages/dashboard/assets", StaticFiles(directory=str(DASHBOARD_ASSETS_DIR)), name="dashboard-assets")
 
-# Serve dashboard static files (JS, CSS) using mount - this takes precedence over routes
-# IMPORTANT: Mounts are checked before routes, so this will serve dashboard.js and dashboard.css
+# Serve dashboard static files (JS, CSS, HTML) using mount - this takes precedence over routes
+# IMPORTANT: Mounts are checked before routes, so this will serve all dashboard files
+# This will serve index.html for /pages/dashboard and dashboard.js/css for /pages/dashboard/dashboard.js/css
 if DASHBOARD_DIR.exists():
-    app.mount("/pages/dashboard", StaticFiles(directory=str(DASHBOARD_DIR), html=False), name="dashboard-static")
+    app.mount("/pages/dashboard", StaticFiles(directory=str(DASHBOARD_DIR)), name="dashboard-static")
 
 
 # Health check endpoint
@@ -152,17 +153,8 @@ async def serve_landing():
     return FileResponse(path=str(landing_path))
 
 
-# Serve dashboard page (specific route for dashboard)
-@app.get("/pages/dashboard")
-async def serve_dashboard():
-    """Serve the dashboard page."""
-    dashboard_path = DASHBOARD_DIR / "index.html"
-    if not dashboard_path.exists():
-        raise HTTPException(status_code=404, detail="Dashboard page not found")
-    return FileResponse(path=str(dashboard_path))
-
-
 # Serve other frontend pages (must come after static file route)
+# Note: /pages/dashboard is now handled by the mount above
 @app.get("/pages/{page_name}")
 async def serve_page(page_name: str):
     """Serve other frontend pages dynamically."""
