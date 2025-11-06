@@ -54,6 +54,7 @@ if STATIC_DIR.exists():
 
 # Serve styles directory
 if STYLES_DIR.exists():
+    app.mount("/styles", StaticFiles(directory=str(STYLES_DIR)), name="styles")
     app.mount("/frontend/styles", StaticFiles(directory=str(STYLES_DIR)), name="frontend-styles")
 
 # Serve shared resources
