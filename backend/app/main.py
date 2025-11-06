@@ -105,6 +105,8 @@ async def serve_page_static(page_name: str, file_path: str):
         raise HTTPException(status_code=403, detail="Access denied")
     
     if not file_full_path.exists() or not file_full_path.is_file():
+        # Log for debugging
+        print(f"⚠️ File not found: {file_full_path} (requested: /pages/{page_name}/{file_path})")
         raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
     
     # Determine content type
@@ -118,6 +120,7 @@ async def serve_page_static(page_name: str, file_path: str):
     elif file_path.endswith(".json"):
         content_type = "application/json"
     
+    print(f"✅ Serving file: /pages/{page_name}/{file_path} -> {file_full_path}")
     return FileResponse(path=str(file_full_path), media_type=content_type)
 
 
@@ -131,7 +134,7 @@ async def serve_landing():
     return FileResponse(path=str(landing_path))
 
 
-# Serve dashboard page
+# Serve dashboard page (specific route for dashboard)
 @app.get("/pages/dashboard")
 async def serve_dashboard():
     """Serve the dashboard page."""
@@ -141,10 +144,15 @@ async def serve_dashboard():
     return FileResponse(path=str(dashboard_path))
 
 
-# Serve other frontend pages
+# Serve other frontend pages (must come after static file route)
 @app.get("/pages/{page_name}")
 async def serve_page(page_name: str):
     """Serve other frontend pages dynamically."""
+    # Check if this is a request for a static file (has a file extension)
+    # If so, let the static file route handle it
+    if '.' in page_name and any(page_name.endswith(ext) for ext in ['.js', '.css', '.html', '.json', '.png', '.jpg', '.svg']):
+        raise HTTPException(status_code=404, detail=f"Page '{page_name}' not found")
+    
     page_path = FRONTEND_DIR / "pages" / page_name / "index.html"
     if not page_path.exists():
         raise HTTPException(status_code=404, detail=f"Page '{page_name}' not found")
