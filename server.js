@@ -196,7 +196,49 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend', 'pages', 'landing', 'index.html'));
 });
 
+// Database connection
+const db = require('./backend/app/db.js');
+
 // API endpoints (before catch-all routes)
+// Database endpoint - fetches locations from PostgreSQL
+app.get('/api/locations', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                t.slug as tracker_id,
+                c.slug as client_slug,
+                t.animal_type,
+                t.animal_name,
+                l.latitude,
+                l.longitude,
+                l.timestamp,
+                l.battery_voltage,
+                l.fix_number
+            FROM locations l
+            JOIN trackers t ON l.tracker_id = t.id
+            JOIN clients c ON t.client_id = c.id
+            ORDER BY l.timestamp ASC
+        `;
+        
+        const result = await db.query(query);
+        
+        // Convert to CSV format (same as mock_locations.csv)
+        const csvHeader = 'tracker_id,client_slug,animal_type,animal_name,latitude,longitude,timestamp,battery_voltage,fix_number\n';
+        const csvRows = result.rows.map(row => {
+            // Format timestamp to ISO string
+            const timestamp = new Date(row.timestamp).toISOString();
+            return `${row.tracker_id},${row.client_slug},${row.animal_type},${row.animal_name},${row.latitude},${row.longitude},${timestamp},${row.battery_voltage || ''},${row.fix_number || ''}`;
+        }).join('\n');
+        
+        res.setHeader('Content-Type', 'text/csv');
+        res.send(csvHeader + csvRows);
+    } catch (error) {
+        console.error('Error fetching locations from database:', error);
+        res.status(500).json({ error: 'Failed to fetch locations from database' });
+    }
+});
+
+// Fallback CSV endpoint (for when database is not available)
 app.get('/api/mock-locations', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend', 'pages', 'dashboard', 'assets', 'mock_locations.csv'), {
         headers: {
@@ -206,12 +248,26 @@ app.get('/api/mock-locations', (req, res) => {
 });
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
-    res.json({
-        status: 'OK',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime()
-    });
+app.get('/api/health', async (req, res) => {
+    try {
+        // Test database connection
+        const dbConnected = await db.testConnection();
+        
+        res.json({
+            status: 'OK',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            database: dbConnected ? 'connected' : 'disconnected'
+        });
+    } catch (error) {
+        res.json({
+            status: 'OK',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            database: 'error',
+            error: error.message
+        });
+    }
 });
 
 // Serve the dashboard page (specific route)

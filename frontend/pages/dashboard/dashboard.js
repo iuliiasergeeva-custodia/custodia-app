@@ -92,16 +92,23 @@ function initMap() {
  */
 async function loadMockData() {
     try {
-        console.log('Loading mock data...');
+        console.log('Loading location data...');
         
-        // Try API endpoint first, then fallback to static file
-        let csvPath = '/api/mock-locations';
+        // Try database endpoint first, then fallback to CSV
+        let csvPath = '/api/locations';
         let response = await fetch(csvPath);
         
         if (!response.ok) {
-            // Fallback to static file path
+            console.log('Database endpoint failed, trying CSV fallback...');
+            // Fallback to CSV endpoint
+            csvPath = '/api/mock-locations';
+            response = await fetch(csvPath);
+        }
+        
+        if (!response.ok) {
+            // Final fallback to static file path
             csvPath = '/frontend/pages/dashboard/assets/mock_locations.csv';
-            console.log('Trying fallback path:', csvPath);
+            console.log('Trying static file fallback:', csvPath);
             response = await fetch(csvPath);
         }
         
@@ -110,7 +117,8 @@ async function loadMockData() {
         }
         
         const csvText = await response.text();
-        console.log('CSV loaded, length:', csvText.length);
+        console.log('Data loaded from:', csvPath);
+        console.log('CSV length:', csvText.length);
         console.log('First 200 chars:', csvText.substring(0, 200));
         
         locations = parseCSV(csvText);
