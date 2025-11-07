@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const app = express();
+// Use PORT from environment, or default to 3000 for local development
 const PORT = process.env.PORT || 3000;
 
 // Middleware
