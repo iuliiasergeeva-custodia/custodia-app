@@ -252,9 +252,12 @@ app.use((req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-    console.log(`Landing Page: http://localhost:${PORT}/`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`\n🚀 Server is running on port ${PORT}`);
+    console.log(`📄 Landing Page: http://localhost:${PORT}/`);
+    console.log(`📊 Dashboard: http://localhost:${PORT}/pages/dashboard`);
+    console.log(`📡 API Health: http://localhost:${PORT}/api/health`);
+    console.log(`📦 Mock CSV: http://localhost:${PORT}/api/mock-locations`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}\n`);
 });
 
 module.exports = app;
