@@ -2,12 +2,6 @@
 -- CUSTODIA DATABASE SCHEMA
 -- ==============================
 
--- Drop tables if they exist (in reverse order of dependencies)
-DROP TABLE IF EXISTS locations CASCADE;
-DROP TABLE IF EXISTS trackers CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-DROP TABLE IF EXISTS clients CASCADE;
-
 -- ==============================
 -- CLIENTS TABLE
 -- ==============================
