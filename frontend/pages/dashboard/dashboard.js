@@ -117,9 +117,21 @@ async function loadMockData() {
         }
         
         const csvText = await response.text();
-        console.log('Data loaded from:', csvPath);
-        console.log('CSV length:', csvText.length);
-        console.log('First 200 chars:', csvText.substring(0, 200));
+        const dataSource = response.headers.get('X-Data-Source') || 'unknown';
+        const locationCount = response.headers.get('X-Location-Count') || 'unknown';
+        
+        console.log('📊 Data loaded from:', csvPath);
+        console.log('📦 Data source:', dataSource === 'database' ? '✅ DATABASE (PostgreSQL)' : dataSource === 'csv-file' ? '📄 CSV FILE (fallback)' : '❓ Unknown');
+        if (dataSource === 'database') {
+            console.log('✅ Location count from database:', locationCount);
+            // Show success message in UI
+            showDataSourceIndicator('database', locationCount);
+        } else if (dataSource === 'csv-file') {
+            console.warn('⚠️ Using CSV fallback - database may not be available');
+            showDataSourceIndicator('csv', null);
+        }
+        console.log('📏 CSV length:', csvText.length);
+        console.log('📝 First 200 chars:', csvText.substring(0, 200));
         
         locations = parseCSV(csvText);
         console.log('Parsed locations:', locations.length);
@@ -1098,6 +1110,22 @@ function escapeHtml(text) {
 /**
  * Show error message
  */
+/**
+ * Show data source indicator in the UI
+ */
+function showDataSourceIndicator(source, count) {
+    const lastUpdateEl = document.getElementById('lastUpdateTime');
+    if (lastUpdateEl) {
+        if (source === 'database') {
+            lastUpdateEl.innerHTML = `<span style="color: #10b981; font-weight: 600;">DB: ${count} locations</span>`;
+            lastUpdateEl.title = `Data loaded from PostgreSQL database (${count} locations)`;
+        } else if (source === 'csv') {
+            lastUpdateEl.innerHTML = `<span style="color: #f59e0b; font-weight: 600;">CSV (fallback)</span>`;
+            lastUpdateEl.title = 'Data loaded from CSV file (database unavailable)';
+        }
+    }
+}
+
 function showError(message) {
     console.error(message);
     // Could add a toast notification here

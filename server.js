@@ -203,6 +203,8 @@ const db = require('./backend/app/db.js');
 // Database endpoint - fetches locations from PostgreSQL
 app.get('/api/locations', async (req, res) => {
     try {
+        console.log('📊 [DATABASE] Fetching locations from PostgreSQL...');
+        
         const query = `
             SELECT 
                 t.slug as tracker_id,
@@ -221,6 +223,7 @@ app.get('/api/locations', async (req, res) => {
         `;
         
         const result = await db.query(query);
+        console.log(`✅ [DATABASE] Fetched ${result.rows.length} locations from database`);
         
         // Convert to CSV format (same as mock_locations.csv)
         const csvHeader = 'tracker_id,client_slug,animal_type,animal_name,latitude,longitude,timestamp,battery_voltage,fix_number\n';
@@ -230,21 +233,31 @@ app.get('/api/locations', async (req, res) => {
             return `${row.tracker_id},${row.client_slug},${row.animal_type},${row.animal_name},${row.latitude},${row.longitude},${timestamp},${row.battery_voltage || ''},${row.fix_number || ''}`;
         }).join('\n');
         
+        // Add header to response to identify data source
         res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('X-Data-Source', 'database');
+        res.setHeader('X-Location-Count', result.rows.length);
         res.send(csvHeader + csvRows);
     } catch (error) {
-        console.error('Error fetching locations from database:', error);
-        res.status(500).json({ error: 'Failed to fetch locations from database' });
+        console.error('❌ [DATABASE] Error fetching locations from database:', error);
+        res.status(500).json({ error: 'Failed to fetch locations from database', details: error.message });
     }
 });
 
 // Fallback CSV endpoint (for when database is not available)
 app.get('/api/mock-locations', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend', 'pages', 'dashboard', 'assets', 'mock_locations.csv'), {
-        headers: {
-            'Content-Type': 'text/csv'
-        }
-    });
+    console.log('📄 [CSV] Serving mock CSV file (fallback)');
+    const csvPath = path.join(__dirname, 'frontend', 'pages', 'dashboard', 'assets', 'mock_locations.csv');
+    
+    // Check if file exists
+    if (!require('fs').existsSync(csvPath)) {
+        console.warn('⚠️  [CSV] Mock CSV file not found:', csvPath);
+        return res.status(404).json({ error: 'Mock CSV file not found. Please use database endpoint /api/locations' });
+    }
+    
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('X-Data-Source', 'csv-file');
+    res.sendFile(csvPath);
 });
 
 // Health check endpoint
