@@ -16,12 +16,6 @@ custodia/
 │   ├── assets/            # Static assets (images, icons, fonts)
 │   ├── styles/            # Global design system styles
 │   └── index.html         # Main entry point
-├── backend/                # Backend (Python - coming soon)
-│   ├── app/               # Application code
-│   │   ├── routers/       # API routes
-│   │   ├── services/      # Business logic
-│   │   └── utils/         # Utilities
-│   └── requirements.txt   # Python dependencies
 ├── server.js              # Node.js server (serves frontend + API)
 ├── package.json           # Node.js dependencies
 └── README.md              # This file
@@ -131,11 +125,6 @@ Hover over any status badge to see a detailed tooltip explaining why that status
 - Node.js + Express (contact form API)
 - Nodemailer (email sending)
 
-**Future Backend:**
-- Python (FastAPI)
-- PostgreSQL
-- JWT Authentication
-
 ## Development
 
 ### Frontend Structure
@@ -159,54 +148,16 @@ The frontend follows a modular structure:
 - `POST /api/contact` - Submit contact form
 - `GET /api/health` - Health check
 
-## Database Setup
-
-### Initial Setup
-
-1. **Install Python dependencies:**
-   ```bash
-   pip install -r backend/requirements.txt
-   ```
-
-2. **Set up PostgreSQL database:**
-   - Create a PostgreSQL database named `custodia`
-   - Update `DATABASE_URL` in your `.env` file:
-     ```
-     DATABASE_URL=postgresql://postgres:password@localhost:5432/custodia
-     ```
-
-3. **Create database tables:**
-   ```bash
-   python -m backend.app.main
-   ```
-
-4. **Seed the database with mock data:**
-   ```bash
-   python -m backend.app.seed_db
-   # OR
-   python backend/seed_database.py
-   ```
-
-   This will create:
-   - 1 client (Custodia)
-   - 3 sample users (admin, manager, viewer)
-   - 5 trackers (from CSV data)
-   - 23 location records (from CSV data)
-
-### Test User Credentials
-
-After seeding, you can use these test accounts:
-- **Admin**: admin@custodia.world / admin123
-- **Manager**: manager@custodia.world / manager123
-- **Viewer**: viewer@custodia.world / viewer123
 
 ## Deployment
 
 The application can be deployed to Render.com:
 
 1. **Web Service**: Deploy `server.js` as a Node.js service
-2. **PostgreSQL**: Create a managed PostgreSQL database (for future backend)
-3. **Environment Variables**: Set `EMAIL_USER`, `EMAIL_PASS`, `PORT`, `DATABASE_URL` in Render dashboard
+2. **Environment Variables**: Set `EMAIL_USER`, `EMAIL_PASS`, `PORT` in Render dashboard
+3. **Auto-deploy**: Render will auto-detect `render.yaml` and configure the service
+
+See `render.yaml` for deployment configuration.
 
 ## License
 

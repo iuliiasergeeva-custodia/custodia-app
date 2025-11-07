@@ -1,13 +1,12 @@
 # Deployment Guide for Render.com
 
-This guide explains how to deploy the Custodia application to Render.com using Python/FastAPI with both the Landing Page and Dashboard working.
+This guide explains how to deploy the Custodia application to Render.com using Node.js/Express.
 
 ## Prerequisites
 
 1. **Render.com Account**: Sign up at [render.com](https://render.com)
 2. **GitHub Repository**: Your code should be pushed to a GitHub repository
-3. **PostgreSQL Database** (optional): For database features, create a PostgreSQL database on Render
-4. **Environment Variables**: Prepare your database connection string
+3. **Environment Variables**: Prepare your email credentials for the contact form
 
 ## Deployment Steps
 
@@ -18,7 +17,7 @@ Make sure all your code is committed and pushed to GitHub:
 ```bash
 git add .
 git commit -m "Ready for deployment"
-git push origin main
+git push origin dev  # or main
 ```
 
 ### 2. Create New Web Service on Render
@@ -30,41 +29,43 @@ git push origin main
 
 ### 3. Configure the Service
 
-**Basic Settings:**
-- **Name**: `custodia-web` (or any name you prefer)
-- **Environment**: `Python 3`
-- **Region**: Choose closest to your users
-- **Branch**: `main` (or your default branch)
-- **Root Directory**: Leave empty (root of repo)
-- **Build Command**: `pip install --upgrade pip && pip install -r backend/requirements.txt`
-- **Start Command**: `python -m uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`
-- **Plan**: Free (or paid if you need more resources)
-
-**Or use `render.yaml`** (recommended):
+**Using `render.yaml` (recommended):**
 - If you have `render.yaml` in your repo root, Render will automatically detect and use it
-- The file is already configured for Python deployment
+- The file is already configured for Node.js deployment
+
+**Manual Configuration:**
+- **Name**: `custodia-web` (or any name you prefer)
+- **Environment**: `Node`
+- **Region**: Choose closest to your users
+- **Branch**: `dev` or `main` (your default branch)
+- **Root Directory**: Leave empty (root of repo)
+- **Build Command**: `npm install`
+- **Start Command**: `node server.js`
+- **Plan**: Free (or paid if you need more resources)
 
 ### 4. Set Environment Variables
 
 In the Render dashboard, go to **"Environment"** section and add:
 
 ```
-DATABASE_URL=postgresql://user:password@host:port/database
-PYTHON_VERSION=3.11
-PORT=10000  # This is auto-set by Render, but you can specify it
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+EMAIL_TEST_MODE=false
+NODE_ENV=production
+PORT=10000  # This is auto-set by Render
 ```
 
 **Note**: 
-- `DATABASE_URL` is required if you're using the database features
+- `EMAIL_USER` and `EMAIL_PASS` are required for the contact form to work
 - `PORT` is automatically set by Render, but the app uses `$PORT` environment variable
-- For PostgreSQL, create a database service on Render and use its connection string
+- For Gmail, you'll need to create an [App Password](https://support.google.com/accounts/answer/185833)
 
 ### 5. Deploy
 
 Click **"Create Web Service"** and Render will:
 1. Clone your repository
-2. Run `pip install -r backend/requirements.txt`
-3. Start the server with uvicorn
+2. Run `npm install`
+3. Start the server with `node server.js`
 4. Make it available at a URL like `https://custodia-web.onrender.com`
 
 ### 6. Verify Deployment
@@ -88,6 +89,7 @@ Once deployed, test these URLs:
 - Mock data from CSV file
 - All filters and visualization modes
 - Animal cards with status indicators
+- All assets served from `/static/` paths
 
 ### ✅ API Endpoints
 - `GET /api/health` - Health check
@@ -99,8 +101,8 @@ Once deployed, test these URLs:
 ### Static Files Not Loading
 
 If CSS/images aren't loading:
-- Check that paths in HTML match the FastAPI routes
-- Verify static file mounts in `backend/app/main.py`
+- Check that paths in HTML use `/static/` prefix
+- Verify static file mounts in `server.js`
 - Check browser console for 404 errors
 - Ensure files exist in the correct directories
 
@@ -112,17 +114,17 @@ If dashboard shows no data:
 3. Check that CSV file path is correct (`frontend/pages/dashboard/assets/mock_locations.csv`)
 4. Check Render logs for any errors
 
-### Database Connection Issues
+### Contact Form Not Working
 
-If database features aren't working:
-1. Verify `DATABASE_URL` is set correctly in Render dashboard
-2. Check that PostgreSQL database is created and running
-3. Ensure database tables are created (run `python -m backend.app.main` locally first)
-4. Check Render logs for database connection errors
+If contact form doesn't send emails:
+1. Verify `EMAIL_USER` and `EMAIL_PASS` are set correctly in Render dashboard
+2. Check that you're using an App Password (not your regular Gmail password)
+3. Set `EMAIL_TEST_MODE=true` to test without sending emails
+4. Check Render logs for email errors
 
 ### Port Issues
 
-Render automatically sets the `PORT` environment variable. The FastAPI app uses `$PORT` from the environment, which should work automatically.
+Render automatically sets the `PORT` environment variable. The server uses `process.env.PORT || 3000`, which should work automatically.
 
 ## Custom Domain (Optional)
 
@@ -132,7 +134,7 @@ Render automatically sets the `PORT` environment variable. The FastAPI app uses 
 
 ## Automatic Deployments
 
-Render automatically deploys when you push to your main branch. You can:
+Render automatically deploys when you push to your configured branch. You can:
 - View deployment logs in the Render dashboard
 - Roll back to previous deployments
 - Set up preview deployments for pull requests
@@ -141,44 +143,32 @@ Render automatically deploys when you push to your main branch. You can:
 
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
-| `DATABASE_URL` | Yes* | PostgreSQL connection string | `postgresql://user:pass@host:port/db` |
+| `EMAIL_USER` | Yes | Gmail address for contact form | `your-email@gmail.com` |
+| `EMAIL_PASS` | Yes | Gmail App Password | `xxxx xxxx xxxx xxxx` |
+| `EMAIL_TEST_MODE` | No | Test mode (logs instead of sending) | `false` |
 | `PORT` | No | Server port (auto-set by Render) | `10000` |
-| `PYTHON_VERSION` | No | Python version to use | `3.11` |
+| `NODE_ENV` | No | Environment mode | `production` |
 
-*Required if using database features
+## Local Testing
 
-## Next Steps
+Before deploying, test locally:
 
-Once deployed, you can:
-1. Set up a custom domain
-2. Add database (PostgreSQL) for future features
-3. Set up monitoring and alerts
-4. Configure CDN for static assets (if needed)
+```bash
+# Install dependencies
+npm install
+
+# Start server
+npm start
+# or
+PORT=3000 node server.js
+```
+
+Then visit:
+- Landing Page: `http://localhost:3000/`
+- Dashboard: `http://localhost:3000/pages/dashboard`
 
 ## Notes
 
 - **Free Tier**: Render's free tier spins down after 15 minutes of inactivity. First request after spin-down may take 30-60 seconds.
-- **Database**: PostgreSQL database is optional. The app works with mock CSV data without a database.
-- **Python Version**: Specified in `backend/runtime.txt` (Python 3.11.0)
-- **Authentication**: Not implemented yet (as requested)
-
-## Database Setup (Optional)
-
-If you want to use the database features:
-
-1. **Create PostgreSQL Database on Render:**
-   - Go to Render dashboard → **"New +"** → **"PostgreSQL"**
-   - Create a new database
-   - Copy the connection string (Internal Database URL)
-
-2. **Set Environment Variable:**
-   - Add `DATABASE_URL` to your web service environment variables
-   - Use the Internal Database URL from your PostgreSQL service
-
-3. **Initialize Database:**
-   - Run `python -m backend.app.main` locally to create tables
-   - Or add a build script to create tables on deployment
-
-4. **Seed Database (Optional):**
-   - Run `python -m backend.app.seed_db` to populate with test data
-
+- **Email Service**: Uses Gmail SMTP. Make sure to create an App Password in your Google Account settings.
+- **Static Assets**: All dashboard assets are served from `/static/` paths for consistent loading.
