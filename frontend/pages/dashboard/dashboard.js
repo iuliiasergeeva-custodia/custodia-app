@@ -113,12 +113,31 @@ async function loadMockData() {
         }
         
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            // Try to get error details from response
+            let errorMessage = `HTTP error! status: ${response.status}`;
+            try {
+                const errorData = await response.json();
+                if (errorData.error) {
+                    errorMessage = `${errorData.error}${errorData.details ? ': ' + errorData.details : ''}`;
+                    if (errorData.hint) {
+                        console.warn('💡 Hint:', errorData.hint);
+                    }
+                }
+            } catch (e) {
+                // Response is not JSON, use status text
+                errorMessage = `${response.status} ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
         }
         
         const csvText = await response.text();
         const dataSource = response.headers.get('X-Data-Source') || 'unknown';
         const locationCount = response.headers.get('X-Location-Count') || 'unknown';
+        const warning = response.headers.get('X-Warning');
+        
+        if (warning) {
+            console.warn('⚠️ Warning:', warning);
+        }
         
         console.log('📊 Data loaded from:', csvPath);
         console.log('📦 Data source:', dataSource === 'database' ? '✅ DATABASE (PostgreSQL)' : dataSource === 'csv-file' ? '📄 CSV FILE (fallback)' : '❓ Unknown');
@@ -135,6 +154,14 @@ async function loadMockData() {
         
         locations = parseCSV(csvText);
         console.log('Parsed locations:', locations.length);
+        
+        // If no locations found, show helpful message
+        if (locations.length === 0) {
+            console.warn('⚠️ No locations found in data');
+            if (warning) {
+                showError('No location data available. ' + warning);
+            }
+        }
         
         // Process locations to create animals list
         processLocations(locations);

@@ -204,6 +204,14 @@ const db = require('./backend/app/db.js');
 app.get('/api/locations', async (req, res) => {
     try {
         console.log('📊 [DATABASE] Fetching locations from PostgreSQL...');
+        console.log('📊 [DATABASE] DATABASE_URL exists:', !!process.env.DATABASE_URL);
+        
+        // Test connection first
+        const connectionTest = await db.testConnection();
+        if (!connectionTest) {
+            console.error('❌ [DATABASE] Connection test failed');
+            throw new Error('Database connection failed. Please check DATABASE_URL and ensure database is accessible.');
+        }
         
         const query = `
             SELECT 
@@ -225,6 +233,17 @@ app.get('/api/locations', async (req, res) => {
         const result = await db.query(query);
         console.log(`✅ [DATABASE] Fetched ${result.rows.length} locations from database`);
         
+        // If no data, return empty CSV with header
+        if (result.rows.length === 0) {
+            console.warn('⚠️  [DATABASE] No locations found in database. Database may need to be seeded.');
+            const csvHeader = 'tracker_id,client_slug,animal_type,animal_name,latitude,longitude,timestamp,battery_voltage,fix_number\n';
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('X-Data-Source', 'database');
+            res.setHeader('X-Location-Count', '0');
+            res.setHeader('X-Warning', 'Database is empty. Please seed the database.');
+            return res.send(csvHeader);
+        }
+        
         // Convert to CSV format (same as mock_locations.csv)
         const csvHeader = 'tracker_id,client_slug,animal_type,animal_name,latitude,longitude,timestamp,battery_voltage,fix_number\n';
         const csvRows = result.rows.map(row => {
@@ -240,7 +259,35 @@ app.get('/api/locations', async (req, res) => {
         res.send(csvHeader + csvRows);
     } catch (error) {
         console.error('❌ [DATABASE] Error fetching locations from database:', error);
-        res.status(500).json({ error: 'Failed to fetch locations from database', details: error.message });
+        console.error('❌ [DATABASE] Error stack:', error.stack);
+        
+        // Return a more helpful error response
+        const errorMessage = error.message || 'Unknown database error';
+        const isConnectionError = errorMessage.includes('connection') || 
+                                  errorMessage.includes('ECONNREFUSED') ||
+                                  errorMessage.includes('timeout') ||
+                                  errorMessage.includes('ENOTFOUND');
+        
+        if (isConnectionError) {
+            console.error('❌ [DATABASE] Connection error - DATABASE_URL may be incorrect or database is not accessible');
+            res.status(503).json({ 
+                error: 'Database connection failed', 
+                details: errorMessage,
+                hint: 'Please check DATABASE_URL environment variable and ensure database is running and accessible.'
+            });
+        } else if (errorMessage.includes('relation') || errorMessage.includes('does not exist')) {
+            console.error('❌ [DATABASE] Table does not exist - database schema may not be initialized');
+            res.status(503).json({ 
+                error: 'Database tables not found', 
+                details: errorMessage,
+                hint: 'Please run schema.sql to create the database tables.'
+            });
+        } else {
+            res.status(500).json({ 
+                error: 'Failed to fetch locations from database', 
+                details: errorMessage 
+            });
+        }
     }
 });
 
@@ -248,11 +295,18 @@ app.get('/api/locations', async (req, res) => {
 app.get('/api/mock-locations', (req, res) => {
     console.log('📄 [CSV] Serving mock CSV file (fallback)');
     const csvPath = path.join(__dirname, 'frontend', 'pages', 'dashboard', 'assets', 'mock_locations.csv');
+    const fs = require('fs');
     
     // Check if file exists
-    if (!require('fs').existsSync(csvPath)) {
+    if (!fs.existsSync(csvPath)) {
         console.warn('⚠️  [CSV] Mock CSV file not found:', csvPath);
-        return res.status(404).json({ error: 'Mock CSV file not found. Please use database endpoint /api/locations' });
+        // Return empty CSV with header instead of 404
+        const csvHeader = 'tracker_id,client_slug,animal_type,animal_name,latitude,longitude,timestamp,battery_voltage,fix_number\n';
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('X-Data-Source', 'csv-file');
+        res.setHeader('X-Location-Count', '0');
+        res.setHeader('X-Warning', 'CSV file not found. Please use database endpoint /api/locations or seed the database.');
+        return res.send(csvHeader);
     }
     
     res.setHeader('Content-Type', 'text/csv');
