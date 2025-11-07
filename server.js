@@ -24,6 +24,9 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, 'frontend')));
 app.use('/frontend', express.static(path.join(__dirname, 'frontend')));
 
+// Serve static files from /static path for dashboard assets
+app.use('/static', express.static(path.join(__dirname, 'frontend')));
+
 // Rate limiting for contact form
 const contactLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
