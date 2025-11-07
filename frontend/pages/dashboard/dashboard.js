@@ -738,7 +738,12 @@ function updateMap() {
     const dateFromInput = document.getElementById('dateFrom');
     const dateToInput = document.getElementById('dateTo');
     const trackerFilter = document.getElementById('trackerFilter');
+    const statusFilterEl = document.getElementById('statusFilter');
     const visualizationModeSelect = document.getElementById('visualizationMode');
+    
+    // Get status filter value
+    const statusFilter = statusFilterEl ? statusFilterEl.value : 'all';
+    console.log('[updateMap] Status filter:', statusFilter);
     const dateFrom = dateFromInput ? dateFromInput.value : null;
     const dateTo = dateToInput ? dateToInput.value : null;
     const visualizationMode = visualizationModeSelect ? visualizationModeSelect.value : 'markers';
@@ -802,7 +807,14 @@ function updateMap() {
             return; // Skip this animal if not selected
         }
         
-        console.log(`[updateMap] INCLUDING ${animal.id} (${animal.name}) - IS in selected list`);
+        // Filter by status
+        if (statusFilter !== 'all' && animal.status !== statusFilter) {
+            skippedCount++;
+            console.log(`[updateMap] SKIPPING ${animal.id} (${animal.name}) - Status ${animal.status} doesn't match filter ${statusFilter}`);
+            return; // Skip this animal if status doesn't match
+        }
+        
+        console.log(`[updateMap] INCLUDING ${animal.id} (${animal.name}) - IS in selected list and matches status filter`);
         
         console.log(`[updateMap] Processing ${animal.id} - ${animal.name}, locations: ${animal.locations.length}`);
         
@@ -938,6 +950,8 @@ function updateStatistics() {
     // Get filter values
     const dateFromInput = document.getElementById('dateFrom');
     const dateToInput = document.getElementById('dateTo');
+    const statusFilterEl = document.getElementById('statusFilter');
+    const statusFilter = statusFilterEl ? statusFilterEl.value : 'all';
     const trackerFilter = document.getElementById('trackerFilter');
     const dateFrom = dateFromInput ? dateFromInput.value : null;
     const dateTo = dateToInput ? dateToInput.value : null;
@@ -984,8 +998,18 @@ function updateStatistics() {
         totalLocationsEl.textContent = filteredLocations.length;
     }
     
-    // Filter animals by selected trackers for statistics
-    const filteredAnimals = animals.filter(a => selectedTrackerIds.includes(a.id));
+    // Filter animals by selected trackers and status for statistics
+    const filteredAnimals = animals.filter(a => {
+        // Filter by tracker selection
+        if (!selectedTrackerIds.includes(a.id)) {
+            return false;
+        }
+        // Filter by status
+        if (statusFilter !== 'all' && a.status !== statusFilter) {
+            return false;
+        }
+        return true;
+    });
     
     // Average update time (only for selected trackers)
     if (filteredAnimals.length > 0) {
@@ -1036,6 +1060,9 @@ function initEventListeners() {
     }
     
     document.getElementById('statusFilter').addEventListener('change', () => {
+        console.log('[statusFilter] Status filter changed, updating map and list');
+        updateMap();
+        updateStatistics();
         renderAnimalList();
     });
     
