@@ -1108,9 +1108,6 @@ function escapeHtml(text) {
 }
 
 /**
- * Show error message
- */
-/**
  * Show data source indicator in the UI
  */
 function showDataSourceIndicator(source, count) {
@@ -1126,6 +1123,9 @@ function showDataSourceIndicator(source, count) {
     }
 }
 
+/**
+ * Show error message
+ */
 function showError(message) {
     console.error(message);
     // Could add a toast notification here
