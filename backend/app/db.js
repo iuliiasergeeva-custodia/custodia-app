@@ -7,17 +7,38 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 // Database connection configuration
-const pool = new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5432,
-    database: process.env.DB_NAME || 'custodia_local',
-    user: process.env.DB_USER || process.env.USER || 'postgres',
-    password: process.env.DB_PASSWORD || '',
-    // Connection pool settings
-    max: 20, // Maximum number of clients in the pool
-    idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-    connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection cannot be established
-});
+// Render provides DATABASE_URL, or use individual connection parameters for local development
+let poolConfig;
+
+if (process.env.DATABASE_URL) {
+    // Use DATABASE_URL (for Render or other cloud providers)
+    // Format: postgresql://user:password@host:port/database
+    poolConfig = {
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        // Connection pool settings
+        max: 20,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 2000,
+    };
+    console.log('📊 Using DATABASE_URL for database connection');
+} else {
+    // Use individual connection parameters (for local development)
+    poolConfig = {
+        host: process.env.DB_HOST || 'localhost',
+        port: process.env.DB_PORT || 5432,
+        database: process.env.DB_NAME || 'custodia_local',
+        user: process.env.DB_USER || process.env.USER || 'postgres',
+        password: process.env.DB_PASSWORD || '',
+        // Connection pool settings
+        max: 20,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 2000,
+    };
+    console.log('📊 Using individual connection parameters for database connection');
+}
+
+const pool = new Pool(poolConfig);
 
 // Test database connection
 pool.on('connect', () => {
