@@ -433,7 +433,7 @@
 .contact-form-container {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 0.75rem;
 }
 
 .contact-info {
@@ -463,11 +463,11 @@
     text-align: center;
     color: var(--text-secondary);
     font-size: 0.9rem;
-    margin-top: 1rem;
+    margin-top: 0.5rem;
 }
 
 .contact-alternative + .contact-alternative {
-    margin-top: 0.25rem;
+    margin-top: 0.2rem;
 }
 
 .contact-alternative a {
