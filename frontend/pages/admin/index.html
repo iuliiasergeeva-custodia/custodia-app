@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custodia Admin Console</title>
+    <link rel="stylesheet" href="/frontend/pages/admin/admin.css">
+</head>
+<body>
+    <div class="admin-app">
+        <header class="admin-header">
+            <h1>Custodia Admin Console</h1>
+            <p class="subtitle">Manage database tables directly from your browser.</p>
+        </header>
+
+        <section class="admin-section">
+            <h2>API Access</h2>
+            <div class="api-key-form">
+                <label for="apiKeyInput">Admin API Key</label>
+                <div class="api-key-input-group">
+                    <input type="password" id="apiKeyInput" placeholder="Enter admin API key">
+                    <button id="toggleApiKey" type="button" aria-label="Show or hide API key">Show</button>
+                </div>
+                <div class="api-key-actions">
+                    <button id="setApiKey" type="button" class="btn primary">Save Key</button>
+                    <span id="apiKeyStatus" class="status-badge">Not set</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="admin-section">
+            <div class="toolbar">
+                <div class="table-selector">
+                    <label for="tableSelect">Table</label>
+                    <select id="tableSelect" disabled>
+                        <option value="">Select a table...</option>
+                    </select>
+                </div>
+                <div class="table-actions">
+                    <button id="refreshTable" type="button" class="btn">Refresh</button>
+                    <button id="createRow" type="button" class="btn primary">New Record</button>
+                </div>
+            </div>
+            <div id="tableMeta" class="table-meta"></div>
+            <div id="feedback" class="feedback" role="status"></div>
+            <div class="table-wrapper">
+                <table id="dataTable">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <template id="rowActionsTemplate">
+        <button class="btn-link edit-row" data-action="edit">Edit</button>
+        <button class="btn-link delete-row" data-action="delete">Delete</button>
+    </template>
+
+    <script src="/frontend/pages/admin/admin.js" type="module"></script>
+</body>
+</html>
+

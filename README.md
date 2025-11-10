@@ -147,7 +147,27 @@ The frontend follows a modular structure:
 
 - `POST /api/contact` - Submit contact form
 - `GET /api/health` - Health check
+- `GET /api/locations` - Fetch tracker locations from PostgreSQL as CSV
+- `POST /api/locations` - Ingest repeater packets (requires `LOCATIONS_API_KEY`)
+- `GET|POST|PUT|DELETE /api/admin/tables/:table` - Admin CRUD endpoints protected by `ADMIN_API_KEY`
 
+## Admin Console
+
+Manage database records directly in the browser via the admin console at `/pages/admin`.
+
+### Prerequisites
+
+- Set `ADMIN_API_KEY` in your `.env` (mirrored in `render.yaml`)
+- Deploy and restart the Render web service so the new key is available
+
+### Using the Console
+
+1. Visit `http://localhost:3000/pages/admin` (or your Render domain).
+2. Enter the admin API key and click **Save Key** (stored in `localStorage`).
+3. Choose a table, review data, and use **Edit**, **Delete**, or **New Record** actions.
+4. JSON prompts allow precise control over writable columns listed in the UI.
+
+> Tip: The console hits `/api/admin/*` endpoints. You can also script these endpoints directly if you prefer CLI automation.
 
 ## Deployment
 
