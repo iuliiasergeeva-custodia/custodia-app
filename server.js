@@ -224,6 +224,7 @@ app.get('/api/locations', async (req, res) => {
                 c.slug as client_slug,
                 t.animal_type,
                 t.animal_name,
+                t.family,
                 t.initial_battery_voltage,
                 l.latitude,
                 l.longitude,
@@ -242,7 +243,7 @@ app.get('/api/locations', async (req, res) => {
         // If no data, return empty CSV with header
         if (result.rows.length === 0) {
             console.warn('⚠️  [DATABASE] No locations found in database. Database may need to be seeded.');
-            const csvHeader = 'tracker_id,client_slug,animal_type,animal_name,latitude,longitude,timestamp,battery_voltage,fix_number\n';
+            const csvHeader = 'tracker_id,client_slug,animal_type,animal_name,family,initial_battery_voltage,latitude,longitude,timestamp,battery_voltage,fix_number\n';
             res.setHeader('Content-Type', 'text/csv');
             res.setHeader('X-Data-Source', 'database');
             res.setHeader('X-Location-Count', '0');
@@ -251,15 +252,16 @@ app.get('/api/locations', async (req, res) => {
         }
         
         // Convert to CSV format (same as mock_locations.csv)
-        const csvHeader = 'tracker_id,client_slug,animal_type,animal_name,initial_battery_voltage,latitude,longitude,timestamp,battery_voltage,fix_number\n';
+        const csvHeader = 'tracker_id,client_slug,animal_type,animal_name,family,initial_battery_voltage,latitude,longitude,timestamp,battery_voltage,fix_number\n';
         const csvRows = result.rows.map(row => {
             // Format timestamp to ISO string
             const timestamp = new Date(row.timestamp).toISOString();
             const clientSlug = row.client_slug || 'unknown';
             const animalType = row.animal_type || '';
             const animalName = row.animal_name || '';
+            const family = row.family || '';
             const initialBatteryVoltage = row.initial_battery_voltage || '';
-            return `${row.tracker_id},${clientSlug},${animalType},${animalName},${initialBatteryVoltage},${row.latitude},${row.longitude},${timestamp},${row.battery_voltage || ''},${row.fix_number || ''}`;
+            return `${row.tracker_id},${clientSlug},${animalType},${animalName},${family},${initialBatteryVoltage},${row.latitude},${row.longitude},${timestamp},${row.battery_voltage || ''},${row.fix_number || ''}`;
         }).join('\n');
         
         // Add header to response to identify data source
@@ -311,7 +313,7 @@ app.get('/api/mock-locations', (req, res) => {
     if (!fs.existsSync(csvPath)) {
         console.warn('⚠️  [CSV] Mock CSV file not found:', csvPath);
         // Return empty CSV with header instead of 404
-        const csvHeader = 'tracker_id,client_slug,animal_type,animal_name,latitude,longitude,timestamp,battery_voltage,fix_number\n';
+        const csvHeader = 'tracker_id,client_slug,animal_type,animal_name,family,initial_battery_voltage,latitude,longitude,timestamp,battery_voltage,fix_number\n';
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('X-Data-Source', 'csv-file');
         res.setHeader('X-Location-Count', '0');

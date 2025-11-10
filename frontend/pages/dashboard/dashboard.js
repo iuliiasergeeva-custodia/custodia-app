@@ -172,6 +172,7 @@ async function loadMockData() {
         
         // Populate tracker filter (MUST be called before updateMap/updateStatistics)
         populateTrackerFilter();
+        populateAttributeFilters();
         
         // Ensure trackerFilter.selectedTrackerIds is set before calling updateMap
         const trackerFilterEl = document.getElementById('trackerFilter');
@@ -239,13 +240,16 @@ function processLocations(locations) {
         // Use new column names: tracker_id, animal_name, animal_type, battery_voltage
         const trackerId = location.tracker_id || location.trackerId || 'unknown';
         const animalName = location.animal_name || location.name || `Tracker ${trackerId}`;
+        const familyValue = normalizeAttribute(location.family || location.family_name || location.group);
+        const typeValue = normalizeAttribute(location.animal_type || location.type);
         const initialBatteryVoltage = location.initial_battery_voltage ? parseFloat(location.initial_battery_voltage) : null;
         
         if (!animalMap.has(trackerId)) {
             animalMap.set(trackerId, {
                 id: trackerId,
                 name: animalName,
-                type: location.animal_type || location.type || 'Unknown',
+                type: typeValue,
+                family: familyValue,
                 locations: [],
                 lastUpdate: null,
                 batteryVoltage: null,
@@ -260,6 +264,8 @@ function processLocations(locations) {
         const lat = parseFloat(location.latitude || location.lat);
         const lng = parseFloat(location.longitude || location.lng || location.lon);
         const batteryVoltage = location.battery_voltage ? parseFloat(location.battery_voltage) : null;
+        const family = normalizeAttribute(location.family || location.family_name || location.group || animal.family);
+        const type = normalizeAttribute(location.animal_type || location.type || animal.type);
         
         if (!isNaN(lat) && !isNaN(lng)) {
             animal.locations.push({
@@ -276,6 +282,8 @@ function processLocations(locations) {
                 animal.batteryVoltage = batteryVoltage;
                 animal.initialBatteryVoltage = initialBatteryVoltage || animal.initialBatteryVoltage || batteryVoltage;
                 animal.batteryPercent = calculateBatteryPercentage(animal.batteryVoltage, animal.initialBatteryVoltage);
+                animal.family = family || animal.family || 'Unknown';
+                animal.type = type || animal.type || 'Unknown';
             }
         }
     });
@@ -396,6 +404,65 @@ function populateTrackerFilter() {
     
     console.log(`Tracker filter populated with ${sortedAnimals.length} trackers, all selected by default`);
     console.log('Selected tracker IDs:', Array.from(selectedTrackerIds));
+}
+
+function populateAttributeFilters() {
+    const typeFilter = document.getElementById('typeFilter');
+    const familyFilter = document.getElementById('familyFilter');
+    if (!typeFilter || !familyFilter) {
+        return;
+    }
+
+    const previousType = typeFilter.value || 'all';
+    const previousFamily = familyFilter.value || 'all';
+
+    const typeValues = new Set();
+    const familyValues = new Set();
+
+    animals.forEach(animal => {
+        typeValues.add(normalizeAttribute(animal.type));
+        familyValues.add(normalizeAttribute(animal.family));
+    });
+
+    const sortedTypes = sortFilterValues(Array.from(typeValues));
+    const sortedFamilies = sortFilterValues(Array.from(familyValues));
+
+    populateFilterSelect(typeFilter, sortedTypes, 'All Types', previousType);
+    populateFilterSelect(familyFilter, sortedFamilies, 'All Families', previousFamily);
+}
+
+function sortFilterValues(values) {
+    return values.sort((a, b) => {
+        if (a === 'Unknown') return 1;
+        if (b === 'Unknown') return -1;
+        return a.localeCompare(b, undefined, { sensitivity: 'base' });
+    });
+}
+
+function populateFilterSelect(selectEl, values, allLabel, previousValue) {
+    const currentSelection = previousValue || 'all';
+
+    while (selectEl.firstChild) {
+        selectEl.removeChild(selectEl.firstChild);
+    }
+
+    const allOption = document.createElement('option');
+    allOption.value = 'all';
+    allOption.textContent = allLabel;
+    selectEl.appendChild(allOption);
+
+    values.forEach(value => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        selectEl.appendChild(option);
+    });
+
+    if (currentSelection !== 'all' && values.includes(currentSelection)) {
+        selectEl.value = currentSelection;
+    } else {
+        selectEl.value = 'all';
+    }
 }
 
 /**
@@ -533,9 +600,7 @@ function renderAnimalList() {
         return;
     }
     
-    // Filter animals based on status and selected trackers
-    const statusFilterEl = document.getElementById('statusFilter');
-    const statusFilter = statusFilterEl ? statusFilterEl.value : 'all';
+    const { status, type, family } = getFilterSelections();
     
     // Get selected trackers from tracker filter
     const trackerFilterList = document.getElementById('trackerFilter');
@@ -547,17 +612,12 @@ function renderAnimalList() {
     }
     
     // Filter animals based on status and selected trackers
-    const filteredAnimals = animals.filter(animal => {
-        // Filter by selected trackers
-        if (!selectedTrackerIds.includes(animal.id)) {
-            return false;
-        }
-        // Filter by status
-        if (statusFilter !== 'all') {
-            return animal.status === statusFilter;
-        }
-        return true;
-    });
+    const filteredAnimals = animals.filter(animal => 
+        selectedTrackerIds.includes(animal.id) &&
+        (status === 'all' || animal.status === status) &&
+        matchesFilter(animal.type, type) &&
+        matchesFilter(animal.family, family)
+    );
     
     // Render animal list
     if (filteredAnimals.length === 0) {
@@ -585,7 +645,11 @@ function renderAnimalList() {
                 <div class="animal-details">
                     <div class="animal-details-row">
                         <span class="animal-details-label">Type:</span>
-                        <span>${escapeHtml(animal.type)}</span>
+                        <span>${escapeHtml(normalizeAttribute(animal.type))}</span>
+                    </div>
+                    <div class="animal-details-row">
+                        <span class="animal-details-label">Family:</span>
+                        <span>${escapeHtml(normalizeAttribute(animal.family))}</span>
                     </div>
                     <div class="animal-details-row">
                         <span class="animal-details-label">Last Update:</span>
@@ -769,12 +833,11 @@ function updateMap() {
     const dateFromInput = document.getElementById('dateFrom');
     const dateToInput = document.getElementById('dateTo');
     const trackerFilter = document.getElementById('trackerFilter');
-    const statusFilterEl = document.getElementById('statusFilter');
+    const { status: statusFilter, type: typeFilter, family: familyFilter } = getFilterSelections();
     const visualizationModeSelect = document.getElementById('visualizationMode');
     
     // Get status filter value
-    const statusFilter = statusFilterEl ? statusFilterEl.value : 'all';
-    console.log('[updateMap] Status filter:', statusFilter);
+    console.log('[updateMap] Filters:', { statusFilter, typeFilter, familyFilter });
     const dateFrom = dateFromInput ? dateFromInput.value : null;
     const dateTo = dateToInput ? dateToInput.value : null;
     const visualizationMode = visualizationModeSelect ? visualizationModeSelect.value : 'markers';
@@ -843,6 +906,18 @@ function updateMap() {
             skippedCount++;
             console.log(`[updateMap] SKIPPING ${animal.id} (${animal.name}) - Status ${animal.status} doesn't match filter ${statusFilter}`);
             return; // Skip this animal if status doesn't match
+        }
+
+        if (!matchesFilter(animal.type, typeFilter)) {
+            skippedCount++;
+            console.log(`[updateMap] SKIPPING ${animal.id} (${animal.name}) - Type ${animal.type} doesn't match filter ${typeFilter}`);
+            return;
+        }
+
+        if (!matchesFilter(animal.family, familyFilter)) {
+            skippedCount++;
+            console.log(`[updateMap] SKIPPING ${animal.id} (${animal.name}) - Family ${animal.family} doesn't match filter ${familyFilter}`);
+            return;
         }
         
         console.log(`[updateMap] INCLUDING ${animal.id} (${animal.name}) - IS in selected list and matches status filter`);
@@ -978,96 +1053,115 @@ function centerMapOnAnimals() {
  * Update statistics (filtered by date range)
  */
 function updateStatistics() {
-    // Get filter values
     const dateFromInput = document.getElementById('dateFrom');
     const dateToInput = document.getElementById('dateTo');
-    const statusFilterEl = document.getElementById('statusFilter');
-    const statusFilter = statusFilterEl ? statusFilterEl.value : 'all';
-    const trackerFilter = document.getElementById('trackerFilter');
+    const { status, type, family } = getFilterSelections();
     const dateFrom = dateFromInput ? dateFromInput.value : null;
     const dateTo = dateToInput ? dateToInput.value : null;
-    
-    // Get selected tracker IDs from custom filter
+    const avgUpdateEl = document.getElementById('avgUpdateTime');
+    const avgBatteryEl = document.getElementById('avgBattery');
+    const alertsEl = document.getElementById('alertsCount');
+
     const trackerFilterList = document.getElementById('trackerFilter');
-    const selectedTrackerIds = trackerFilterList && trackerFilterList.selectedTrackerIds ? 
-        Array.from(trackerFilterList.selectedTrackerIds) : 
+    const selectedTrackerIds = trackerFilterList && trackerFilterList.selectedTrackerIds ?
+        Array.from(trackerFilterList.selectedTrackerIds) :
         animals.map(a => a.id);
-    
-    // Filter locations by tracker and date range for statistics
-    let filteredLocations = locations.filter(loc => {
-        // Filter by tracker_id
-        const trackerId = loc.tracker_id || loc.trackerId || loc.animal_id || loc.animalId;
+
+    const animalsById = new Map(animals.map(a => [a.id, a]));
+
+    const filteredLocations = locations.filter(loc => {
+        const trackerId = (loc.tracker_id || loc.trackerId || loc.animal_id || loc.animalId || '').toString();
         if (trackerId && !selectedTrackerIds.includes(trackerId)) {
             return false;
         }
-        
-        // Filter by date range
+
+        const animal = animalsById.get(trackerId);
+        if (!animal) {
+            return false;
+        }
+
+        if (status !== 'all' && animal.status !== status) {
+            return false;
+        }
+
+        if (!matchesFilter(animal.type, type) || !matchesFilter(animal.family, family)) {
+            return false;
+        }
+
         const timestamp = loc.timestamp || loc.time;
         if (!timestamp) return false;
-        
+
         const locDate = new Date(timestamp);
         if (isNaN(locDate.getTime())) return false;
-        
+
         if (dateFrom) {
             const fromDate = new Date(dateFrom);
             fromDate.setHours(0, 0, 0, 0);
             if (locDate < fromDate) return false;
         }
-        
+
         if (dateTo) {
             const toDate = new Date(dateTo);
             toDate.setHours(23, 59, 59, 999);
             if (locDate > toDate) return false;
         }
-        
+
         return true;
     });
-    
-    // Total locations (filtered)
+
     const totalLocationsEl = document.getElementById('totalLocations');
     if (totalLocationsEl) {
         totalLocationsEl.textContent = filteredLocations.length;
     }
-    
-    // Filter animals by selected trackers and status for statistics
-    const filteredAnimals = animals.filter(a => {
-        // Filter by tracker selection
-        if (!selectedTrackerIds.includes(a.id)) {
-            return false;
-        }
-        // Filter by status
-        if (statusFilter !== 'all' && a.status !== statusFilter) {
-            return false;
-        }
-        return true;
-    });
-    
-    // Average update time (only for selected trackers)
+
+    const filteredAnimals = animals.filter(animal =>
+        selectedTrackerIds.includes(animal.id) &&
+        (status === 'all' || animal.status === status) &&
+        matchesFilter(animal.type, type) &&
+        matchesFilter(animal.family, family)
+    );
+
     if (filteredAnimals.length > 0) {
         const now = new Date();
         const updateTimes = filteredAnimals
             .filter(a => a.lastUpdate)
             .map(a => now - new Date(a.lastUpdate));
-        
+
         if (updateTimes.length > 0) {
             const avgMs = updateTimes.reduce((a, b) => a + b, 0) / updateTimes.length;
-            document.getElementById('avgUpdateTime').textContent = formatTimeAgo(avgMs);
+            if (avgUpdateEl) {
+                avgUpdateEl.textContent = formatTimeAgo(avgMs);
+            }
+        } else {
+            if (avgUpdateEl) {
+                avgUpdateEl.textContent = '--';
+            }
+        }
+    } else {
+        if (avgUpdateEl) {
+            avgUpdateEl.textContent = '--';
         }
     }
-    
-    // Average battery (only for selected trackers)
+
     const batteries = filteredAnimals
-        .map(a => a.battery)
-        .filter(b => b !== null);
-    
+        .map(a => a.batteryPercent)
+        .filter(b => b !== null && !Number.isNaN(b));
+
     if (batteries.length > 0) {
         const avg = Math.round(batteries.reduce((a, b) => a + b, 0) / batteries.length);
-        document.getElementById('avgBattery').textContent = `${avg}%`;
+        if (avgBatteryEl) {
+            avgBatteryEl.textContent = `${avg}%`;
+        }
+    } else {
+        if (avgBatteryEl) {
+            avgBatteryEl.textContent = 'N/A';
+        }
     }
-    
-    // Alerts count (only for selected trackers)
+
     const alertsCount = filteredAnimals.filter(a => a.status === 'alert').length;
-    document.getElementById('alertsCount').textContent = alertsCount;
+    if (alertsEl) {
+        alertsEl.textContent = alertsCount;
+    }
 }
 
 
@@ -1090,11 +1184,16 @@ function initEventListeners() {
         toggleAllBtn.addEventListener('click', toggleAllTrackers);
     }
     
-    document.getElementById('statusFilter').addEventListener('change', () => {
-        console.log('[statusFilter] Status filter changed, updating map and list');
-        updateMap();
-        updateStatistics();
-        renderAnimalList();
+    ['statusFilter', 'typeFilter', 'familyFilter'].forEach(filterId => {
+        const filterEl = document.getElementById(filterId);
+        if (filterEl) {
+            filterEl.addEventListener('change', () => {
+                console.log(`[${filterId}] Filter changed, updating views`);
+                updateMap();
+                updateStatistics();
+                renderAnimalList();
+            });
+        }
     });
     
     // Date filter listeners
@@ -1216,9 +1315,10 @@ function renderMarkersOnly(animal, sortedLocations, iconColor) {
             .addTo(map)
             .bindPopup(`
                 <strong>${escapeHtml(animal.name)}</strong><br>
-                Type: ${escapeHtml(animal.type)}<br>
+                Type: ${escapeHtml(normalizeAttribute(animal.type))}<br>
+                Family: ${escapeHtml(normalizeAttribute(animal.family))}<br>
                 Time: ${formatTime(new Date(location.timestamp))}<br>
-                        Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}<br>
+                Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}<br>
                 Location ${index + 1} of ${sortedLocations.length}
             `);
         
@@ -1256,9 +1356,10 @@ function renderPath(animal, sortedLocations, iconColor) {
             .addTo(map)
             .bindPopup(`
                 <strong>${escapeHtml(animal.name)}</strong><br>
-                Type: ${escapeHtml(animal.type)}<br>
+                Type: ${escapeHtml(normalizeAttribute(animal.type))}<br>
+                Family: ${escapeHtml(normalizeAttribute(animal.family))}<br>
                 Time: ${formatTime(new Date(location.timestamp))}<br>
-                        Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}<br>
+                Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}<br>
                 Location ${index + 1} of ${sortedLocations.length}
             `);
         
@@ -1311,9 +1412,10 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
             .addTo(map)
             .bindPopup(`
                 <strong>${escapeHtml(animal.name)}</strong><br>
-                Type: ${escapeHtml(animal.type)}<br>
+                Type: ${escapeHtml(normalizeAttribute(animal.type))}<br>
+                Family: ${escapeHtml(normalizeAttribute(animal.family))}<br>
                 Time: ${formatTime(new Date(location.timestamp))}<br>
-                        Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}<br>
+                Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}<br>
                 Location ${index + 1} of ${sortedLocations.length}
             `);
         
@@ -1485,6 +1587,28 @@ function formatBattery(currentVoltage, percentage) {
         return voltageText;
     }
     return `${voltageText} (${percentage}%)`;
+}
+
+function normalizeAttribute(value) {
+    if (value === undefined || value === null) {
+        return 'Unknown';
+    }
+    const trimmed = String(value).trim();
+    return trimmed.length > 0 ? trimmed : 'Unknown';
+}
+
+function matchesFilter(value, filterValue) {
+    if (!filterValue || filterValue === 'all') {
+        return true;
+    }
+    return normalizeAttribute(value) === filterValue;
+}
+
+function getFilterSelections() {
+    const status = document.getElementById('statusFilter')?.value || 'all';
+    const type = document.getElementById('typeFilter')?.value || 'all';
+    const family = document.getElementById('familyFilter')?.value || 'all';
+    return { status, type, family };
 }
 
 /**

@@ -130,6 +130,43 @@ await db.testConnection();
 - **repeaters** - Edge devices forwarding tracker packets
 - **locations** - GPS location data from trackers
 
+### Field Glossary
+
+**trackers**
+
+| Field | Type / Unit | Description |
+|-------|-------------|-------------|
+| `slug` | text | Human-friendly tracker identifier (e.g. `trk_001`). |
+| `animal_type` | text | Species or category (Leopard, Oryx, etc.). |
+| `animal_name` | text | Individual animal name / label. |
+| `family` | text | Optional taxonomic grouping or herd identifier. |
+| `expected_battery_life` | days (integer) | Estimated battery lifespan under typical duty cycle. |
+| `frequency_acquisition` | minutes (integer) | How often the tracker acquires a GPS fix. |
+| `frequency_sending` | minutes (integer) | How often the tracker transmits collected fixes to the network. |
+| `last_seen` | timestamp (UTC) | Time of the latest packet attributed to this tracker. |
+| `last_battery_voltage` | volts (decimal) | Battery voltage from the most recent packet. |
+| `initial_battery_voltage` | volts (decimal) | Baseline “full” battery voltage used to estimate remaining percentage. |
+| `created_at` | timestamp | Record creation time (defaults to `NOW()`). |
+
+**repeaters**
+
+| Field | Type / Unit | Description |
+|-------|-------------|-------------|
+| `repeater_id` | text | Unique repeater identifier supplied by ingestion payloads (e.g. `RPT-001`). |
+| `last_seen` | timestamp (UTC) | Latest time this repeater forwarded any tracker packets. |
+
+**locations**
+
+| Field | Type / Unit | Description |
+|-------|-------------|-------------|
+| `tracker_id` | FK | Reference to the tracker that generated the fix. |
+| `repeater_id` | FK (nullable) | Repeater that forwarded the fix (when known). |
+| `longitude` / `latitude` | decimal degrees | Position with 6-decimal precision. |
+| `timestamp` | timestamp (UTC) | When the fix was recorded by the tracker. |
+| `battery_voltage` | volts (decimal) | Battery level reported for that fix. |
+| `fix_number` | integer | Sequential fix counter per tracker (auto-generated if absent). |
+| `created_at` | timestamp | Insert time in the database (defaults to `NOW()`). |
+
 ## Seed Data
 
 The seed data includes:
