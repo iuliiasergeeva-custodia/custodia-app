@@ -16,7 +16,7 @@ FROM users u
 JOIN clients c ON u.client_id = c.id;
 
 -- Get all trackers with their client info
-SELECT t.id, t.slug, t.animal_name, t.animal_type, t.family, c.name as client_name
+SELECT t.id, t.slug, t.animal_name, t.animal_type, t.family, t.initial_battery_voltage, c.name as client_name
 FROM trackers t
 JOIN clients c ON t.client_id = c.id;
 

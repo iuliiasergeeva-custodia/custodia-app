@@ -69,7 +69,7 @@ async function findOrCreateTracker(client, trackerSlug, packetTimestamp, battery
 
     const altSlug = normalized.toLowerCase();
     const result = await client.query(
-        `SELECT id, slug, client_id FROM trackers WHERE slug = $1 OR slug = $2 LIMIT 1`,
+        `SELECT id, slug, client_id, initial_battery_voltage FROM trackers WHERE slug = $1 OR slug = $2 LIMIT 1`,
         [normalized, altSlug]
     );
 
@@ -79,6 +79,12 @@ async function findOrCreateTracker(client, trackerSlug, packetTimestamp, battery
             await client.query(
                 `UPDATE trackers SET client_id = $1 WHERE id = $2`,
                 [defaultClientId, result.rows[0].id]
+            );
+        }
+        if (batteryVoltage !== undefined && batteryVoltage !== null && result.rows[0].initial_battery_voltage === null) {
+            await client.query(
+                `UPDATE trackers SET initial_battery_voltage = $1 WHERE id = $2`,
+                [batteryVoltage, result.rows[0].id]
             );
         }
         return {
@@ -91,10 +97,10 @@ async function findOrCreateTracker(client, trackerSlug, packetTimestamp, battery
     const defaultClientId = await getDefaultClientId(client);
 
     const insertResult = await client.query(
-        `INSERT INTO trackers (client_id, slug, last_seen, last_battery_voltage)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO trackers (client_id, slug, last_seen, last_battery_voltage, initial_battery_voltage)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING id, slug`,
-        [defaultClientId, normalized, packetTimestamp, batteryVoltage]
+        [defaultClientId, normalized, packetTimestamp, batteryVoltage, batteryVoltage]
     );
 
     return {
@@ -304,9 +310,10 @@ module.exports = async function ingestLocations(req, res) {
                 await client.query(
                     `UPDATE trackers
                      SET last_seen = $1,
-                         last_battery_voltage = $2
+                         last_battery_voltage = $2,
+                         initial_battery_voltage = COALESCE(initial_battery_voltage, $4)
                      WHERE id = $3`,
-                    [packet.timestamp_utc, packet.battery_voltage, trackerInfo.id]
+                    [packet.timestamp_utc, packet.battery_voltage, trackerInfo.id, packet.battery_voltage]
                 );
                 updatedTrackerIds.add(trackerInfo.id);
             }

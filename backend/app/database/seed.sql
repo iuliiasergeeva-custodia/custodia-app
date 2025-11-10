@@ -26,12 +26,12 @@ INSERT INTO users (client_id, name, email, password_hash, role) VALUES
 -- ==============================
 -- INSERT TRACKERS
 -- ==============================
-INSERT INTO trackers (client_id, slug, animal_type, animal_name, family, expected_battery_life, frequency_acquisition, frequency_sending) VALUES
-(1, 'trk_001', 'Leopard', 'Leopard Alpha', 'Big Cat', 365, 15, 60),
-(1, 'trk_002', 'Oryx', 'Oryx Beta', 'Antelope', 365, 15, 60),
-(1, 'trk_003', 'Leopard', 'Leopard Gamma', 'Big Cat', 365, 15, 60),
-(1, 'trk_004', 'Leopard', 'Leopard Delta', 'Big Cat', 365, 15, 60),
-(1, 'trk_005', 'Oryx', 'Oryx Epsilon', 'Antelope', 365, 15, 60);
+INSERT INTO trackers (client_id, slug, animal_type, animal_name, family, expected_battery_life, frequency_acquisition, frequency_sending, initial_battery_voltage) VALUES
+(1, 'trk_001', 'Leopard', 'Leopard Alpha', 'Big Cat', 365, 15, 60, 4.20),
+(1, 'trk_002', 'Oryx', 'Oryx Beta', 'Antelope', 365, 15, 60, 4.20),
+(1, 'trk_003', 'Leopard', 'Leopard Gamma', 'Big Cat', 365, 15, 60, 4.20),
+(1, 'trk_004', 'Leopard', 'Leopard Delta', 'Big Cat', 365, 15, 60, 4.20),
+(1, 'trk_005', 'Oryx', 'Oryx Epsilon', 'Antelope', 365, 15, 60, 4.20);
 
 -- ==============================
 -- INSERT LOCATIONS

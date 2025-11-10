@@ -224,6 +224,7 @@ app.get('/api/locations', async (req, res) => {
                 c.slug as client_slug,
                 t.animal_type,
                 t.animal_name,
+                t.initial_battery_voltage,
                 l.latitude,
                 l.longitude,
                 l.timestamp,
@@ -250,14 +251,15 @@ app.get('/api/locations', async (req, res) => {
         }
         
         // Convert to CSV format (same as mock_locations.csv)
-        const csvHeader = 'tracker_id,client_slug,animal_type,animal_name,latitude,longitude,timestamp,battery_voltage,fix_number\n';
+        const csvHeader = 'tracker_id,client_slug,animal_type,animal_name,initial_battery_voltage,latitude,longitude,timestamp,battery_voltage,fix_number\n';
         const csvRows = result.rows.map(row => {
             // Format timestamp to ISO string
             const timestamp = new Date(row.timestamp).toISOString();
             const clientSlug = row.client_slug || 'unknown';
             const animalType = row.animal_type || '';
             const animalName = row.animal_name || '';
-            return `${row.tracker_id},${clientSlug},${animalType},${animalName},${row.latitude},${row.longitude},${timestamp},${row.battery_voltage || ''},${row.fix_number || ''}`;
+            const initialBatteryVoltage = row.initial_battery_voltage || '';
+            return `${row.tracker_id},${clientSlug},${animalType},${animalName},${initialBatteryVoltage},${row.latitude},${row.longitude},${timestamp},${row.battery_voltage || ''},${row.fix_number || ''}`;
         }).join('\n');
         
         // Add header to response to identify data source

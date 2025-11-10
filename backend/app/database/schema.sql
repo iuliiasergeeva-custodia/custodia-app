@@ -40,6 +40,7 @@ CREATE TABLE trackers (
     frequency_sending INTEGER,
     last_seen TIMESTAMP,
     last_battery_voltage DECIMAL(5,2),
+    initial_battery_voltage DECIMAL(5,2),
     created_at TIMESTAMP DEFAULT NOW()
 );
 

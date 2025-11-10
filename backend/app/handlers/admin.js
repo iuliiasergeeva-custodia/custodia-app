@@ -30,6 +30,7 @@ const TABLE_CONFIG = {
             'frequency_sending',
             'last_seen',
             'last_battery_voltage',
+            'initial_battery_voltage',
             'created_at',
         ],
         writable: [
@@ -43,6 +44,7 @@ const TABLE_CONFIG = {
             'frequency_sending',
             'last_seen',
             'last_battery_voltage',
+            'initial_battery_voltage',
         ],
     },
     repeaters: {

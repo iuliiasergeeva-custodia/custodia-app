@@ -76,6 +76,12 @@ If your database was created before the repeaters feature, run the migration:
 psql $DATABASE_URL < backend/app/database/migrations/20241109_add_repeaters_and_tracker_updates.sql
 ```
 
+If your database existed before battery initialization was added, run:
+
+```bash
+psql $DATABASE_URL < backend/app/database/migrations/20241110_add_initial_battery_voltage.sql
+```
+
 Or test the connection from Node.js:
 
 ```bash

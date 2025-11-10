@@ -239,6 +239,7 @@ function processLocations(locations) {
         // Use new column names: tracker_id, animal_name, animal_type, battery_voltage
         const trackerId = location.tracker_id || location.trackerId || 'unknown';
         const animalName = location.animal_name || location.name || `Tracker ${trackerId}`;
+        const initialBatteryVoltage = location.initial_battery_voltage ? parseFloat(location.initial_battery_voltage) : null;
         
         if (!animalMap.has(trackerId)) {
             animalMap.set(trackerId, {
@@ -247,7 +248,9 @@ function processLocations(locations) {
                 type: location.animal_type || location.type || 'Unknown',
                 locations: [],
                 lastUpdate: null,
-                battery: null,
+                batteryVoltage: null,
+                batteryPercent: null,
+                initialBatteryVoltage,
                 status: 'active'
             });
         }
@@ -256,20 +259,23 @@ function processLocations(locations) {
         const timestamp = location.timestamp || location.time || new Date().toISOString();
         const lat = parseFloat(location.latitude || location.lat);
         const lng = parseFloat(location.longitude || location.lng || location.lon);
+        const batteryVoltage = location.battery_voltage ? parseFloat(location.battery_voltage) : null;
         
         if (!isNaN(lat) && !isNaN(lng)) {
             animal.locations.push({
                 lat,
                 lng,
                 timestamp,
-                battery: location.battery_voltage ? parseInt(location.battery_voltage) : null,
+                batteryVoltage,
                 fix_number: location.fix_number ? parseInt(location.fix_number) : null
             });
             
             // Update last update time
             if (!animal.lastUpdate || new Date(timestamp) > new Date(animal.lastUpdate)) {
                 animal.lastUpdate = timestamp;
-                animal.battery = location.battery_voltage ? parseInt(location.battery_voltage) : animal.battery;
+                animal.batteryVoltage = batteryVoltage;
+                animal.initialBatteryVoltage = initialBatteryVoltage || animal.initialBatteryVoltage || batteryVoltage;
+                animal.batteryPercent = calculateBatteryPercentage(animal.batteryVoltage, animal.initialBatteryVoltage);
             }
         }
     });
@@ -564,9 +570,7 @@ function renderAnimalList() {
             ? formatTime(new Date(animal.lastUpdate))
             : 'Never';
         
-        const batteryText = animal.battery !== null 
-            ? `${animal.battery}%`
-            : 'N/A';
+        const batteryText = formatBattery(animal.batteryVoltage, animal.batteryPercent);
         
         // Get status hint text
         const statusHint = getStatusHint(animal);
@@ -1214,7 +1218,7 @@ function renderMarkersOnly(animal, sortedLocations, iconColor) {
                 <strong>${escapeHtml(animal.name)}</strong><br>
                 Type: ${escapeHtml(animal.type)}<br>
                 Time: ${formatTime(new Date(location.timestamp))}<br>
-                Battery: ${location.battery !== null ? location.battery + '%' : 'N/A'}<br>
+                        Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}<br>
                 Location ${index + 1} of ${sortedLocations.length}
             `);
         
@@ -1254,7 +1258,7 @@ function renderPath(animal, sortedLocations, iconColor) {
                 <strong>${escapeHtml(animal.name)}</strong><br>
                 Type: ${escapeHtml(animal.type)}<br>
                 Time: ${formatTime(new Date(location.timestamp))}<br>
-                Battery: ${location.battery !== null ? location.battery + '%' : 'N/A'}<br>
+                        Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}<br>
                 Location ${index + 1} of ${sortedLocations.length}
             `);
         
@@ -1309,7 +1313,7 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
                 <strong>${escapeHtml(animal.name)}</strong><br>
                 Type: ${escapeHtml(animal.type)}<br>
                 Time: ${formatTime(new Date(location.timestamp))}<br>
-                Battery: ${location.battery !== null ? location.battery + '%' : 'N/A'}<br>
+                        Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}<br>
                 Location ${index + 1} of ${sortedLocations.length}
             `);
         
@@ -1455,6 +1459,35 @@ function hashCode(str) {
 }
 
 /**
+ * Calculate battery percentage based on current and initial voltages
+ */
+function calculateBatteryPercentage(currentVoltage, initialVoltage) {
+    if (currentVoltage === null || currentVoltage === undefined) {
+        return null;
+    }
+    const initial = initialVoltage || currentVoltage;
+    if (!initial || initial <= 0) {
+        return null;
+    }
+    const percentage = (currentVoltage / initial) * 100;
+    return Math.max(0, Math.min(100, Math.round(percentage)));
+}
+
+/**
+ * Format battery display string showing voltage and percentage (if available)
+ */
+function formatBattery(currentVoltage, percentage) {
+    if (currentVoltage === null || currentVoltage === undefined) {
+        return 'N/A';
+    }
+    const voltageText = `${currentVoltage.toFixed(2)}V`;
+    if (percentage === null || Number.isNaN(percentage)) {
+        return voltageText;
+    }
+    return `${voltageText} (${percentage}%)`;
+}
+
+/**
  * Calculate animal status based on battery level and last update time
  * Returns: 'active', 'inactive', or 'alert'
  */
@@ -1471,7 +1504,7 @@ function calculateAnimalStatus(animal) {
     const hoursSinceUpdate = (now - lastUpdateTime) / (1000 * 60 * 60);
     
     // Check battery level
-    const batteryLevel = animal.battery;
+    const batteryLevel = animal.batteryPercent;
     
     // Alert conditions:
     // 1. Battery is low (< 20%)
@@ -1502,7 +1535,7 @@ function calculateAnimalStatus(animal) {
 function getStatusHint(animal) {
     const now = new Date();
     const lastUpdateTime = animal.lastUpdate ? new Date(animal.lastUpdate) : null;
-    const batteryLevel = animal.battery;
+    const batteryLevel = animal.batteryPercent;
     
     if (animal.status === 'alert') {
         let reasons = [];
