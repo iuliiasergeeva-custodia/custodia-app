@@ -43,6 +43,32 @@ function normalizeNumber(value) {
     return Number.isFinite(num) ? num : null;
 }
 
+async function getDefaultClientId(client) {
+    const preferred = await client.query(
+        `SELECT id FROM clients WHERE slug = $1 LIMIT 1`,
+        ['custodia']
+    );
+    if (preferred.rowCount > 0) {
+        return preferred.rows[0].id;
+    }
+
+    const anyClient = await client.query(
+        `SELECT id FROM clients ORDER BY id LIMIT 1`
+    );
+    if (anyClient.rowCount > 0) {
+        return anyClient.rows[0].id;
+    }
+
+    const inserted = await client.query(
+        `INSERT INTO clients (name, slug)
+         VALUES ($1, $2)
+         ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
+         RETURNING id`,
+        ['Default Client', 'default-client']
+    );
+    return inserted.rows[0].id;
+}
+
 async function findOrCreateTracker(client, trackerSlug, packetTimestamp, batteryVoltage) {
     const normalized = normalizeTrackerSlug(trackerSlug);
     if (!normalized) {
@@ -51,11 +77,18 @@ async function findOrCreateTracker(client, trackerSlug, packetTimestamp, battery
 
     const altSlug = normalized.toLowerCase();
     const result = await client.query(
-        `SELECT id, slug FROM trackers WHERE slug = $1 OR slug = $2 LIMIT 1`,
+        `SELECT id, slug, client_id FROM trackers WHERE slug = $1 OR slug = $2 LIMIT 1`,
         [normalized, altSlug]
     );
 
     if (result.rowCount > 0) {
+        if (!result.rows[0].client_id) {
+            const defaultClientId = await getDefaultClientId(client);
+            await client.query(
+                `UPDATE trackers SET client_id = $1 WHERE id = $2`,
+                [defaultClientId, result.rows[0].id]
+            );
+        }
         return {
             id: result.rows[0].id,
             slug: result.rows[0].slug,
@@ -63,11 +96,13 @@ async function findOrCreateTracker(client, trackerSlug, packetTimestamp, battery
         };
     }
 
+    const defaultClientId = await getDefaultClientId(client);
+
     const insertResult = await client.query(
         `INSERT INTO trackers (client_id, slug, last_seen, last_battery_voltage)
          VALUES ($1, $2, $3, $4)
          RETURNING id, slug`,
-        [null, normalized, packetTimestamp, batteryVoltage]
+        [defaultClientId, normalized, packetTimestamp, batteryVoltage]
     );
 
     return {

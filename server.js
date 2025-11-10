@@ -229,7 +229,7 @@ app.get('/api/locations', async (req, res) => {
                 l.fix_number
             FROM locations l
             JOIN trackers t ON l.tracker_id = t.id
-            JOIN clients c ON t.client_id = c.id
+            LEFT JOIN clients c ON t.client_id = c.id
             ORDER BY l.timestamp ASC
         `;
         
@@ -252,7 +252,10 @@ app.get('/api/locations', async (req, res) => {
         const csvRows = result.rows.map(row => {
             // Format timestamp to ISO string
             const timestamp = new Date(row.timestamp).toISOString();
-            return `${row.tracker_id},${row.client_slug},${row.animal_type},${row.animal_name},${row.latitude},${row.longitude},${timestamp},${row.battery_voltage || ''},${row.fix_number || ''}`;
+            const clientSlug = row.client_slug || 'unknown';
+            const animalType = row.animal_type || '';
+            const animalName = row.animal_name || '';
+            return `${row.tracker_id},${clientSlug},${animalType},${animalName},${row.latitude},${row.longitude},${timestamp},${row.battery_voltage || ''},${row.fix_number || ''}`;
         }).join('\n');
         
         // Add header to response to identify data source
