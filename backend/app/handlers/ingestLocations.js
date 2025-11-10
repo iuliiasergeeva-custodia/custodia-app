@@ -20,14 +20,6 @@ function extractApiKey(req) {
     return authHeader.trim();
 }
 
-function isIsoTimestamp(value) {
-    if (typeof value !== 'string' || value.trim() === '') {
-        return false;
-    }
-    const parsed = Date.parse(value);
-    return !Number.isNaN(parsed);
-}
-
 function normalizeTrackerSlug(slug) {
     if (typeof slug !== 'string') {
         return null;
@@ -112,33 +104,16 @@ async function findOrCreateTracker(client, trackerSlug, packetTimestamp, battery
     };
 }
 
-function validatePayload(payload) {
-    const errors = [];
-
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-        errors.push('Body must be a JSON object');
-        return { errors };
-    }
-
-    if (!payload.repeater_id || typeof payload.repeater_id !== 'string') {
-        errors.push('repeater_id is required and must be a string');
-    }
-
-    if (!payload.timestamp_utc || !isIsoTimestamp(payload.timestamp_utc)) {
-        errors.push('timestamp_utc is required and must be a valid ISO timestamp');
-    }
-
+function normalizePacketsFromLegacyFormat(payload, errors) {
     if (!Array.isArray(payload.packets)) {
         errors.push('packets must be an array');
-        return { errors };
+        return [];
     }
 
-    const sanitizedPackets = [];
-
-    payload.packets.forEach((packet, index) => {
+    return payload.packets.map((packet, index) => {
         if (!packet || typeof packet !== 'object') {
             errors.push(`packets[${index}] must be an object`);
-            return;
+            return null;
         }
 
         const trackerSlug = normalizeTrackerSlug(packet.tracker_id);
@@ -146,7 +121,8 @@ function validatePayload(payload) {
             errors.push(`packets[${index}].tracker_id is required`);
         }
 
-        if (!isIsoTimestamp(packet.timestamp_utc)) {
+        const timestamp = normalizeTimestamp(packet.timestamp_utc);
+        if (!timestamp) {
             errors.push(`packets[${index}].timestamp_utc must be a valid ISO timestamp`);
         }
 
@@ -170,17 +146,133 @@ function validatePayload(payload) {
             errors.push(`packets[${index}].fix_number must be an integer when provided`);
         }
 
-        sanitizedPackets.push({
+        if (errors.length > 0) {
+            return null;
+        }
+
+        return {
             tracker_id: trackerSlug,
-            timestamp_utc: packet.timestamp_utc,
+            timestamp_utc: timestamp,
             latitude,
             longitude,
             battery_voltage: batteryVoltage,
             fix_number: fixNumber,
-        });
-    });
+        };
+    }).filter(Boolean);
+}
 
-    return { errors, packets: sanitizedPackets };
+function normalizePacketsFromDeviceFormat(payload, errors) {
+    if (!Array.isArray(payload.data)) {
+        errors.push('data must be an array');
+        return [];
+    }
+
+    return payload.data.map((packet, index) => {
+        if (!packet || typeof packet !== 'object') {
+            errors.push(`data[${index}] must be an object`);
+            return null;
+        }
+
+        const deviceId = packet.device_id;
+        if (deviceId === undefined || deviceId === null || Number.isNaN(Number(deviceId))) {
+            errors.push(`data[${index}].device_id is required and must be numeric`);
+        }
+
+        const trackerSlug = String(Number(deviceId) - 1000).padStart(3, '0');
+
+        const timestamp = normalizeTimestamp(packet.timestamp ? packet.timestamp * 1000 : null);
+        if (!timestamp) {
+            errors.push(`data[${index}].timestamp must be a valid Unix timestamp (seconds)`);
+        }
+
+        const latitude = normalizeNumber(packet.latitude);
+        if (latitude === null || latitude < -90 || latitude > 90) {
+            errors.push(`data[${index}].latitude must be a number between -90 and 90`);
+        }
+
+        const longitude = normalizeNumber(packet.longitude);
+        if (longitude === null || longitude < -180 || longitude > 180) {
+            errors.push(`data[${index}].longitude must be a number between -180 and 180`);
+        }
+
+        const voltage = normalizeNumber(packet.voltage);
+        if (voltage === null) {
+            errors.push(`data[${index}].voltage must be numeric`);
+        }
+
+        if (errors.length > 0) {
+            return null;
+        }
+
+        return {
+            tracker_id: trackerSlug,
+            timestamp_utc: timestamp,
+            latitude,
+            longitude,
+            battery_voltage: voltage,
+            fix_number: null,
+        };
+    }).filter(Boolean);
+}
+
+function normalizeTimestamp(value) {
+    if (!value && value !== 0) {
+        return null;
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+    return date.toISOString();
+}
+
+function normalizePayload(payload) {
+    const errors = [];
+
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        errors.push('Body must be a JSON object');
+        return { errors, packets: [], repeaterId: null, repeaterTimestamp: null };
+    }
+
+    const repeaterId = typeof payload.repeater_id === 'string' && payload.repeater_id.trim() !== ''
+        ? payload.repeater_id.trim()
+        : 'UNKNOWN-REPEATER';
+
+    let repeaterTimestamp = null;
+
+    const packets = [];
+
+    if (Array.isArray(payload.packets)) {
+        const normalizedPackets = normalizePacketsFromLegacyFormat(payload, errors);
+        packets.push(...normalizedPackets);
+        repeaterTimestamp = normalizeTimestamp(payload.timestamp_utc) || null;
+    } else if (Array.isArray(payload.data)) {
+        const normalizedPackets = normalizePacketsFromDeviceFormat(payload, errors);
+        packets.push(...normalizedPackets);
+    } else {
+        errors.push('Request must include either packets[] or data[] array');
+    }
+
+    if (!repeaterTimestamp && packets.length > 0) {
+        repeaterTimestamp = packets.reduce((latest, packet) => {
+            const currentTime = Date.parse(packet.timestamp_utc);
+            if (!latest) {
+                return packet.timestamp_utc;
+            }
+            return currentTime > Date.parse(latest) ? packet.timestamp_utc : latest;
+        }, null);
+    }
+
+    if (!repeaterTimestamp) {
+        repeaterTimestamp = new Date().toISOString();
+    }
+
+    return {
+        errors,
+        repeaterId,
+        repeaterTimestamp,
+        packets,
+    };
 }
 
 module.exports = async function ingestLocations(req, res) {
@@ -194,12 +286,20 @@ module.exports = async function ingestLocations(req, res) {
             });
         }
 
-        const { errors, packets } = validatePayload(req.body);
+        const { errors, packets, repeaterId, repeaterTimestamp } = normalizePayload(req.body);
         if (errors.length > 0) {
             return res.status(400).json({
                 success: false,
                 error: 'Invalid payload',
                 details: errors,
+            });
+        }
+
+        if (!packets || packets.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid payload',
+                message: 'No packets to ingest',
             });
         }
 
@@ -213,12 +313,13 @@ module.exports = async function ingestLocations(req, res) {
                  ON CONFLICT (repeater_id) DO UPDATE
                  SET last_seen = EXCLUDED.last_seen
                  RETURNING id`,
-                [req.body.repeater_id.trim(), req.body.timestamp_utc]
+                [repeaterId, repeaterTimestamp]
             );
 
             const repeaterDbId = repeaterResult.rows[0].id;
             let inserted = 0;
             const updatedTrackerIds = new Set();
+            const fixCounters = new Map();
 
             for (const packet of packets) {
                 const trackerInfo = await findOrCreateTracker(
@@ -227,6 +328,24 @@ module.exports = async function ingestLocations(req, res) {
                     packet.timestamp_utc,
                     packet.battery_voltage
                 );
+
+                let fixNumber = packet.fix_number;
+                if (fixNumber === null || fixNumber === undefined) {
+                    if (!fixCounters.has(trackerInfo.id)) {
+                        const maxFixResult = await client.query(
+                            `SELECT COALESCE(MAX(fix_number), 0) as max_fix
+                             FROM locations
+                             WHERE tracker_id = $1`,
+                            [trackerInfo.id]
+                        );
+                        fixCounters.set(trackerInfo.id, Number(maxFixResult.rows[0].max_fix) || 0);
+                    }
+                    const nextFix = fixCounters.get(trackerInfo.id) + 1;
+                    fixCounters.set(trackerInfo.id, nextFix);
+                    fixNumber = nextFix;
+                } else {
+                    fixCounters.set(trackerInfo.id, fixNumber);
+                }
 
                 await client.query(
                     `INSERT INTO locations
@@ -239,7 +358,7 @@ module.exports = async function ingestLocations(req, res) {
                         packet.latitude,
                         packet.timestamp_utc,
                         packet.battery_voltage,
-                        packet.fix_number,
+                        fixNumber,
                     ]
                 );
                 inserted += 1;
