@@ -23,5 +23,7 @@ services:
         fromDatabase:
           name: custodia-db
           property: connectionString
+      - key: LOCATIONS_API_KEY
+        value: abs123qwe
     healthCheckPath: /api/health
 

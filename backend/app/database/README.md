@@ -68,6 +68,14 @@ Run test queries to verify everything is set up correctly:
 psql custodia_local < backend/app/database/test_queries.sql
 ```
 
+### Updating Existing Databases
+
+If your database was created before the repeaters feature, run the migration:
+
+```bash
+psql $DATABASE_URL < backend/app/database/migrations/20241109_add_repeaters_and_tracker_updates.sql
+```
+
 Or test the connection from Node.js:
 
 ```bash
@@ -113,6 +121,7 @@ await db.testConnection();
 - **clients** - Client organizations
 - **users** - User accounts (admin, manager, viewer roles)
 - **trackers** - Animal tracking devices
+- **repeaters** - Edge devices forwarding tracker packets
 - **locations** - GPS location data from trackers
 
 ## Seed Data

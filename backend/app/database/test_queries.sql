@@ -37,9 +37,11 @@ SELECT
     l.latitude,
     l.longitude,
     l.timestamp,
-    l.battery_voltage
+    l.battery_voltage,
+    r.repeater_id
 FROM trackers t
 JOIN locations l ON t.id = l.tracker_id
+LEFT JOIN repeaters r ON l.repeater_id = r.id
 WHERE (t.id, l.timestamp) IN (
     SELECT tracker_id, MAX(timestamp)
     FROM locations
@@ -53,9 +55,11 @@ SELECT
     l.longitude,
     l.timestamp,
     l.battery_voltage,
-    l.fix_number
+    l.fix_number,
+    r.repeater_id
 FROM locations l
 JOIN trackers t ON l.tracker_id = t.id
+LEFT JOIN repeaters r ON l.repeater_id = r.id
 WHERE t.slug = 'trk_001'
 ORDER BY l.timestamp;
 
@@ -65,9 +69,11 @@ SELECT
     l.latitude,
     l.longitude,
     l.timestamp,
-    l.battery_voltage
+    l.battery_voltage,
+    r.repeater_id
 FROM locations l
 JOIN trackers t ON l.tracker_id = t.id
+LEFT JOIN repeaters r ON l.repeater_id = r.id
 WHERE l.timestamp BETWEEN '2025-11-01 10:00:00' AND '2025-11-01 12:00:00'
 ORDER BY l.timestamp;
 
@@ -94,6 +100,16 @@ FROM trackers t
 LEFT JOIN locations l ON t.id = l.tracker_id
 GROUP BY t.animal_type
 ORDER BY total_locations DESC;
+
+-- Repeater activity overview
+SELECT 
+    r.repeater_id,
+    r.last_seen,
+    COUNT(l.id) as packets_forwarded
+FROM repeaters r
+LEFT JOIN locations l ON r.id = l.repeater_id
+GROUP BY r.id, r.repeater_id, r.last_seen
+ORDER BY r.last_seen DESC NULLS LAST;
 
 -- Latest update time per tracker
 SELECT 

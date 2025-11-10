@@ -38,7 +38,18 @@ CREATE TABLE trackers (
     expected_battery_life INTEGER,
     frequency_acquisition INTEGER,
     frequency_sending INTEGER,
+    last_seen TIMESTAMP,
+    last_battery_voltage DECIMAL(5,2),
     created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ==============================
+-- REPEATERS TABLE
+-- ==============================
+CREATE TABLE repeaters (
+    id SERIAL PRIMARY KEY,
+    repeater_id VARCHAR(50) UNIQUE NOT NULL,
+    last_seen TIMESTAMP DEFAULT NOW()
 );
 
 -- ==============================
@@ -47,6 +58,7 @@ CREATE TABLE trackers (
 CREATE TABLE locations (
     id SERIAL PRIMARY KEY,
     tracker_id INTEGER REFERENCES trackers(id) ON DELETE CASCADE,
+    repeater_id INTEGER REFERENCES repeaters(id) ON DELETE SET NULL,
     longitude DECIMAL(9,6) NOT NULL,
     latitude DECIMAL(9,6) NOT NULL,
     timestamp TIMESTAMP NOT NULL,
@@ -61,7 +73,10 @@ CREATE TABLE locations (
 CREATE INDEX idx_users_client_id ON users(client_id);
 CREATE INDEX idx_trackers_client_id ON trackers(client_id);
 CREATE INDEX idx_trackers_slug ON trackers(slug);
+CREATE INDEX idx_trackers_last_seen ON trackers(last_seen);
+CREATE INDEX idx_repeaters_repeater_id ON repeaters(repeater_id);
 CREATE INDEX idx_locations_tracker_id ON locations(tracker_id);
+CREATE INDEX idx_locations_repeater_id ON locations(repeater_id);
 CREATE INDEX idx_locations_timestamp ON locations(timestamp);
 CREATE INDEX idx_locations_coordinates ON locations(latitude, longitude);
 

@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+const ingestLocations = require('./backend/app/handlers/ingestLocations');
 
 const app = express();
 // Use PORT from environment, or default to 3000 for local development
@@ -200,6 +201,8 @@ app.get('/', (req, res) => {
 const db = require('./backend/app/db.js');
 
 // API endpoints (before catch-all routes)
+app.post('/api/locations', ingestLocations);
+
 // Database endpoint - fetches locations from PostgreSQL
 app.get('/api/locations', async (req, res) => {
     try {
