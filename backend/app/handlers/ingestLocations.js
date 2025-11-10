@@ -20,19 +20,19 @@ function extractApiKey(req) {
     return authHeader.trim();
 }
 
-function normalizeTrackerSlug(slug) {
-    if (typeof slug !== 'string') {
-        return null;
-    }
-    return slug.trim();
-}
-
 function normalizeNumber(value) {
     if (value === null || value === undefined || value === '') {
         return null;
     }
     const num = Number(value);
     return Number.isFinite(num) ? num : null;
+}
+
+function normalizeTrackerSlug(slug) {
+    if (typeof slug !== 'string') {
+        return null;
+    }
+    return slug.trim();
 }
 
 async function getDefaultClientId(client) {
@@ -104,63 +104,6 @@ async function findOrCreateTracker(client, trackerSlug, packetTimestamp, battery
     };
 }
 
-function normalizePacketsFromLegacyFormat(payload, errors) {
-    if (!Array.isArray(payload.packets)) {
-        errors.push('packets must be an array');
-        return [];
-    }
-
-    return payload.packets.map((packet, index) => {
-        if (!packet || typeof packet !== 'object') {
-            errors.push(`packets[${index}] must be an object`);
-            return null;
-        }
-
-        const trackerSlug = normalizeTrackerSlug(packet.tracker_id);
-        if (!trackerSlug) {
-            errors.push(`packets[${index}].tracker_id is required`);
-        }
-
-        const timestamp = normalizeTimestamp(packet.timestamp_utc);
-        if (!timestamp) {
-            errors.push(`packets[${index}].timestamp_utc must be a valid ISO timestamp`);
-        }
-
-        const latitude = normalizeNumber(packet.latitude);
-        if (latitude === null || latitude < -90 || latitude > 90) {
-            errors.push(`packets[${index}].latitude must be a number between -90 and 90`);
-        }
-
-        const longitude = normalizeNumber(packet.longitude);
-        if (longitude === null || longitude < -180 || longitude > 180) {
-            errors.push(`packets[${index}].longitude must be a number between -180 and 180`);
-        }
-
-        const batteryVoltage = normalizeNumber(packet.battery_voltage);
-        if (packet.battery_voltage !== undefined && batteryVoltage === null) {
-            errors.push(`packets[${index}].battery_voltage must be numeric when provided`);
-        }
-
-        const fixNumber = packet.fix_number === undefined ? null : Number(packet.fix_number);
-        if (packet.fix_number !== undefined && !Number.isInteger(fixNumber)) {
-            errors.push(`packets[${index}].fix_number must be an integer when provided`);
-        }
-
-        if (errors.length > 0) {
-            return null;
-        }
-
-        return {
-            tracker_id: trackerSlug,
-            timestamp_utc: timestamp,
-            latitude,
-            longitude,
-            battery_voltage: batteryVoltage,
-            fix_number: fixNumber,
-        };
-    }).filter(Boolean);
-}
-
 function normalizePacketsFromDeviceFormat(payload, errors) {
     if (!Array.isArray(payload.data)) {
         errors.push('data must be an array');
@@ -225,7 +168,6 @@ function normalizeTimestamp(value) {
     }
     return date.toISOString();
 }
-
 function normalizePayload(payload) {
     const errors = [];
 
@@ -242,15 +184,11 @@ function normalizePayload(payload) {
 
     const packets = [];
 
-    if (Array.isArray(payload.packets)) {
-        const normalizedPackets = normalizePacketsFromLegacyFormat(payload, errors);
-        packets.push(...normalizedPackets);
-        repeaterTimestamp = normalizeTimestamp(payload.timestamp_utc) || null;
-    } else if (Array.isArray(payload.data)) {
+    if (!Array.isArray(payload.data)) {
+        errors.push('Request must include data[] array');
+    } else {
         const normalizedPackets = normalizePacketsFromDeviceFormat(payload, errors);
         packets.push(...normalizedPackets);
-    } else {
-        errors.push('Request must include either packets[] or data[] array');
     }
 
     if (!repeaterTimestamp && packets.length > 0) {
@@ -379,7 +317,7 @@ module.exports = async function ingestLocations(req, res) {
                 success: true,
                 inserted,
                 updated_trackers: updatedTrackerIds.size,
-                message: `${inserted} location packets saved from repeater ${req.body.repeater_id}`,
+                message: `${inserted} location packets saved from repeater ${repeaterId}`,
             });
         } catch (error) {
             await client.query('ROLLBACK');
