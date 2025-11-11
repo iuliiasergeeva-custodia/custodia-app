@@ -110,43 +110,43 @@ async function findOrCreateTracker(client, trackerSlug, packetTimestamp, battery
     };
 }
 
-function normalizePacketsFromDeviceFormat(payload, errors) {
-    if (!Array.isArray(payload.data)) {
-        errors.push('data must be an array');
+function normalizePackets(payload, errors) {
+    if (!Array.isArray(payload.packets)) {
+        errors.push('packets must be an array');
         return [];
     }
 
-    return payload.data.map((packet, index) => {
+    return payload.packets.map((packet, index) => {
         if (!packet || typeof packet !== 'object') {
-            errors.push(`data[${index}] must be an object`);
+            errors.push(`packets[${index}] must be an object`);
             return null;
         }
 
         const deviceId = packet.device_id;
         if (deviceId === undefined || deviceId === null || Number.isNaN(Number(deviceId))) {
-            errors.push(`data[${index}].device_id is required and must be numeric`);
+            errors.push(`packets[${index}].device_id is required and must be numeric`);
         }
 
         const trackerSlug = String(Number(deviceId) - 1000).padStart(3, '0');
 
-        const timestamp = normalizeTimestamp(packet.timestamp ? packet.timestamp * 1000 : null);
+        const timestamp = normalizeTimestamp(packet.timestamp !== undefined ? Number(packet.timestamp) * 1000 : null);
         if (!timestamp) {
-            errors.push(`data[${index}].timestamp must be a valid Unix timestamp (seconds)`);
+            errors.push(`packets[${index}].timestamp must be a valid Unix timestamp (seconds)`);
         }
 
         const latitude = normalizeNumber(packet.latitude);
         if (latitude === null || latitude < -90 || latitude > 90) {
-            errors.push(`data[${index}].latitude must be a number between -90 and 90`);
+            errors.push(`packets[${index}].latitude must be a number between -90 and 90`);
         }
 
         const longitude = normalizeNumber(packet.longitude);
         if (longitude === null || longitude < -180 || longitude > 180) {
-            errors.push(`data[${index}].longitude must be a number between -180 and 180`);
+            errors.push(`packets[${index}].longitude must be a number between -180 and 180`);
         }
 
         const voltage = normalizeNumber(packet.voltage);
         if (voltage === null) {
-            errors.push(`data[${index}].voltage must be numeric`);
+            errors.push(`packets[${index}].voltage must be numeric`);
         }
 
         if (errors.length > 0) {
@@ -186,14 +186,14 @@ function normalizePayload(payload) {
         ? payload.repeater_id.trim()
         : 'UNKNOWN-REPEATER';
 
-    let repeaterTimestamp = null;
+    let repeaterTimestamp = normalizeTimestamp(payload.timestamp !== undefined ? Number(payload.timestamp) * 1000 : null);
 
     const packets = [];
 
-    if (!Array.isArray(payload.data)) {
-        errors.push('Request must include data[] array');
+    if (!Array.isArray(payload.packets)) {
+        errors.push('Request must include packets[] array');
     } else {
-        const normalizedPackets = normalizePacketsFromDeviceFormat(payload, errors);
+        const normalizedPackets = normalizePackets(payload, errors);
         packets.push(...normalizedPackets);
     }
 
