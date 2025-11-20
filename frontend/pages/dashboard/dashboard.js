@@ -276,14 +276,21 @@ function processLocations(locations) {
                 fix_number: location.fix_number ? parseInt(location.fix_number) : null
             });
             
-            // Update last update time
-            if (!animal.lastUpdate || new Date(timestamp) > new Date(animal.lastUpdate)) {
-                animal.lastUpdate = timestamp;
-                animal.batteryVoltage = batteryVoltage;
-                animal.initialBatteryVoltage = initialBatteryVoltage || animal.initialBatteryVoltage || batteryVoltage;
-                animal.batteryPercent = calculateBatteryPercentage(animal.batteryVoltage, animal.initialBatteryVoltage);
-                animal.family = family || animal.family || 'Unknown';
-                animal.type = type || animal.type || 'Unknown';
+            // Update last update time - ensure we parse dates correctly for comparison
+            const timestampDate = new Date(timestamp);
+            const currentLastUpdate = animal.lastUpdate ? new Date(animal.lastUpdate) : null;
+            
+            // Only update if timestamp is valid and is newer than current last update
+            if (!isNaN(timestampDate.getTime())) {
+                if (!currentLastUpdate || isNaN(currentLastUpdate.getTime()) || timestampDate > currentLastUpdate) {
+                    // Store as ISO string for consistent parsing later
+                    animal.lastUpdate = timestampDate.toISOString();
+                    animal.batteryVoltage = batteryVoltage;
+                    animal.initialBatteryVoltage = initialBatteryVoltage || animal.initialBatteryVoltage || batteryVoltage;
+                    animal.batteryPercent = calculateBatteryPercentage(animal.batteryVoltage, animal.initialBatteryVoltage);
+                    animal.family = family || animal.family || 'Unknown';
+                    animal.type = type || animal.type || 'Unknown';
+                }
             }
         }
     });
@@ -1124,13 +1131,26 @@ function updateStatistics() {
     if (filteredAnimals.length > 0) {
         const now = new Date();
         const updateTimes = filteredAnimals
-            .filter(a => a.lastUpdate)
-            .map(a => now - new Date(a.lastUpdate));
+            .filter(a => {
+                if (!a.lastUpdate) return false;
+                const lastUpdateDate = new Date(a.lastUpdate);
+                // Only include valid dates that are in the past (or very recent future due to clock skew)
+                return !isNaN(lastUpdateDate.getTime()) && lastUpdateDate <= now + 60000; // Allow 1 minute clock skew
+            })
+            .map(a => {
+                const lastUpdateDate = new Date(a.lastUpdate);
+                // Calculate time difference (should always be positive for past dates)
+                const diff = now - lastUpdateDate;
+                // Use absolute value as safety, but should already be positive
+                return Math.abs(diff);
+            });
 
         if (updateTimes.length > 0) {
             const avgMs = updateTimes.reduce((a, b) => a + b, 0) / updateTimes.length;
-            if (avgUpdateEl) {
+            if (avgUpdateEl && avgMs >= 0) {
                 avgUpdateEl.textContent = formatTimeAgo(avgMs);
+            } else if (avgUpdateEl) {
+                avgUpdateEl.textContent = '--';
             }
         } else {
             if (avgUpdateEl) {
@@ -1228,16 +1248,36 @@ function initEventListeners() {
  * Format time for display
  */
 function formatTime(date) {
-    if (!date || isNaN(date.getTime())) return 'Never';
+    if (!date) return 'Never';
+    
+    // Handle string dates
+    const dateObj = date instanceof Date ? date : new Date(date);
+    
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) return 'Never';
     
     const now = new Date();
-    const diff = now - date;
+    const diff = now - dateObj;
     
+    // Handle negative diff (future dates or clock skew) - should show as actual date
+    if (diff < 0) {
+        return dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+    
+    // Less than 1 minute
     if (diff < 60000) return 'Just now';
+    
+    // Less than 1 hour - show minutes
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    
+    // Less than 24 hours - show hours
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
     
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString('en-US', {
+    // More than 24 hours - show full date and time
+    return dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit'
     });
