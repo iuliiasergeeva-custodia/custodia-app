@@ -292,41 +292,61 @@ function processLocations(locations) {
         const timestamp = location.timestamp || location.time || new Date().toISOString();
         
         // Parse and validate coordinates more carefully
-        let lat = parseFloat(location.latitude || location.lat);
-        let lng = parseFloat(location.longitude || location.lng || location.lon);
+        const latRaw = location.latitude || location.lat || '';
+        const lngRaw = location.longitude || location.lng || location.lon || '';
+        let lat = parseFloat(latRaw);
+        let lng = parseFloat(lngRaw);
+        
+        // Check if coordinates are NaN first
+        if (isNaN(lat) || isNaN(lng)) {
+            console.warn(`[Invalid Coordinates] Cannot parse coordinates for tracker ${trackerId} at timestamp ${timestamp}. Raw values - Lat: "${latRaw}", Lng: "${lngRaw}"`);
+            return; // Skip this location
+        }
         
         // Check if coordinates might be swapped (common data error)
         // Lat should be between -90 and 90, lng should be between -180 and 180
-        // If lat is outside its range but within lng range, and vice versa, swap them
-        const latInValidRange = !isNaN(lat) && lat >= -90 && lat <= 90;
-        const lngInValidRange = !isNaN(lng) && lng >= -180 && lng <= 180;
-        const latInLngRange = !isNaN(lat) && lat >= -180 && lat <= 180;
-        const lngInLatRange = !isNaN(lng) && lng >= -90 && lng <= 90;
+        const latInValidRange = lat >= -90 && lat <= 90;
+        const lngInValidRange = lng >= -180 && lng <= 180;
         
-        // If coordinates appear swapped (lat is in lng range, lng is in lat range, but both invalid for their own ranges)
-        if (!latInValidRange && !lngInValidRange && latInLngRange && lngInLatRange) {
-            console.warn(`[Coordinate Swap Detected] Swapping coordinates for tracker ${trackerId} at timestamp ${timestamp}. Original: lat=${lat}, lng=${lng}`);
-            const temp = lat;
-            lat = lng;
-            lng = temp;
+        // Only swap if BOTH are clearly swapped (most conservative approach):
+        // - lat is NOT in valid range (-90 to 90) but IS within longitude range (-180 to 180)
+        // - lng is NOT in valid range (-180 to 180) but IS within latitude range (-90 to 90)
+        // This indicates they were stored in the wrong order
+        if (!latInValidRange && !lngInValidRange) {
+            const latCouldBeLng = lat >= -180 && lat <= 180;
+            const lngCouldBeLat = lng >= -90 && lng <= 90;
+            
+            if (latCouldBeLng && lngCouldBeLat) {
+                // They appear swapped - lat value is actually a longitude, lng value is actually a latitude
+                console.warn(`[Coordinate Swap Detected] Swapping coordinates for tracker ${trackerId} at timestamp ${timestamp}. Original: lat=${lat}, lng=${lng}`);
+                const temp = lat;
+                lat = lng;
+                lng = temp;
+            }
         }
         
-        // Final validation: ensure coordinates are within valid ranges
-        const isValidLat = !isNaN(lat) && lat >= -90 && lat <= 90;
-        const isValidLng = !isNaN(lng) && lng >= -180 && lng <= 180;
+        // Final validation: ensure coordinates are within valid ranges after potential swap
+        const isValidLat = lat >= -90 && lat <= 90;
+        const isValidLng = lng >= -180 && lng <= 180;
         
         if (!isValidLat || !isValidLng) {
-            console.warn(`[Invalid Coordinates] Skipping location for tracker ${trackerId} at timestamp ${timestamp}. Lat: ${lat} (valid: ${isValidLat}), Lng: ${lng} (valid: ${isValidLng})`);
+            console.warn(`[Invalid Coordinates] Skipping location for tracker ${trackerId} at timestamp ${timestamp}. Final values - Lat: ${lat} (valid: ${isValidLat}), Lng: ${lng} (valid: ${isValidLng})`);
+            return; // Skip this location
         }
         
-        if (isValidLat && isValidLng) {
-            animal.locations.push({
-                lat,
-                lng,
-                timestamp,
-                batteryVoltage,
-                fix_number: location.fix_number ? parseInt(location.fix_number) : null
-            });
+        // Coordinates are valid, add the location
+        // Log first few locations for debugging
+        if (animal.locations.length < 3) {
+            console.log(`[Location Added] Tracker ${trackerId}, Location ${animal.locations.length + 1}: lat=${lat}, lng=${lng}, timestamp=${timestamp}`);
+        }
+        
+        animal.locations.push({
+            lat,
+            lng,
+            timestamp,
+            batteryVoltage,
+            fix_number: location.fix_number ? parseInt(location.fix_number) : null
+        });
             
             // Update last update time - ensure we parse dates correctly for comparison
             const timestampDate = new Date(timestamp);
@@ -346,6 +366,10 @@ function processLocations(locations) {
             }
         }
     });
+    
+    // Log processing summary for debugging
+    const totalLocationsProcessed = Array.from(animalMap.values()).reduce((sum, animal) => sum + animal.locations.length, 0);
+    console.log(`[ProcessLocations] Processed ${locations.length} CSV rows, created ${animalMap.size} trackers, with ${totalLocationsProcessed} total valid locations`);
     
     // Convert map to array and calculate status for each animal
     animals = Array.from(animalMap.values()).map(animal => {
