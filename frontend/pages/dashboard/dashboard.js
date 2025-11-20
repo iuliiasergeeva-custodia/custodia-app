@@ -214,15 +214,44 @@ async function loadMockData() {
  */
 function parseCSV(csvText) {
     const lines = csvText.trim().split('\n');
+    if (lines.length === 0) return [];
+    
     const headers = lines[0].split(',').map(h => h.trim());
     
     const data = [];
     for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim());
+        const line = lines[i].trim();
+        if (!line) continue; // Skip empty lines
+        
+        // Simple CSV parsing - split by comma (this works if values don't contain commas)
+        // For more complex CSV, would need proper CSV parser
+        const values = line.split(',').map(v => v.trim());
+        
+        // Only process rows with enough columns
+        if (values.length < headers.length) {
+            console.warn(`[CSV Parse] Row ${i} has ${values.length} columns but expected ${headers.length}, skipping`);
+            continue;
+        }
+        
         const obj = {};
         headers.forEach((header, index) => {
             obj[header] = values[index] || '';
         });
+        
+        // Validate coordinates are numbers if present
+        if (obj.latitude || obj.longitude) {
+            const lat = parseFloat(obj.latitude);
+            const lng = parseFloat(obj.longitude);
+            
+            // Log if coordinates seem wrong (but don't skip yet - let validation handle it)
+            if (obj.latitude && (isNaN(lat) || lat < -90 || lat > 90)) {
+                console.warn(`[CSV Parse] Row ${i} has invalid latitude: ${obj.latitude}`);
+            }
+            if (obj.longitude && (isNaN(lng) || lng < -180 || lng > 180)) {
+                console.warn(`[CSV Parse] Row ${i} has invalid longitude: ${obj.longitude}`);
+            }
+        }
+        
         data.push(obj);
     }
     
@@ -261,13 +290,36 @@ function processLocations(locations) {
         
         const animal = animalMap.get(trackerId);
         const timestamp = location.timestamp || location.time || new Date().toISOString();
-        const lat = parseFloat(location.latitude || location.lat);
-        const lng = parseFloat(location.longitude || location.lng || location.lon);
-        const batteryVoltage = location.battery_voltage ? parseFloat(location.battery_voltage) : null;
-        const family = normalizeAttribute(location.family || location.family_name || location.group || animal.family);
-        const type = normalizeAttribute(location.animal_type || location.type || animal.type);
         
-        if (!isNaN(lat) && !isNaN(lng)) {
+        // Parse and validate coordinates more carefully
+        let lat = parseFloat(location.latitude || location.lat);
+        let lng = parseFloat(location.longitude || location.lng || location.lon);
+        
+        // Check if coordinates might be swapped (common data error)
+        // Lat should be between -90 and 90, lng should be between -180 and 180
+        // If lat is outside its range but within lng range, and vice versa, swap them
+        const latInValidRange = !isNaN(lat) && lat >= -90 && lat <= 90;
+        const lngInValidRange = !isNaN(lng) && lng >= -180 && lng <= 180;
+        const latInLngRange = !isNaN(lat) && lat >= -180 && lat <= 180;
+        const lngInLatRange = !isNaN(lng) && lng >= -90 && lng <= 90;
+        
+        // If coordinates appear swapped (lat is in lng range, lng is in lat range, but both invalid for their own ranges)
+        if (!latInValidRange && !lngInValidRange && latInLngRange && lngInLatRange) {
+            console.warn(`[Coordinate Swap Detected] Swapping coordinates for tracker ${trackerId} at timestamp ${timestamp}. Original: lat=${lat}, lng=${lng}`);
+            const temp = lat;
+            lat = lng;
+            lng = temp;
+        }
+        
+        // Final validation: ensure coordinates are within valid ranges
+        const isValidLat = !isNaN(lat) && lat >= -90 && lat <= 90;
+        const isValidLng = !isNaN(lng) && lng >= -180 && lng <= 180;
+        
+        if (!isValidLat || !isValidLng) {
+            console.warn(`[Invalid Coordinates] Skipping location for tracker ${trackerId} at timestamp ${timestamp}. Lat: ${lat} (valid: ${isValidLat}), Lng: ${lng} (valid: ${isValidLng})`);
+        }
+        
+        if (isValidLat && isValidLng) {
             animal.locations.push({
                 lat,
                 lng,
@@ -1337,6 +1389,15 @@ function renderMarkersOnly(animal, sortedLocations, iconColor) {
     
     // Create markers for all locations
     sortedLocations.forEach((location, index) => {
+        // Validate coordinates before creating marker
+        const lat = parseFloat(location.lat);
+        const lng = parseFloat(location.lng);
+        
+        if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            console.error(`[Marker] Invalid coordinates for ${animal.id} location ${index + 1} (fix ${location.fix_number || 'N/A'}): lat=${location.lat}, lng=${location.lng}`);
+            return; // Skip this location
+        }
+        
         const icon = L.divIcon({
             className: 'custom-marker',
             html: `<div style="
@@ -1351,7 +1412,7 @@ function renderMarkersOnly(animal, sortedLocations, iconColor) {
             iconAnchor: [index === sortedLocations.length - 1 ? 12 : 9, index === sortedLocations.length - 1 ? 12 : 9]
         });
         
-        const marker = L.marker([location.lat, location.lng], { icon })
+        const marker = L.marker([lat, lng], { icon })
             .addTo(map)
             .bindPopup(`
                 <strong>${escapeHtml(animal.name)}</strong><br>
@@ -1378,6 +1439,15 @@ function renderPath(animal, sortedLocations, iconColor) {
     
     // Create markers for all locations
     sortedLocations.forEach((location, index) => {
+        // Validate coordinates before creating marker
+        const lat = parseFloat(location.lat);
+        const lng = parseFloat(location.lng);
+        
+        if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            console.error(`[Marker] Invalid coordinates for ${animal.id} location ${index + 1} (fix ${location.fix_number || 'N/A'}): lat=${location.lat}, lng=${location.lng}`);
+            return; // Skip this location
+        }
+        
         const icon = L.divIcon({
             className: 'custom-marker',
             html: `<div style="
@@ -1392,7 +1462,7 @@ function renderPath(animal, sortedLocations, iconColor) {
             iconAnchor: [index === sortedLocations.length - 1 ? 12 : 8, index === sortedLocations.length - 1 ? 12 : 8]
         });
         
-        const marker = L.marker([location.lat, location.lng], { icon })
+        const marker = L.marker([lat, lng], { icon })
             .addTo(map)
             .bindPopup(`
                 <strong>${escapeHtml(animal.name)}</strong><br>
@@ -1404,7 +1474,7 @@ function renderPath(animal, sortedLocations, iconColor) {
             `);
         
         animalMarkers.push(marker);
-        pathCoordinates.push([location.lat, location.lng]);
+        pathCoordinates.push([lat, lng]);
     });
     
     // Store all markers as an array so they can all be cleared
@@ -1434,6 +1504,15 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
     
     // Create markers for all locations
     sortedLocations.forEach((location, index) => {
+        // Validate coordinates before creating marker
+        const lat = parseFloat(location.lat);
+        const lng = parseFloat(location.lng);
+        
+        if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            console.error(`[Marker] Invalid coordinates for ${animal.id} location ${index + 1} (fix ${location.fix_number || 'N/A'}): lat=${location.lat}, lng=${location.lng}`);
+            return; // Skip this location
+        }
+        
         const icon = L.divIcon({
             className: 'custom-marker',
             html: `<div style="
@@ -1448,7 +1527,7 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
             iconAnchor: [index === sortedLocations.length - 1 ? 12 : 8, index === sortedLocations.length - 1 ? 12 : 8]
         });
         
-        const marker = L.marker([location.lat, location.lng], { icon })
+        const marker = L.marker([lat, lng], { icon })
             .addTo(map)
             .bindPopup(`
                 <strong>${escapeHtml(animal.name)}</strong><br>
@@ -1460,7 +1539,7 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
             `);
         
         animalMarkers.push(marker);
-        pathCoordinates.push([location.lat, location.lng]);
+        pathCoordinates.push([lat, lng]);
     });
     
     // Add directional arrows after all markers are created
