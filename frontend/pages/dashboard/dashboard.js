@@ -1858,10 +1858,39 @@ function initEventListeners() {
     
     // Visualization mode listener
     const visualizationMode = document.getElementById('visualizationMode');
+    const showDistanceGroup = document.getElementById('showDistanceGroup');
+    const showDistanceCheckbox = document.getElementById('showDistanceCheckbox');
+    
     if (visualizationMode) {
+        // Show/hide distance checkbox based on mode
+        const updateDistanceCheckboxVisibility = () => {
+            const mode = visualizationMode.value;
+            if (showDistanceGroup) {
+                if (mode === 'path' || mode === 'pathWithDirections') {
+                    showDistanceGroup.style.display = 'block';
+                } else {
+                    showDistanceGroup.style.display = 'none';
+                    if (showDistanceCheckbox) {
+                        showDistanceCheckbox.checked = false;
+                    }
+                }
+            }
+        };
+        
+        // Initial state
+        updateDistanceCheckboxVisibility();
+        
         visualizationMode.addEventListener('change', () => {
+            updateDistanceCheckboxVisibility();
             updateMap();
         });
+        
+        // Distance checkbox listener
+        if (showDistanceCheckbox) {
+            showDistanceCheckbox.addEventListener('change', () => {
+                updateMap();
+            });
+        }
     }
     
     // Modal event listeners
@@ -2322,9 +2351,13 @@ function renderPath(animal, sortedLocations, iconColor) {
     const pathCoordinates = [];
     const distanceLabels = [];
     
+    // Check if distance checkbox is checked
+    const showDistanceCheckbox = document.getElementById('showDistanceCheckbox');
+    const showDistances = showDistanceCheckbox && showDistanceCheckbox.checked;
+    
     // Create markers for all locations
     sortedLocations.forEach((location, index) => {
-        // Calculate distance from previous location
+        // Calculate distance from previous location (for popup and label)
         let distanceFromPrevious = null;
         let distanceText = '';
         if (index > 0) {
@@ -2333,7 +2366,10 @@ function renderPath(animal, sortedLocations, iconColor) {
                 prevLocation.lat, prevLocation.lng,
                 location.lat, location.lng
             );
-            distanceText = `<br>Distance from previous: ${formatDistance(distanceFromPrevious)}`;
+            // Only show distance in popup if checkbox is checked
+            if (showDistances) {
+                distanceText = `<br>Distance from previous: ${formatDistance(distanceFromPrevious)}`;
+            }
         }
         
         const icon = L.divIcon({
@@ -2364,8 +2400,8 @@ function renderPath(animal, sortedLocations, iconColor) {
         animalMarkers.push(marker);
         pathCoordinates.push([location.lat, location.lng]);
         
-        // Add distance label at midpoint between locations
-        if (index > 0 && distanceFromPrevious !== null) {
+        // Add distance label at midpoint between locations (only if checkbox is checked)
+        if (index > 0 && distanceFromPrevious !== null && showDistances) {
             const prevLocation = sortedLocations[index - 1];
             const midLat = (prevLocation.lat + location.lat) / 2;
             const midLng = (prevLocation.lng + location.lng) / 2;
@@ -2434,9 +2470,13 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
     const pathCoordinates = [];
     const arrowMarkers = [];
     
+    // Check if distance checkbox is checked
+    const showDistanceCheckbox = document.getElementById('showDistanceCheckbox');
+    const showDistances = showDistanceCheckbox && showDistanceCheckbox.checked;
+    
     // Create markers for all locations
     sortedLocations.forEach((location, index) => {
-        // Calculate distance from previous location
+        // Calculate distance from previous location (for popup and label)
         let distanceFromPrevious = null;
         let distanceText = '';
         if (index > 0) {
@@ -2445,7 +2485,10 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
                 prevLocation.lat, prevLocation.lng,
                 location.lat, location.lng
             );
-            distanceText = `<br>Distance from previous: ${formatDistance(distanceFromPrevious)}`;
+            // Only show distance in popup if checkbox is checked
+            if (showDistances) {
+                distanceText = `<br>Distance from previous: ${formatDistance(distanceFromPrevious)}`;
+            }
         }
         
         const icon = L.divIcon({
@@ -2523,53 +2566,56 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
             const arrowMarker = L.marker([midLat, midLng], { 
                 icon: arrowIcon,
                 interactive: false,
-                zIndexOffset: 500  // Higher z-index to ensure arrows are visible above polylines
+                zIndexOffset: 1500  // High z-index to ensure arrows are always visible above everything
             }).addTo(map);
             
             arrowMarkers.push(arrowMarker);
             
-            // Add distance label slightly offset from arrow
-            // Offset perpendicular to the path direction
-            const offsetDistance = 0.0003; // Small offset in degrees
-            const perpBearing = (bearing + 90) * Math.PI / 180;
-            const offsetLat = midLat + offsetDistance * Math.cos(perpBearing);
-            const offsetLng = midLng + offsetDistance * Math.sin(perpBearing);
-            
-            const distanceText = formatDistance(distance);
-            // Estimate width based on text length (roughly 8px per character)
-            const estimatedWidth = Math.max(60, distanceText.length * 8 + 16);
-            const labelHeight = 24;
-            
-            const distanceLabel = L.divIcon({
-                className: 'distance-label',
-                html: `<div style="
-                    background: white;
-                    border: 2px solid ${iconColor};
-                    border-radius: 4px;
-                    padding: 4px 8px;
-                    font-size: 12px;
-                    font-weight: bold;
-                    color: ${iconColor};
-                    white-space: nowrap;
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-                    text-align: center;
-                    pointer-events: none;
-                    font-family: Arial, sans-serif;
-                    line-height: ${labelHeight - 8}px;
-                    min-width: ${estimatedWidth}px;
-                ">${distanceText}</div>`,
-                iconSize: [estimatedWidth, labelHeight],
-                iconAnchor: [estimatedWidth / 2, labelHeight / 2]
-            });
-            
-            const labelMarker = L.marker([offsetLat, offsetLng], {
-                icon: distanceLabel,
-                interactive: false,
-                zIndexOffset: 1000
-            }).addTo(map);
-            
-            console.log(`[renderPathWithDirections] Added distance label: ${distanceText} at (${offsetLat.toFixed(4)}, ${offsetLng.toFixed(4)})`);
-            arrowMarkers.push(labelMarker);
+            // Add distance label only if checkbox is checked
+            if (showDistances) {
+                // Add distance label slightly offset from arrow
+                // Offset perpendicular to the path direction
+                const offsetDistance = 0.0003; // Small offset in degrees
+                const perpBearing = (bearing + 90) * Math.PI / 180;
+                const offsetLat = midLat + offsetDistance * Math.cos(perpBearing);
+                const offsetLng = midLng + offsetDistance * Math.sin(perpBearing);
+                
+                const distanceText = formatDistance(distance);
+                // Estimate width based on text length (roughly 8px per character)
+                const estimatedWidth = Math.max(60, distanceText.length * 8 + 16);
+                const labelHeight = 24;
+                
+                const distanceLabel = L.divIcon({
+                    className: 'distance-label',
+                    html: `<div style="
+                        background: white;
+                        border: 2px solid ${iconColor};
+                        border-radius: 4px;
+                        padding: 4px 8px;
+                        font-size: 12px;
+                        font-weight: bold;
+                        color: ${iconColor};
+                        white-space: nowrap;
+                        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                        text-align: center;
+                        pointer-events: none;
+                        font-family: Arial, sans-serif;
+                        line-height: ${labelHeight - 8}px;
+                        min-width: ${estimatedWidth}px;
+                    ">${distanceText}</div>`,
+                    iconSize: [estimatedWidth, labelHeight],
+                    iconAnchor: [estimatedWidth / 2, labelHeight / 2]
+                });
+                
+                const labelMarker = L.marker([offsetLat, offsetLng], {
+                    icon: distanceLabel,
+                    interactive: false,
+                    zIndexOffset: 1400  // Lower than arrows but still high
+                }).addTo(map);
+                
+                console.log(`[renderPathWithDirections] Added distance label: ${distanceText} at (${offsetLat.toFixed(4)}, ${offsetLng.toFixed(4)})`);
+                arrowMarkers.push(labelMarker);
+            }
             
             console.log(`[renderPathWithDirections] Arrow and distance label added at (${midLat.toFixed(4)}, ${midLng.toFixed(4)})`);
         }
