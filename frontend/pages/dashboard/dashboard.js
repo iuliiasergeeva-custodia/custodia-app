@@ -15,6 +15,162 @@ let selectedAnimalId = null;
 let animalColors = {}; // Store color assignments for each animal
 let animalLabelsVisible = {}; // Track which animals have labels visible
 
+// Edit Tracker Modal state
+let currentEditingTracker = null;
+
+// Edit Tracker Modal Functions (defined early so they're available)
+window.openEditTrackerModal = async function(trackerSlug) {
+    console.log('[openEditTrackerModal] Opening modal for tracker:', trackerSlug);
+    const modal = document.getElementById('editTrackerModal');
+    if (!modal) {
+        console.error('Edit tracker modal not found in DOM');
+        console.error('Available elements:', Array.from(document.querySelectorAll('[id]')).map(el => el.id));
+        alert('Error: Edit modal not found. Please refresh the page.');
+        return;
+    }
+    console.log('[openEditTrackerModal] Modal found:', modal);
+    
+    currentEditingTracker = trackerSlug;
+    modal.style.display = 'block';
+    
+    // Fetch tracker data
+    try {
+        const response = await fetch(`/api/trackers/${trackerSlug}`);
+        const data = await response.json();
+        
+        if (!data.success || !data.tracker) {
+            throw new Error('Failed to fetch tracker data');
+        }
+        
+        const tracker = data.tracker;
+        
+        // Populate form fields
+        document.getElementById('editAnimalName').value = tracker.animal_name || '';
+        document.getElementById('editTrackerId').value = tracker.id;
+        
+        // Populate dropdowns with existing values
+        populateTypeDropdown(tracker.animal_type);
+        populateFamilyDropdown(tracker.family);
+        
+        // Set current values
+        if (tracker.animal_type) {
+            const typeSelect = document.getElementById('editAnimalType');
+            const option = Array.from(typeSelect.options).find(opt => opt.value === tracker.animal_type);
+            if (option) {
+                typeSelect.value = tracker.animal_type;
+                typeSelect.style.display = 'block';
+                document.getElementById('editAnimalTypeNew').style.display = 'none';
+            } else {
+                // Value not in dropdown, show input field
+                document.getElementById('editAnimalTypeNew').value = tracker.animal_type;
+                document.getElementById('editAnimalType').style.display = 'none';
+                document.getElementById('editAnimalTypeNew').style.display = 'block';
+            }
+        }
+        
+        if (tracker.family) {
+            const familySelect = document.getElementById('editFamily');
+            const option = Array.from(familySelect.options).find(opt => opt.value === tracker.family);
+            if (option) {
+                familySelect.value = tracker.family;
+                familySelect.style.display = 'block';
+                document.getElementById('editFamilyNew').style.display = 'none';
+            } else {
+                // Value not in dropdown, show input field
+                document.getElementById('editFamilyNew').value = tracker.family;
+                document.getElementById('editFamily').style.display = 'none';
+                document.getElementById('editFamilyNew').style.display = 'block';
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error loading tracker data:', error);
+        showError('Failed to load tracker data. Please try again.');
+        closeEditTrackerModal();
+    }
+};
+
+function populateTypeDropdown(currentValue = null) {
+    const select = document.getElementById('editAnimalType');
+    if (!select) return;
+    
+    // Get all unique animal types from current animals
+    const types = new Set();
+    animals.forEach(animal => {
+        const type = normalizeAttribute(animal.type);
+        if (type) {
+            types.add(type);
+        }
+    });
+    
+    // Clear existing options except first one
+    select.innerHTML = '<option value="">Select or type new...</option>';
+    
+    // Add options
+    Array.from(types).sort().forEach(type => {
+        const option = document.createElement('option');
+        option.value = type;
+        option.textContent = type;
+        if (currentValue === type) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+}
+
+function populateFamilyDropdown(currentValue = null) {
+    const select = document.getElementById('editFamily');
+    if (!select) return;
+    
+    // Get all unique families from current animals
+    const families = new Set();
+    animals.forEach(animal => {
+        const family = normalizeAttribute(animal.family);
+        if (family) {
+            families.add(family);
+        }
+    });
+    
+    // Clear existing options except first one
+    select.innerHTML = '<option value="">Select or type new...</option>';
+    
+    // Add options
+    Array.from(families).sort().forEach(family => {
+        const option = document.createElement('option');
+        option.value = family;
+        option.textContent = family;
+        if (currentValue === family) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+}
+
+function closeEditTrackerModal() {
+    const modal = document.getElementById('editTrackerModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    currentEditingTracker = null;
+    
+    // Reset form
+    const form = document.getElementById('editTrackerForm');
+    if (form) {
+        form.reset();
+    }
+    
+    // Reset dropdown/input toggles
+    const typeSelect = document.getElementById('editAnimalType');
+    const typeInput = document.getElementById('editAnimalTypeNew');
+    const familySelect = document.getElementById('editFamily');
+    const familyInput = document.getElementById('editFamilyNew');
+    
+    if (typeSelect) typeSelect.style.display = 'block';
+    if (typeInput) typeInput.style.display = 'none';
+    if (familySelect) familySelect.style.display = 'block';
+    if (familyInput) familyInput.style.display = 'none';
+}
+
 // Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing dashboard...');
@@ -1330,6 +1486,163 @@ function initEventListeners() {
             updateMap();
         });
     }
+    
+    // Modal event listeners
+    initModalEventListeners();
+}
+
+/**
+ * Initialize modal event listeners
+ */
+function initModalEventListeners() {
+    const modal = document.getElementById('editTrackerModal');
+    const closeBtn = document.getElementById('closeEditModal');
+    const cancelBtn = document.getElementById('cancelEditModal');
+    const form = document.getElementById('editTrackerForm');
+    
+    if (!modal) {
+        console.warn('Edit tracker modal not found - modal functionality will not work');
+        return;
+    }
+    
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            closeEditTrackerModal();
+        }
+    });
+    
+    // Close button
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeEditTrackerModal);
+    }
+    
+    // Cancel button
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeEditTrackerModal);
+    }
+    
+    // Toggle between dropdown and input for animal type
+    const toggleTypeBtn = document.getElementById('toggleTypeNew');
+    const typeSelect = document.getElementById('editAnimalType');
+    const typeInput = document.getElementById('editAnimalTypeNew');
+    
+    if (toggleTypeBtn && typeSelect && typeInput) {
+        toggleTypeBtn.addEventListener('click', function() {
+            if (typeInput.style.display === 'none') {
+                typeSelect.style.display = 'none';
+                typeInput.style.display = 'block';
+                typeInput.value = typeSelect.value || '';
+                typeInput.focus();
+                toggleTypeBtn.textContent = '← Use Existing Type';
+            } else {
+                typeInput.style.display = 'none';
+                typeSelect.style.display = 'block';
+                typeSelect.value = '';
+                toggleTypeBtn.textContent = '+ Add New Type';
+            }
+        });
+    }
+    
+    // Toggle between dropdown and input for family
+    const toggleFamilyBtn = document.getElementById('toggleFamilyNew');
+    const familySelect = document.getElementById('editFamily');
+    const familyInput = document.getElementById('editFamilyNew');
+    
+    if (toggleFamilyBtn && familySelect && familyInput) {
+        toggleFamilyBtn.addEventListener('click', function() {
+            if (familyInput.style.display === 'none') {
+                familySelect.style.display = 'none';
+                familyInput.style.display = 'block';
+                familyInput.value = familySelect.value || '';
+                familyInput.focus();
+                toggleFamilyBtn.textContent = '← Use Existing Family';
+            } else {
+                familyInput.style.display = 'none';
+                familySelect.style.display = 'block';
+                familySelect.value = '';
+                toggleFamilyBtn.textContent = '+ Add New Family';
+            }
+        });
+    }
+    
+    // Form submission
+    if (form) {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!currentEditingTracker) {
+                showError('No tracker selected for editing');
+                return;
+            }
+            
+            // Get form values
+            const animalName = document.getElementById('editAnimalName').value.trim();
+            let animalType = '';
+            let family = '';
+            
+            // Get animal type (from dropdown or input)
+            const typeSelectEl = document.getElementById('editAnimalType');
+            const typeInputEl = document.getElementById('editAnimalTypeNew');
+            if (typeInputEl && typeInputEl.style.display !== 'none' && typeInputEl.value.trim()) {
+                animalType = typeInputEl.value.trim();
+            } else if (typeSelectEl && typeSelectEl.value) {
+                animalType = typeSelectEl.value;
+            }
+            
+            // Get family (from dropdown or input)
+            const familySelectEl = document.getElementById('editFamily');
+            const familyInputEl = document.getElementById('editFamilyNew');
+            if (familyInputEl && familyInputEl.style.display !== 'none' && familyInputEl.value.trim()) {
+                family = familyInputEl.value.trim();
+            } else if (familySelectEl && familySelectEl.value) {
+                family = familySelectEl.value;
+            }
+            
+            // Validate
+            if (!animalName) {
+                showError('Animal name is required');
+                return;
+            }
+            
+            if (!animalType) {
+                showError('Animal type is required');
+                return;
+            }
+            
+            // Submit update
+            try {
+                const response = await fetch(`/api/trackers/${currentEditingTracker}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        animal_name: animalName,
+                        animal_type: animalType,
+                        family: family || null
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to update tracker');
+                }
+                
+                // Success - reload data
+                closeEditTrackerModal();
+                showSuccess('Tracker updated successfully');
+                
+                // Reload dashboard data
+                await loadMockData();
+                
+            } catch (error) {
+                console.error('Error updating tracker:', error);
+                showError('Failed to update tracker: ' + error.message);
+            }
+        });
+    }
 }
 
 
@@ -1827,299 +2140,4 @@ function getStatusHint(animal) {
         return 'Active: Tracker is functioning normally';
     }
 }
-
-/**
- * Edit Tracker Modal Functions
- */
-
-let currentEditingTracker = null;
-
-// Make openEditTrackerModal globally available
-window.openEditTrackerModal = async function(trackerSlug) {
-    const modal = document.getElementById('editTrackerModal');
-    if (!modal) {
-        console.error('Edit tracker modal not found');
-        return;
-    }
-    
-    currentEditingTracker = trackerSlug;
-    modal.style.display = 'block';
-    
-    // Fetch tracker data
-    try {
-        const response = await fetch(`/api/trackers/${trackerSlug}`);
-        const data = await response.json();
-        
-        if (!data.success || !data.tracker) {
-            throw new Error('Failed to fetch tracker data');
-        }
-        
-        const tracker = data.tracker;
-        
-        // Populate form fields
-        document.getElementById('editAnimalName').value = tracker.animal_name || '';
-        document.getElementById('editTrackerId').value = tracker.id;
-        
-        // Populate dropdowns with existing values
-        populateTypeDropdown(tracker.animal_type);
-        populateFamilyDropdown(tracker.family);
-        
-        // Set current values
-        if (tracker.animal_type) {
-            const typeSelect = document.getElementById('editAnimalType');
-            const option = Array.from(typeSelect.options).find(opt => opt.value === tracker.animal_type);
-            if (option) {
-                typeSelect.value = tracker.animal_type;
-            } else {
-                // Value not in dropdown, show input field
-                document.getElementById('editAnimalTypeNew').value = tracker.animal_type;
-                document.getElementById('editAnimalType').style.display = 'none';
-                document.getElementById('editAnimalTypeNew').style.display = 'block';
-            }
-        }
-        
-        if (tracker.family) {
-            const familySelect = document.getElementById('editFamily');
-            const option = Array.from(familySelect.options).find(opt => opt.value === tracker.family);
-            if (option) {
-                familySelect.value = tracker.family;
-            } else {
-                // Value not in dropdown, show input field
-                document.getElementById('editFamilyNew').value = tracker.family;
-                document.getElementById('editFamily').style.display = 'none';
-                document.getElementById('editFamilyNew').style.display = 'block';
-            }
-        }
-        
-    } catch (error) {
-        console.error('Error loading tracker data:', error);
-        showError('Failed to load tracker data. Please try again.');
-        closeEditTrackerModal();
-    }
-};
-
-function populateTypeDropdown(currentValue = null) {
-    const select = document.getElementById('editAnimalType');
-    if (!select) return;
-    
-    // Get all unique animal types from current animals
-    const types = new Set();
-    animals.forEach(animal => {
-        const type = normalizeAttribute(animal.type);
-        if (type) {
-            types.add(type);
-        }
-    });
-    
-    // Clear existing options except first one
-    select.innerHTML = '<option value="">Select or type new...</option>';
-    
-    // Add options
-    Array.from(types).sort().forEach(type => {
-        const option = document.createElement('option');
-        option.value = type;
-        option.textContent = type;
-        if (currentValue === type) {
-            option.selected = true;
-        }
-        select.appendChild(option);
-    });
-}
-
-function populateFamilyDropdown(currentValue = null) {
-    const select = document.getElementById('editFamily');
-    if (!select) return;
-    
-    // Get all unique families from current animals
-    const families = new Set();
-    animals.forEach(animal => {
-        const family = normalizeAttribute(animal.family);
-        if (family) {
-            families.add(family);
-        }
-    });
-    
-    // Clear existing options except first one
-    select.innerHTML = '<option value="">Select or type new...</option>';
-    
-    // Add options
-    Array.from(families).sort().forEach(family => {
-        const option = document.createElement('option');
-        option.value = family;
-        option.textContent = family;
-        if (currentValue === family) {
-            option.selected = true;
-        }
-        select.appendChild(option);
-    });
-}
-
-function closeEditTrackerModal() {
-    const modal = document.getElementById('editTrackerModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-    currentEditingTracker = null;
-    
-    // Reset form
-    const form = document.getElementById('editTrackerForm');
-    if (form) {
-        form.reset();
-    }
-    
-    // Reset dropdown/input toggles
-    document.getElementById('editAnimalType').style.display = 'block';
-    document.getElementById('editAnimalTypeNew').style.display = 'none';
-    document.getElementById('editFamily').style.display = 'block';
-    document.getElementById('editFamilyNew').style.display = 'none';
-}
-
-// Modal event listeners
-document.addEventListener('DOMContentLoaded', function() {
-    const modal = document.getElementById('editTrackerModal');
-    const closeBtn = document.getElementById('closeEditModal');
-    const cancelBtn = document.getElementById('cancelEditModal');
-    const form = document.getElementById('editTrackerForm');
-    
-    // Close modal when clicking outside
-    if (modal) {
-        window.addEventListener('click', function(event) {
-            if (event.target === modal) {
-                closeEditTrackerModal();
-            }
-        });
-    }
-    
-    // Close button
-    if (closeBtn) {
-        closeBtn.addEventListener('click', closeEditTrackerModal);
-    }
-    
-    // Cancel button
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', closeEditTrackerModal);
-    }
-    
-    // Toggle between dropdown and input for animal type
-    const toggleTypeBtn = document.getElementById('toggleTypeNew');
-    const typeSelect = document.getElementById('editAnimalType');
-    const typeInput = document.getElementById('editAnimalTypeNew');
-    
-    if (toggleTypeBtn && typeSelect && typeInput) {
-        toggleTypeBtn.addEventListener('click', function() {
-            if (typeInput.style.display === 'none') {
-                typeSelect.style.display = 'none';
-                typeInput.style.display = 'block';
-                typeInput.value = typeSelect.value || '';
-                typeInput.focus();
-                toggleTypeBtn.textContent = '← Use Existing Type';
-            } else {
-                typeInput.style.display = 'none';
-                typeSelect.style.display = 'block';
-                typeSelect.value = '';
-                toggleTypeBtn.textContent = '+ Add New Type';
-            }
-        });
-    }
-    
-    // Toggle between dropdown and input for family
-    const toggleFamilyBtn = document.getElementById('toggleFamilyNew');
-    const familySelect = document.getElementById('editFamily');
-    const familyInput = document.getElementById('editFamilyNew');
-    
-    if (toggleFamilyBtn && familySelect && familyInput) {
-        toggleFamilyBtn.addEventListener('click', function() {
-            if (familyInput.style.display === 'none') {
-                familySelect.style.display = 'none';
-                familyInput.style.display = 'block';
-                familyInput.value = familySelect.value || '';
-                familyInput.focus();
-                toggleFamilyBtn.textContent = '← Use Existing Family';
-            } else {
-                familyInput.style.display = 'none';
-                familySelect.style.display = 'block';
-                familySelect.value = '';
-                toggleFamilyBtn.textContent = '+ Add New Family';
-            }
-        });
-    }
-    
-    // Form submission
-    if (form) {
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            if (!currentEditingTracker) {
-                showError('No tracker selected for editing');
-                return;
-            }
-            
-            // Get form values
-            const animalName = document.getElementById('editAnimalName').value.trim();
-            let animalType = '';
-            let family = '';
-            
-            // Get animal type (from dropdown or input)
-            const typeSelect = document.getElementById('editAnimalType');
-            const typeInput = document.getElementById('editAnimalTypeNew');
-            if (typeInput.style.display !== 'none' && typeInput.value.trim()) {
-                animalType = typeInput.value.trim();
-            } else if (typeSelect.value) {
-                animalType = typeSelect.value;
-            }
-            
-            // Get family (from dropdown or input)
-            const familySelect = document.getElementById('editFamily');
-            const familyInput = document.getElementById('editFamilyNew');
-            if (familyInput.style.display !== 'none' && familyInput.value.trim()) {
-                family = familyInput.value.trim();
-            } else if (familySelect.value) {
-                family = familySelect.value;
-            }
-            
-            // Validate
-            if (!animalName) {
-                showError('Animal name is required');
-                return;
-            }
-            
-            if (!animalType) {
-                showError('Animal type is required');
-                return;
-            }
-            
-            // Submit update
-            try {
-                const response = await fetch(`/api/trackers/${currentEditingTracker}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        animal_name: animalName,
-                        animal_type: animalType,
-                        family: family || null
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (!data.success) {
-                    throw new Error(data.error || 'Failed to update tracker');
-                }
-                
-                // Success - reload data
-                closeEditTrackerModal();
-                showSuccess('Tracker updated successfully');
-                
-                // Reload dashboard data
-                await loadMockData();
-                
-            } catch (error) {
-                console.error('Error updating tracker:', error);
-                showError('Failed to update tracker: ' + error.message);
-            }
-        });
-    }
-});
 
