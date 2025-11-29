@@ -2096,7 +2096,138 @@ function initFiltersToggle() {
     filtersToggleBtn.addEventListener('click', toggleFilters);
 }
 
+/**
+ * Download CSV with filtered location data
+ */
+function downloadCSV() {
+    try {
+        // Get current filter selections
+        const { status: statusFilter, type: typeFilter, family: familyFilter } = getFilterSelections();
+        const dateFromInput = document.getElementById('dateFrom');
+        const dateToInput = document.getElementById('dateTo');
+        const trackerFilter = document.getElementById('trackerFilter');
+        
+        const dateFrom = dateFromInput ? dateFromInput.value : null;
+        const dateTo = dateToInput ? dateToInput.value : null;
+        const selectedTrackerIds = trackerFilter && trackerFilter.selectedTrackerIds 
+            ? Array.from(trackerFilter.selectedTrackerIds) 
+            : animals.map(a => a.id);
+        
+        // Collect all locations from filtered animals
+        const csvData = [];
+        
+        animals.forEach(animal => {
+            // Apply tracker filter
+            if (!selectedTrackerIds.includes(animal.id)) {
+                return;
+            }
+            
+            // Apply status filter
+            if (statusFilter !== 'all' && animal.status !== statusFilter) {
+                return;
+            }
+            
+            // Apply type filter
+            if (typeFilter !== 'all' && !matchesFilter(animal.type, typeFilter)) {
+                return;
+            }
+            
+            // Apply family filter
+            if (familyFilter !== 'all' && !matchesFilter(animal.family, familyFilter)) {
+                return;
+            }
+            
+            // Process each location
+            animal.locations.forEach(location => {
+                // Apply date filter
+                if (dateFrom || dateTo) {
+                    const locDate = new Date(location.timestamp);
+                    if (isNaN(locDate.getTime())) {
+                        return;
+                    }
+                    
+                    const tz = detectedTimezone || 'UTC';
+                    const locDateStr = getDateStringInTimezone(locDate, tz);
+                    if (!locDateStr) return;
+                    
+                    if (dateFrom && locDateStr < dateFrom) {
+                        return;
+                    }
+                    if (dateTo && locDateStr > dateTo) {
+                        return;
+                    }
+                }
+                
+                // Format timestamp for CSV
+                const timestamp = new Date(location.timestamp).toISOString();
+                
+                // Add row to CSV data
+                csvData.push({
+                    tracker_id: animal.id || '',
+                    tracker_name: animal.name || '',
+                    tracker_family: animal.family || '',
+                    tracker_type: animal.type || '',
+                    tracker_status: animal.status || '',
+                    lat: !isNaN(location.lat) ? location.lat.toString() : '',
+                    long: !isNaN(location.lng) ? location.lng.toString() : '',
+                    timestamp: timestamp
+                });
+            });
+        });
+        
+        // Check if there's any data to export
+        if (csvData.length === 0) {
+            alert('No location data available to download. Please check your filters or refresh the data.');
+            return;
+        }
+        
+        // Sort by timestamp (oldest first)
+        csvData.sort((a, b) => {
+            return new Date(a.timestamp) - new Date(b.timestamp);
+        });
+        
+        // Generate CSV content
+        const headers = ['tracker_id', 'tracker_name', 'tracker_family', 'tracker_type', 'tracker_status', 'lat', 'long', 'timestamp'];
+        const csvRows = csvData.map(row => {
+            return headers.map(header => {
+                const value = row[header] || '';
+                // Escape quotes and wrap in quotes if contains comma, quote, or newline
+                if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+                    return `"${value.replace(/"/g, '""')}"`;
+                }
+                return value;
+            }).join(',');
+        });
+        
+        const csvContent = headers.join(',') + '\n' + csvRows.join('\n');
+        
+        // Create download link
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', `tracker_locations_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        console.log(`[downloadCSV] Downloaded CSV with ${csvData.length} locations`);
+    } catch (error) {
+        console.error('Error downloading CSV:', error);
+        alert('Error downloading CSV: ' + error.message);
+    }
+}
+
 function initEventListeners() {
+    // Download CSV button
+    const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+    if (downloadCsvBtn) {
+        downloadCsvBtn.addEventListener('click', downloadCSV);
+    }
+    
     // Refresh button
     document.getElementById('refreshBtn').addEventListener('click', () => {
         const btn = document.getElementById('refreshBtn');
