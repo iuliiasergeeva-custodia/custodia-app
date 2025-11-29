@@ -719,7 +719,7 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .modal-content {
-    background-color: var(--background-light);
+    background-color: white;
     margin: 5% auto;
     padding: 0;
     border-radius: var(--border-radius-lg);

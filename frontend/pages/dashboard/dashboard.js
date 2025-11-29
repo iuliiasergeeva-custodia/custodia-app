@@ -1630,12 +1630,66 @@ function initModalEventListeners() {
                     throw new Error(data.error || 'Failed to update tracker');
                 }
                 
-                // Success - reload data
-                closeEditTrackerModal();
+                // Success - show message but keep modal open
                 showSuccess('Tracker updated successfully');
                 
                 // Reload dashboard data
                 await loadMockData();
+                
+                // Refresh the dropdowns with updated data (new types/families will appear)
+                const tracker = data.tracker;
+                populateTypeDropdown(tracker.animal_type);
+                populateFamilyDropdown(tracker.family);
+                
+                // Update form fields with saved values
+                document.getElementById('editAnimalName').value = tracker.animal_name || '';
+                
+                // Set the current values in dropdowns/inputs
+                const typeSelect = document.getElementById('editAnimalType');
+                const typeInput = document.getElementById('editAnimalTypeNew');
+                const toggleTypeBtn = document.getElementById('toggleTypeNew');
+                
+                if (tracker.animal_type && typeSelect) {
+                    // Check if value exists in dropdown (it should now after refresh)
+                    const option = Array.from(typeSelect.options).find(opt => opt.value === tracker.animal_type);
+                    if (option) {
+                        typeSelect.value = tracker.animal_type;
+                        typeSelect.style.display = 'block';
+                        if (typeInput) typeInput.style.display = 'none';
+                        if (toggleTypeBtn) toggleTypeBtn.textContent = '+ Add New Type';
+                    } else {
+                        // Still not in dropdown - show in input field
+                        if (typeInput) {
+                            typeInput.value = tracker.animal_type;
+                            typeInput.style.display = 'block';
+                            typeSelect.style.display = 'none';
+                            if (toggleTypeBtn) toggleTypeBtn.textContent = '← Use Existing Type';
+                        }
+                    }
+                }
+                
+                const familySelect = document.getElementById('editFamily');
+                const familyInput = document.getElementById('editFamilyNew');
+                const toggleFamilyBtn = document.getElementById('toggleFamilyNew');
+                
+                if (tracker.family && familySelect) {
+                    // Check if value exists in dropdown (it should now after refresh)
+                    const option = Array.from(familySelect.options).find(opt => opt.value === tracker.family);
+                    if (option) {
+                        familySelect.value = tracker.family;
+                        familySelect.style.display = 'block';
+                        if (familyInput) familyInput.style.display = 'none';
+                        if (toggleFamilyBtn) toggleFamilyBtn.textContent = '+ Add New Family';
+                    } else {
+                        // Still not in dropdown - show in input field
+                        if (familyInput) {
+                            familyInput.value = tracker.family;
+                            familyInput.style.display = 'block';
+                            familySelect.style.display = 'none';
+                            if (toggleFamilyBtn) toggleFamilyBtn.textContent = '← Use Existing Family';
+                        }
+                    }
+                }
                 
             } catch (error) {
                 console.error('Error updating tracker:', error);
