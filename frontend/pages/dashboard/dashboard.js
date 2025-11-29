@@ -2407,33 +2407,27 @@ function renderPath(animal, sortedLocations, iconColor) {
             const midLng = (prevLocation.lng + location.lng) / 2;
             
             const distanceText = formatDistance(distanceFromPrevious);
-            // Estimate width based on text length (roughly 8px per character)
-            const estimatedWidth = Math.max(50, distanceText.length * 7 + 12);
-            const labelHeight = 20;
-            
-            // Calculate bearing to rotate label along the path
-            const bearing = calculateBearing(prevLocation.lat, prevLocation.lng, location.lat, location.lng);
+            // Estimate width based on text length (smaller boxes)
+            const estimatedWidth = Math.max(45, distanceText.length * 6 + 10);
+            const labelHeight = 18;
             
             const distanceLabel = L.divIcon({
                 className: 'distance-label',
                 html: `<div style="
-                    background: rgba(255, 255, 255, 0.95);
-                    border: 1px solid ${iconColor};
-                    border-radius: 12px;
-                    padding: 3px 8px;
+                    background: white;
+                    border: 2px solid ${iconColor};
+                    border-radius: 4px;
+                    padding: 2px 6px;
                     font-size: 11px;
-                    font-weight: 500;
+                    font-weight: bold;
                     color: ${iconColor};
                     white-space: nowrap;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
                     text-align: center;
                     pointer-events: none;
                     font-family: Arial, sans-serif;
-                    line-height: ${labelHeight - 6}px;
+                    line-height: ${labelHeight - 4}px;
                     min-width: ${estimatedWidth}px;
-                    transform: rotate(${bearing}deg);
-                    transform-origin: center;
-                    backdrop-filter: blur(4px);
                 ">${distanceText}</div>`,
                 iconSize: [estimatedWidth, labelHeight],
                 iconAnchor: [estimatedWidth / 2, labelHeight / 2]
@@ -2586,31 +2580,27 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
                 const labelLng = location.lng + (nextLocation.lng - location.lng) * labelPosition;
                 
                 const distanceText = formatDistance(distance);
-                // Estimate width based on text length (roughly 7px per character)
-                const estimatedWidth = Math.max(50, distanceText.length * 7 + 12);
-                const labelHeight = 20;
+                // Estimate width based on text length (smaller boxes)
+                const estimatedWidth = Math.max(45, distanceText.length * 6 + 10);
+                const labelHeight = 18;
                 
-                // Rotate label to follow the path direction
                 const distanceLabel = L.divIcon({
                     className: 'distance-label',
                     html: `<div style="
-                        background: rgba(255, 255, 255, 0.95);
-                        border: 1px solid ${iconColor};
-                        border-radius: 12px;
-                        padding: 3px 8px;
+                        background: white;
+                        border: 2px solid ${iconColor};
+                        border-radius: 4px;
+                        padding: 2px 6px;
                         font-size: 11px;
-                        font-weight: 500;
+                        font-weight: bold;
                         color: ${iconColor};
                         white-space: nowrap;
-                        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
                         text-align: center;
                         pointer-events: none;
                         font-family: Arial, sans-serif;
-                        line-height: ${labelHeight - 6}px;
+                        line-height: ${labelHeight - 4}px;
                         min-width: ${estimatedWidth}px;
-                        transform: rotate(${bearing}deg);
-                        transform-origin: center;
-                        backdrop-filter: blur(4px);
                     ">${distanceText}</div>`,
                     iconSize: [estimatedWidth, labelHeight],
                     iconAnchor: [estimatedWidth / 2, labelHeight / 2]
