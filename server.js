@@ -205,6 +205,78 @@ const db = require('./backend/app/db.js');
 app.use('/api/admin', adminRouter);
 app.post('/api/locations', ingestLocations);
 
+// Tracker management endpoint (by slug for dashboard)
+app.get('/api/trackers/:slug', async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const result = await db.query(
+            'SELECT id, slug, animal_type, animal_name, family FROM trackers WHERE slug = $1',
+            [slug]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Tracker not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            tracker: result.rows[0]
+        });
+    } catch (error) {
+        console.error('❌ [TRACKER API] Error fetching tracker:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch tracker',
+            message: error.message
+        });
+    }
+});
+
+app.put('/api/trackers/:slug', async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const { animal_type, animal_name, family } = req.body;
+        
+        // Validate required fields
+        if (!animal_type || !animal_name) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: animal_type and animal_name are required'
+            });
+        }
+        
+        const result = await db.query(
+            `UPDATE trackers 
+             SET animal_type = $1, animal_name = $2, family = $3
+             WHERE slug = $4
+             RETURNING id, slug, animal_type, animal_name, family`,
+            [animal_type, animal_name, family || null, slug]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Tracker not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            tracker: result.rows[0]
+        });
+    } catch (error) {
+        console.error('❌ [TRACKER API] Error updating tracker:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update tracker',
+            message: error.message
+        });
+    }
+});
+
 // Database endpoint - fetches locations from PostgreSQL
 app.get('/api/locations', async (req, res) => {
     try {

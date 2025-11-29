@@ -187,6 +187,49 @@
         </div>
     </main>
 
+    <!-- Edit Tracker Modal -->
+    <div id="editTrackerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Tracker</h2>
+                <button class="modal-close" id="closeEditModal" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="editTrackerForm">
+                <div class="form-group">
+                    <label for="editAnimalName">Animal Name</label>
+                    <input type="text" id="editAnimalName" name="animal_name" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="editAnimalType">Animal Type</label>
+                    <div class="dropdown-with-input">
+                        <select id="editAnimalType" name="animal_type" class="form-select">
+                            <option value="">Select or type new...</option>
+                        </select>
+                        <input type="text" id="editAnimalTypeNew" class="form-input" placeholder="Or type a new type..." style="display: none;">
+                    </div>
+                    <button type="button" class="btn-link" id="toggleTypeNew">+ Add New Type</button>
+                </div>
+                <div class="form-group">
+                    <label for="editFamily">Family</label>
+                    <div class="dropdown-with-input">
+                        <select id="editFamily" name="family" class="form-select">
+                            <option value="">Select or type new...</option>
+                        </select>
+                        <input type="text" id="editFamilyNew" class="form-input" placeholder="Or type a new family..." style="display: none;">
+                    </div>
+                    <button type="button" class="btn-link" id="toggleFamilyNew">+ Add New Family</button>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelEditModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+                <input type="hidden" id="editTrackerId" name="tracker_id">
+            </form>
+        </div>
+    </div>
+
     <!-- Leaflet JS for map -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
