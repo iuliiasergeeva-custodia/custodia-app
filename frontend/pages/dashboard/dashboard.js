@@ -640,34 +640,34 @@ function setDateFilterDefaults(locations) {
     
     const dateFromInput = document.getElementById('dateFrom');
     const dateToInput = document.getElementById('dateTo');
+    const today = new Date();
     
-    // Set date from to earliest date (format: YYYY-MM-DD)
+    // Set dateFrom: default and min to earliest date from database
     if (dateFromInput && earliestDate) {
         const earliestDateStr = earliestDate.toISOString().split('T')[0];
         dateFromInput.value = earliestDateStr;
         dateFromInput.setAttribute('placeholder', earliestDateStr);
         dateFromInput.setAttribute('min', earliestDateStr);
+        // Set max to today (can't select future dates)
+        dateFromInput.setAttribute('max', today.toISOString().split('T')[0]);
     }
     
-    // Set date to to latest date in data (or current date if later)
+    // Set dateTo: default and max to today
     if (dateToInput) {
-        const today = new Date();
-        // Use latest date from data
-        const latestDateToUse = latestDate || today;
-        const dateToStr = latestDateToUse.toISOString().split('T')[0];
-        dateToInput.value = dateToStr;
-        dateToInput.setAttribute('placeholder', dateToStr);
-        dateToInput.setAttribute('max', today.toISOString().split('T')[0]);
+        const todayStr = today.toISOString().split('T')[0];
+        dateToInput.value = todayStr;
+        dateToInput.setAttribute('placeholder', todayStr);
+        dateToInput.setAttribute('max', todayStr); // Can't select future dates
         if (earliestDate) {
             const earliestDateStr = earliestDate.toISOString().split('T')[0];
-            dateToInput.setAttribute('min', earliestDateStr);
+            dateToInput.setAttribute('min', earliestDateStr); // Can't select before earliest date
         }
-        console.log('[setDateFilterDefaults] Set dateTo to:', dateToStr, 'from latestDate:', latestDate ? latestDate.toISOString() : 'none', 'today:', today.toISOString());
+        console.log('[setDateFilterDefaults] Set dateTo to:', todayStr, '(today)');
     }
     
     console.log('Date filter defaults set:', {
         from: earliestDate ? earliestDate.toISOString().split('T')[0] : null,
-        to: latestDate ? latestDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        to: today.toISOString().split('T')[0], // Always defaults to today
         earliestInData: earliestDate ? earliestDate.toISOString() : null,
         latestInData: latestDate ? latestDate.toISOString() : null
     });
