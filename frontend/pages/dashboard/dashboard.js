@@ -185,6 +185,18 @@ function closeEditTrackerModal() {
     const familiesList = document.getElementById('familiesList');
     if (typesList) typesList.style.display = 'none';
     if (familiesList) familiesList.style.display = 'none';
+    
+    // Reset button text
+    const manageTypesBtn = document.getElementById('manageTypesBtn');
+    const manageFamiliesBtn = document.getElementById('manageFamiliesBtn');
+    if (manageTypesBtn) manageTypesBtn.textContent = 'Manage Types';
+    if (manageFamiliesBtn) manageFamiliesBtn.textContent = 'Manage Families';
+    
+    // Reset toggle button text
+    const toggleTypeBtn = document.getElementById('toggleTypeNew');
+    const toggleFamilyBtn = document.getElementById('toggleFamilyNew');
+    if (toggleTypeBtn) toggleTypeBtn.textContent = '+ Add New Type';
+    if (toggleFamilyBtn) toggleFamilyBtn.textContent = '+ Add New Family';
 }
 
 /**
@@ -751,6 +763,19 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
         Math.sin(dLng / 2) * Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
+}
+
+/**
+ * Format distance for display
+ */
+function formatDistance(km) {
+    if (km < 1) {
+        return (km * 1000).toFixed(0) + ' m';
+    } else if (km < 10) {
+        return km.toFixed(2) + ' km';
+    } else {
+        return km.toFixed(1) + ' km';
+    }
 }
 
 /**
@@ -2295,9 +2320,22 @@ function renderMarkersOnly(animal, sortedLocations, iconColor) {
 function renderPath(animal, sortedLocations, iconColor) {
     const animalMarkers = [];
     const pathCoordinates = [];
+    const distanceLabels = [];
     
     // Create markers for all locations
     sortedLocations.forEach((location, index) => {
+        // Calculate distance from previous location
+        let distanceFromPrevious = null;
+        let distanceText = '';
+        if (index > 0) {
+            const prevLocation = sortedLocations[index - 1];
+            distanceFromPrevious = calculateDistance(
+                prevLocation.lat, prevLocation.lng,
+                location.lat, location.lng
+            );
+            distanceText = `<br>Distance from previous: ${formatDistance(distanceFromPrevious)}`;
+        }
+        
         const icon = L.divIcon({
             className: 'custom-marker',
             html: `<div style="
@@ -2319,12 +2357,55 @@ function renderPath(animal, sortedLocations, iconColor) {
                 Type: ${escapeHtml(normalizeAttribute(animal.type))}<br>
                 Family: ${escapeHtml(normalizeAttribute(animal.family))}<br>
                 Time: ${formatTime(new Date(location.timestamp))}<br>
-                Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}<br>
+                Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}${distanceText}<br>
                 Location ${index + 1} of ${sortedLocations.length}
             `);
         
         animalMarkers.push(marker);
         pathCoordinates.push([location.lat, location.lng]);
+        
+        // Add distance label at midpoint between locations
+        if (index > 0 && distanceFromPrevious !== null) {
+            const prevLocation = sortedLocations[index - 1];
+            const midLat = (prevLocation.lat + location.lat) / 2;
+            const midLng = (prevLocation.lng + location.lng) / 2;
+            
+            const distanceText = formatDistance(distanceFromPrevious);
+            // Estimate width based on text length (roughly 8px per character)
+            const estimatedWidth = Math.max(60, distanceText.length * 8 + 16);
+            const labelHeight = 24;
+            
+            const distanceLabel = L.divIcon({
+                className: 'distance-label',
+                html: `<div style="
+                    background: white;
+                    border: 2px solid ${iconColor};
+                    border-radius: 4px;
+                    padding: 4px 8px;
+                    font-size: 12px;
+                    font-weight: bold;
+                    color: ${iconColor};
+                    white-space: nowrap;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                    text-align: center;
+                    pointer-events: none;
+                    font-family: Arial, sans-serif;
+                    line-height: ${labelHeight - 8}px;
+                    min-width: ${estimatedWidth}px;
+                ">${distanceText}</div>`,
+                iconSize: [estimatedWidth, labelHeight],
+                iconAnchor: [estimatedWidth / 2, labelHeight / 2]
+            });
+            
+            const labelMarker = L.marker([midLat, midLng], {
+                icon: distanceLabel,
+                interactive: false,
+                zIndexOffset: 1000
+            }).addTo(map);
+            
+            console.log(`[renderPath] Added distance label: ${distanceText} at (${midLat.toFixed(4)}, ${midLng.toFixed(4)})`);
+            distanceLabels.push(labelMarker);
+        }
     });
     
     // Store all markers as an array so they can all be cleared
@@ -2339,7 +2420,8 @@ function renderPath(animal, sortedLocations, iconColor) {
             smoothFactor: 1
         }).addTo(map);
         
-        polylines[animal.id] = polyline;
+        // Store both polyline and distance labels
+        polylines[animal.id] = [polyline, ...distanceLabels];
     }
 }
 
@@ -2354,6 +2436,18 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
     
     // Create markers for all locations
     sortedLocations.forEach((location, index) => {
+        // Calculate distance from previous location
+        let distanceFromPrevious = null;
+        let distanceText = '';
+        if (index > 0) {
+            const prevLocation = sortedLocations[index - 1];
+            distanceFromPrevious = calculateDistance(
+                prevLocation.lat, prevLocation.lng,
+                location.lat, location.lng
+            );
+            distanceText = `<br>Distance from previous: ${formatDistance(distanceFromPrevious)}`;
+        }
+        
         const icon = L.divIcon({
             className: 'custom-marker',
             html: `<div style="
@@ -2375,7 +2469,7 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
                 Type: ${escapeHtml(normalizeAttribute(animal.type))}<br>
                 Family: ${escapeHtml(normalizeAttribute(animal.family))}<br>
                 Time: ${formatTime(new Date(location.timestamp))}<br>
-                Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}<br>
+                Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}${distanceText}<br>
                 Location ${index + 1} of ${sortedLocations.length}
             `);
         
@@ -2383,7 +2477,7 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
         pathCoordinates.push([location.lat, location.lng]);
     });
     
-    // Add directional arrows after all markers are created
+    // Add directional arrows and distance labels after all markers are created
     sortedLocations.forEach((location, index) => {
         // Add directional arrow between consecutive locations (except for the last location)
         if (index < sortedLocations.length - 1) {
@@ -2391,11 +2485,17 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
             const midLat = (location.lat + nextLocation.lat) / 2;
             const midLng = (location.lng + nextLocation.lng) / 2;
             
+            // Calculate distance between locations
+            const distance = calculateDistance(
+                location.lat, location.lng,
+                nextLocation.lat, nextLocation.lng
+            );
+            
             // Calculate bearing for arrow direction
             const bearing = calculateBearing(location.lat, location.lng, nextLocation.lat, nextLocation.lng);
             console.log(`[renderPathWithDirections] Adding arrow at index ${index}, bearing: ${bearing.toFixed(1)}°`);
             
-            // Create arrow icon rotated to show direction using SVG
+            // Create arrow icon with distance label rotated to show direction using SVG
             // Arrow points from current location to next location
             // Use a flat, solid color design for better visibility
             const arrowSize = 28; // Larger size for better visibility
@@ -2427,7 +2527,51 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
             }).addTo(map);
             
             arrowMarkers.push(arrowMarker);
-            console.log(`[renderPathWithDirections] Arrow added at (${midLat.toFixed(4)}, ${midLng.toFixed(4)})`);
+            
+            // Add distance label slightly offset from arrow
+            // Offset perpendicular to the path direction
+            const offsetDistance = 0.0003; // Small offset in degrees
+            const perpBearing = (bearing + 90) * Math.PI / 180;
+            const offsetLat = midLat + offsetDistance * Math.cos(perpBearing);
+            const offsetLng = midLng + offsetDistance * Math.sin(perpBearing);
+            
+            const distanceText = formatDistance(distance);
+            // Estimate width based on text length (roughly 8px per character)
+            const estimatedWidth = Math.max(60, distanceText.length * 8 + 16);
+            const labelHeight = 24;
+            
+            const distanceLabel = L.divIcon({
+                className: 'distance-label',
+                html: `<div style="
+                    background: white;
+                    border: 2px solid ${iconColor};
+                    border-radius: 4px;
+                    padding: 4px 8px;
+                    font-size: 12px;
+                    font-weight: bold;
+                    color: ${iconColor};
+                    white-space: nowrap;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                    text-align: center;
+                    pointer-events: none;
+                    font-family: Arial, sans-serif;
+                    line-height: ${labelHeight - 8}px;
+                    min-width: ${estimatedWidth}px;
+                ">${distanceText}</div>`,
+                iconSize: [estimatedWidth, labelHeight],
+                iconAnchor: [estimatedWidth / 2, labelHeight / 2]
+            });
+            
+            const labelMarker = L.marker([offsetLat, offsetLng], {
+                icon: distanceLabel,
+                interactive: false,
+                zIndexOffset: 1000
+            }).addTo(map);
+            
+            console.log(`[renderPathWithDirections] Added distance label: ${distanceText} at (${offsetLat.toFixed(4)}, ${offsetLng.toFixed(4)})`);
+            arrowMarkers.push(labelMarker);
+            
+            console.log(`[renderPathWithDirections] Arrow and distance label added at (${midLat.toFixed(4)}, ${midLng.toFixed(4)})`);
         }
     });
     
