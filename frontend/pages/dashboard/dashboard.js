@@ -2408,26 +2408,32 @@ function renderPath(animal, sortedLocations, iconColor) {
             
             const distanceText = formatDistance(distanceFromPrevious);
             // Estimate width based on text length (roughly 8px per character)
-            const estimatedWidth = Math.max(60, distanceText.length * 8 + 16);
-            const labelHeight = 24;
+            const estimatedWidth = Math.max(50, distanceText.length * 7 + 12);
+            const labelHeight = 20;
+            
+            // Calculate bearing to rotate label along the path
+            const bearing = calculateBearing(prevLocation.lat, prevLocation.lng, location.lat, location.lng);
             
             const distanceLabel = L.divIcon({
                 className: 'distance-label',
                 html: `<div style="
-                    background: white;
-                    border: 2px solid ${iconColor};
-                    border-radius: 4px;
-                    padding: 4px 8px;
-                    font-size: 12px;
-                    font-weight: bold;
+                    background: rgba(255, 255, 255, 0.95);
+                    border: 1px solid ${iconColor};
+                    border-radius: 12px;
+                    padding: 3px 8px;
+                    font-size: 11px;
+                    font-weight: 500;
                     color: ${iconColor};
                     white-space: nowrap;
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
                     text-align: center;
                     pointer-events: none;
                     font-family: Arial, sans-serif;
-                    line-height: ${labelHeight - 8}px;
+                    line-height: ${labelHeight - 6}px;
                     min-width: ${estimatedWidth}px;
+                    transform: rotate(${bearing}deg);
+                    transform-origin: center;
+                    backdrop-filter: blur(4px);
                 ">${distanceText}</div>`,
                 iconSize: [estimatedWidth, labelHeight],
                 iconAnchor: [estimatedWidth / 2, labelHeight / 2]
@@ -2573,47 +2579,50 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
             
             // Add distance label only if checkbox is checked
             if (showDistances) {
-                // Add distance label slightly offset from arrow
-                // Offset perpendicular to the path direction
-                const offsetDistance = 0.0003; // Small offset in degrees
-                const perpBearing = (bearing + 90) * Math.PI / 180;
-                const offsetLat = midLat + offsetDistance * Math.cos(perpBearing);
-                const offsetLng = midLng + offsetDistance * Math.sin(perpBearing);
+                // Position distance label along the line path at 1/3 point to avoid arrow overlap
+                // Arrow is at midpoint (0.5), so we place label at 1/3 or 2/3 to create spacing
+                const labelPosition = index % 2 === 0 ? 0.33 : 0.67; // Alternate between 1/3 and 2/3
+                const labelLat = location.lat + (nextLocation.lat - location.lat) * labelPosition;
+                const labelLng = location.lng + (nextLocation.lng - location.lng) * labelPosition;
                 
                 const distanceText = formatDistance(distance);
-                // Estimate width based on text length (roughly 8px per character)
-                const estimatedWidth = Math.max(60, distanceText.length * 8 + 16);
-                const labelHeight = 24;
+                // Estimate width based on text length (roughly 7px per character)
+                const estimatedWidth = Math.max(50, distanceText.length * 7 + 12);
+                const labelHeight = 20;
                 
+                // Rotate label to follow the path direction
                 const distanceLabel = L.divIcon({
                     className: 'distance-label',
                     html: `<div style="
-                        background: white;
-                        border: 2px solid ${iconColor};
-                        border-radius: 4px;
-                        padding: 4px 8px;
-                        font-size: 12px;
-                        font-weight: bold;
+                        background: rgba(255, 255, 255, 0.95);
+                        border: 1px solid ${iconColor};
+                        border-radius: 12px;
+                        padding: 3px 8px;
+                        font-size: 11px;
+                        font-weight: 500;
                         color: ${iconColor};
                         white-space: nowrap;
-                        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
                         text-align: center;
                         pointer-events: none;
                         font-family: Arial, sans-serif;
-                        line-height: ${labelHeight - 8}px;
+                        line-height: ${labelHeight - 6}px;
                         min-width: ${estimatedWidth}px;
+                        transform: rotate(${bearing}deg);
+                        transform-origin: center;
+                        backdrop-filter: blur(4px);
                     ">${distanceText}</div>`,
                     iconSize: [estimatedWidth, labelHeight],
                     iconAnchor: [estimatedWidth / 2, labelHeight / 2]
                 });
                 
-                const labelMarker = L.marker([offsetLat, offsetLng], {
+                const labelMarker = L.marker([labelLat, labelLng], {
                     icon: distanceLabel,
                     interactive: false,
                     zIndexOffset: 1400  // Lower than arrows but still high
                 }).addTo(map);
                 
-                console.log(`[renderPathWithDirections] Added distance label: ${distanceText} at (${offsetLat.toFixed(4)}, ${offsetLng.toFixed(4)})`);
+                console.log(`[renderPathWithDirections] Added distance label: ${distanceText} at (${labelLat.toFixed(4)}, ${labelLng.toFixed(4)})`);
                 arrowMarkers.push(labelMarker);
             }
             
