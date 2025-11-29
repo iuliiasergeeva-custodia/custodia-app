@@ -781,6 +781,7 @@ function formatDistance(km) {
 /**
  * Calculate distance statistics for a tracker
  * Returns total distance and average distance per day
+ * Average distance per day = (sum of daily distances) / (number of days with locations)
  */
 function calculateDistanceStatistics(locations) {
     if (!locations || locations.length < 2) {
@@ -812,22 +813,56 @@ function calculateDistanceStatistics(locations) {
         totalDistance += distance;
     }
     
-    // Calculate number of days between first and last location
-    const firstDate = new Date(sortedLocations[0].timestamp);
-    const lastDate = new Date(sortedLocations[sortedLocations.length - 1].timestamp);
+    // Group locations by day and calculate distance per day
+    const dailyDistances = new Map(); // Map of dateString -> distance for that day
+    const locationByDay = new Map(); // Map of dateString -> array of locations for that day
     
-    // Validate dates
-    if (isNaN(firstDate.getTime()) || isNaN(lastDate.getTime())) {
-        return {
-            totalDistance: totalDistance,
-            avgDistancePerDay: 0
-        };
-    }
+    // Group locations by day (YYYY-MM-DD format)
+    sortedLocations.forEach(location => {
+        const timestamp = new Date(location.timestamp);
+        if (isNaN(timestamp.getTime())) return;
+        
+        const dateString = timestamp.toISOString().split('T')[0]; // YYYY-MM-DD
+        if (!locationByDay.has(dateString)) {
+            locationByDay.set(dateString, []);
+        }
+        locationByDay.get(dateString).push(location);
+    });
     
-    const daysDiff = (lastDate - firstDate) / (1000 * 60 * 60 * 24); // Convert to days
+    // Calculate distance for each day
+    locationByDay.forEach((dayLocations, dateString) => {
+        if (dayLocations.length < 2) {
+            // Single location on this day - no distance to calculate
+            dailyDistances.set(dateString, 0);
+            return;
+        }
+        
+        // Sort locations for this day by timestamp
+        dayLocations.sort((a, b) => {
+            return new Date(a.timestamp) - new Date(b.timestamp);
+        });
+        
+        // Calculate total distance traveled on this day
+        let dayDistance = 0;
+        for (let i = 1; i < dayLocations.length; i++) {
+            const prev = dayLocations[i - 1];
+            const curr = dayLocations[i];
+            
+            if (isNaN(prev.lat) || isNaN(prev.lng) || isNaN(curr.lat) || isNaN(curr.lng)) {
+                continue;
+            }
+            
+            const distance = calculateDistance(prev.lat, prev.lng, curr.lat, curr.lng);
+            dayDistance += distance;
+        }
+        
+        dailyDistances.set(dateString, dayDistance);
+    });
     
-    // Calculate average distance per day (minimum 1 day to avoid division issues)
-    const avgDistancePerDay = daysDiff >= 1 ? totalDistance / daysDiff : totalDistance;
+    // Calculate average: sum of daily distances / number of days with locations
+    const daysWithLocations = dailyDistances.size;
+    const sumDailyDistances = Array.from(dailyDistances.values()).reduce((sum, dist) => sum + dist, 0);
+    const avgDistancePerDay = daysWithLocations > 0 ? sumDailyDistances / daysWithLocations : 0;
     
     return {
         totalDistance: totalDistance,
