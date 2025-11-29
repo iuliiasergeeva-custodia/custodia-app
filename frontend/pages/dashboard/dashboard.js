@@ -2542,6 +2542,19 @@ function renderMarkersOnly(animal, sortedLocations, iconColor) {
     
     // Create markers for all locations
     sortedLocations.forEach((location, index) => {
+        // Calculate distance from previous location
+        let distanceText = '';
+        if (index > 0) {
+            const prevLocation = sortedLocations[index - 1];
+            const distanceFromPrevious = calculateDistance(
+                prevLocation.lat, prevLocation.lng,
+                location.lat, location.lng
+            );
+            distanceText = `<br>Distance from previous: ${formatDistance(distanceFromPrevious)}`;
+        } else {
+            distanceText = '<br>Distance from previous: --';
+        }
+        
         const icon = L.divIcon({
             className: 'custom-marker',
             html: `<div style="
@@ -2563,7 +2576,7 @@ function renderMarkersOnly(animal, sortedLocations, iconColor) {
                 Type: ${escapeHtml(normalizeAttribute(animal.type))}<br>
                 Family: ${escapeHtml(normalizeAttribute(animal.family))}<br>
                 Time: ${formatTime(new Date(location.timestamp))}<br>
-                Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}<br>
+                Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}${distanceText}<br>
                 Location ${index + 1} of ${sortedLocations.length}
             `);
         
@@ -2597,10 +2610,10 @@ function renderPath(animal, sortedLocations, iconColor) {
                 prevLocation.lat, prevLocation.lng,
                 location.lat, location.lng
             );
-            // Only show distance in popup if checkbox is checked
-            if (showDistances) {
-                distanceText = `<br>Distance from previous: ${formatDistance(distanceFromPrevious)}`;
-            }
+            // Always show distance in popup
+            distanceText = `<br>Distance from previous: ${formatDistance(distanceFromPrevious)}`;
+        } else {
+            distanceText = '<br>Distance from previous: --';
         }
         
         const icon = L.divIcon({
@@ -2716,10 +2729,10 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
                 prevLocation.lat, prevLocation.lng,
                 location.lat, location.lng
             );
-            // Only show distance in popup if checkbox is checked
-            if (showDistances) {
-                distanceText = `<br>Distance from previous: ${formatDistance(distanceFromPrevious)}`;
-            }
+            // Always show distance in popup
+            distanceText = `<br>Distance from previous: ${formatDistance(distanceFromPrevious)}`;
+        } else {
+            distanceText = '<br>Distance from previous: --';
         }
         
         const icon = L.divIcon({
