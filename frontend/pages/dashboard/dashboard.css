@@ -897,3 +897,88 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
     color: var(--accent-color-dark);
 }
 
+/* Form Group Actions */
+.form-group-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-xs);
+}
+
+/* Options List */
+.options-list {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-md);
+    background-color: var(--background-hover);
+    border-radius: var(--border-radius-sm);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.option-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+    background-color: white;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--border-color);
+}
+
+.option-item:last-child {
+    margin-bottom: 0;
+}
+
+.option-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.option-count {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin: 0 var(--spacing-sm);
+}
+
+.option-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.btn-option-edit,
+.btn-option-delete {
+    background: none;
+    border: none;
+    padding: var(--spacing-xs);
+    cursor: pointer;
+    border-radius: var(--border-radius-sm);
+    transition: all 0.2s;
+    font-size: var(--font-size-sm);
+}
+
+.btn-option-edit {
+    color: var(--accent-color);
+}
+
+.btn-option-edit:hover {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: var(--accent-color-dark);
+}
+
+.btn-option-delete {
+    color: #dc2626;
+}
+
+.btn-option-delete:hover {
+    background-color: rgba(220, 38, 38, 0.1);
+    color: #b91c1c;
+}
+
+.empty-options {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: var(--spacing-md);
+    font-style: italic;
+}
+

@@ -52,6 +52,16 @@ window.openEditTrackerModal = async function(trackerSlug) {
         populateTypeDropdown(tracker.animal_type);
         populateFamilyDropdown(tracker.family);
         
+        // Render management lists (if visible)
+        const typesList = document.getElementById('typesList');
+        if (typesList && typesList.style.display !== 'none') {
+            renderTypesList();
+        }
+        const familiesList = document.getElementById('familiesList');
+        if (familiesList && familiesList.style.display !== 'none') {
+            renderFamiliesList();
+        }
+        
         // Set current values
         if (tracker.animal_type) {
             const typeSelect = document.getElementById('editAnimalType');
@@ -169,6 +179,348 @@ function closeEditTrackerModal() {
     if (typeInput) typeInput.style.display = 'none';
     if (familySelect) familySelect.style.display = 'block';
     if (familyInput) familyInput.style.display = 'none';
+    
+    // Hide manage lists
+    const typesList = document.getElementById('typesList');
+    const familiesList = document.getElementById('familiesList');
+    if (typesList) typesList.style.display = 'none';
+    if (familiesList) familiesList.style.display = 'none';
+}
+
+/**
+ * Render types list with edit/delete buttons
+ */
+function renderTypesList() {
+    const typesList = document.getElementById('typesList');
+    if (!typesList) return;
+    
+    // Get all unique types
+    const types = new Set();
+    animals.forEach(animal => {
+        const type = normalizeAttribute(animal.type);
+        if (type && type !== 'Unknown') {
+            types.add(type);
+        }
+    });
+    
+    if (types.size === 0) {
+        typesList.innerHTML = '<p class="empty-options">No types available</p>';
+        return;
+    }
+    
+    typesList.innerHTML = Array.from(types).sort().map(type => {
+        // Count how many trackers use this type
+        const trackerCount = animals.filter(a => normalizeAttribute(a.type) === type).length;
+        return `
+            <div class="option-item" data-type="${escapeHtml(type)}">
+                <span class="option-name">${escapeHtml(type)}</span>
+                <span class="option-count">(${trackerCount} tracker${trackerCount !== 1 ? 's' : ''})</span>
+                <div class="option-actions">
+                    <button type="button" class="btn-option-edit" data-type="${escapeHtml(type)}" title="Edit type">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn-option-delete" data-type="${escapeHtml(type)}" title="Delete type">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    // Add event listeners
+    typesList.querySelectorAll('.btn-option-edit').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const type = btn.dataset.type;
+            editType(type);
+        });
+    });
+    
+    typesList.querySelectorAll('.btn-option-delete').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const type = btn.dataset.type;
+            deleteType(type);
+        });
+    });
+}
+
+/**
+ * Render families list with edit/delete buttons
+ */
+function renderFamiliesList() {
+    const familiesList = document.getElementById('familiesList');
+    if (!familiesList) return;
+    
+    // Get all unique families
+    const families = new Set();
+    animals.forEach(animal => {
+        const family = normalizeAttribute(animal.family);
+        if (family && family !== 'Unknown') {
+            families.add(family);
+        }
+    });
+    
+    if (families.size === 0) {
+        familiesList.innerHTML = '<p class="empty-options">No families available</p>';
+        return;
+    }
+    
+    familiesList.innerHTML = Array.from(families).sort().map(family => {
+        // Count how many trackers use this family
+        const trackerCount = animals.filter(a => normalizeAttribute(a.family) === family).length;
+        return `
+            <div class="option-item" data-family="${escapeHtml(family)}">
+                <span class="option-name">${escapeHtml(family)}</span>
+                <span class="option-count">(${trackerCount} tracker${trackerCount !== 1 ? 's' : ''})</span>
+                <div class="option-actions">
+                    <button type="button" class="btn-option-edit" data-family="${escapeHtml(family)}" title="Edit family">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn-option-delete" data-family="${escapeHtml(family)}" title="Delete family">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    // Add event listeners
+    familiesList.querySelectorAll('.btn-option-edit').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const family = btn.dataset.family;
+            editFamily(family);
+        });
+    });
+    
+    familiesList.querySelectorAll('.btn-option-delete').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const family = btn.dataset.family;
+            deleteFamily(family);
+        });
+    });
+}
+
+/**
+ * Edit a type (rename it across all trackers)
+ */
+async function editType(oldType) {
+    const newType = prompt(`Edit type "${oldType}":`, oldType);
+    if (!newType || newType.trim() === oldType) {
+        return;
+    }
+    
+    const normalizedNew = normalizeForDuplicateCheck(newType.trim());
+    if (!normalizedNew) {
+        showError('Invalid type name');
+        return;
+    }
+    
+    // Check for duplicates
+    const existingTypes = new Set();
+    animals.forEach(animal => {
+        if (animal.type) {
+            existingTypes.add(normalizeForDuplicateCheck(animal.type));
+        }
+    });
+    
+    if (existingTypes.has(normalizedNew) && normalizedNew !== normalizeForDuplicateCheck(oldType)) {
+        showError(`Type "${normalizedNew}" already exists`);
+        return;
+    }
+    
+    // Confirm action
+    const trackerCount = animals.filter(a => normalizeAttribute(a.type) === oldType).length;
+    if (!confirm(`Are you sure you want to rename "${oldType}" to "${normalizedNew}"?\n\nThis will affect ${trackerCount} tracker${trackerCount !== 1 ? 's' : ''}.`)) {
+        return;
+    }
+    
+    // Update all trackers with this type
+    try {
+        const updates = animals
+            .filter(a => normalizeAttribute(a.type) === oldType)
+            .map(a => 
+                fetch(`/api/trackers/${a.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        animal_type: normalizedNew,
+                        animal_name: a.name,
+                        family: a.family || null
+                    })
+                })
+            );
+        
+        await Promise.all(updates);
+        
+        showSuccess(`Type renamed from "${oldType}" to "${normalizedNew}"`);
+        
+        // Reload data and refresh UI
+        await loadMockData();
+        if (currentEditingTracker) {
+            // Refresh modal if open
+            await openEditTrackerModal(currentEditingTracker);
+        }
+        renderTypesList();
+        
+    } catch (error) {
+        console.error('Error updating type:', error);
+        showError('Failed to update type: ' + error.message);
+    }
+}
+
+/**
+ * Delete a type (remove it from all trackers - sets to "Unknown")
+ */
+async function deleteType(type) {
+    const trackerCount = animals.filter(a => normalizeAttribute(a.type) === type).length;
+    
+    if (!confirm(`Are you sure you want to delete type "${type}"?\n\nThis will set the type to "Unknown" for ${trackerCount} tracker${trackerCount !== 1 ? 's' : ''}. You can edit them later to assign a new type.`)) {
+        return;
+    }
+    
+    // Set type to "Unknown" for all trackers with this type
+    try {
+        const updates = animals
+            .filter(a => normalizeAttribute(a.type) === type)
+            .map(a => 
+                fetch(`/api/trackers/${a.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        animal_type: 'Unknown',
+                        animal_name: a.name,
+                        family: a.family || null
+                    })
+                })
+            );
+        
+        await Promise.all(updates);
+        
+        showSuccess(`Type "${type}" removed from all trackers (set to "Unknown")`);
+        
+        // Reload data and refresh UI
+        await loadMockData();
+        if (currentEditingTracker) {
+            // Refresh modal if open
+            await openEditTrackerModal(currentEditingTracker);
+        }
+        renderTypesList();
+        
+    } catch (error) {
+        console.error('Error deleting type:', error);
+        showError('Failed to delete type: ' + error.message);
+    }
+}
+
+/**
+ * Edit a family (rename it across all trackers)
+ */
+async function editFamily(oldFamily) {
+    const newFamily = prompt(`Edit family "${oldFamily}":`, oldFamily);
+    if (!newFamily || newFamily.trim() === oldFamily) {
+        return;
+    }
+    
+    const normalizedNew = normalizeForDuplicateCheck(newFamily.trim());
+    if (!normalizedNew) {
+        showError('Invalid family name');
+        return;
+    }
+    
+    // Check for duplicates
+    const existingFamilies = new Set();
+    animals.forEach(animal => {
+        if (animal.family) {
+            existingFamilies.add(normalizeForDuplicateCheck(animal.family));
+        }
+    });
+    
+    if (existingFamilies.has(normalizedNew) && normalizedNew !== normalizeForDuplicateCheck(oldFamily)) {
+        showError(`Family "${normalizedNew}" already exists`);
+        return;
+    }
+    
+    // Confirm action
+    const trackerCount = animals.filter(a => normalizeAttribute(a.family) === oldFamily).length;
+    if (!confirm(`Are you sure you want to rename "${oldFamily}" to "${normalizedNew}"?\n\nThis will affect ${trackerCount} tracker${trackerCount !== 1 ? 's' : ''}.`)) {
+        return;
+    }
+    
+    // Update all trackers with this family
+    try {
+        const updates = animals
+            .filter(a => normalizeAttribute(a.family) === oldFamily)
+            .map(a => 
+                fetch(`/api/trackers/${a.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        family: normalizedNew,
+                        animal_name: a.name,
+                        animal_type: a.type
+                    })
+                })
+            );
+        
+        await Promise.all(updates);
+        
+        showSuccess(`Family renamed from "${oldFamily}" to "${normalizedNew}"`);
+        
+        // Reload data and refresh UI
+        await loadMockData();
+        if (currentEditingTracker) {
+            // Refresh modal if open
+            await openEditTrackerModal(currentEditingTracker);
+        }
+        renderFamiliesList();
+        
+    } catch (error) {
+        console.error('Error updating family:', error);
+        showError('Failed to update family: ' + error.message);
+    }
+}
+
+/**
+ * Delete a family (remove it from all trackers)
+ */
+async function deleteFamily(family) {
+    const trackerCount = animals.filter(a => normalizeAttribute(a.family) === family).length;
+    
+    if (!confirm(`Are you sure you want to delete family "${family}"?\n\nThis will remove the family from ${trackerCount} tracker${trackerCount !== 1 ? 's' : ''}. The trackers will have no family assigned.`)) {
+        return;
+    }
+    
+    // Remove family from all trackers (set to null)
+    try {
+        const updates = animals
+            .filter(a => normalizeAttribute(a.family) === family)
+            .map(a => 
+                fetch(`/api/trackers/${a.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        family: null,
+                        animal_name: a.name,
+                        animal_type: a.type
+                    })
+                })
+            );
+        
+        await Promise.all(updates);
+        
+        showSuccess(`Family "${family}" removed from all trackers`);
+        
+        // Reload data and refresh UI
+        await loadMockData();
+        if (currentEditingTracker) {
+            // Refresh modal if open
+            await openEditTrackerModal(currentEditingTracker);
+        }
+        renderFamiliesList();
+        
+    } catch (error) {
+        console.error('Error deleting family:', error);
+        showError('Failed to delete family: ' + error.message);
+    }
 }
 
 // Initialize dashboard when DOM is loaded
@@ -1566,6 +1918,38 @@ function initModalEventListeners() {
         });
     }
     
+    // Manage Types button
+    const manageTypesBtn = document.getElementById('manageTypesBtn');
+    const typesList = document.getElementById('typesList');
+    if (manageTypesBtn && typesList) {
+        manageTypesBtn.addEventListener('click', function() {
+            if (typesList.style.display === 'none') {
+                typesList.style.display = 'block';
+                renderTypesList();
+                manageTypesBtn.textContent = 'Hide Types';
+            } else {
+                typesList.style.display = 'none';
+                manageTypesBtn.textContent = 'Manage Types';
+            }
+        });
+    }
+    
+    // Manage Families button
+    const manageFamiliesBtn = document.getElementById('manageFamiliesBtn');
+    const familiesList = document.getElementById('familiesList');
+    if (manageFamiliesBtn && familiesList) {
+        manageFamiliesBtn.addEventListener('click', function() {
+            if (familiesList.style.display === 'none') {
+                familiesList.style.display = 'block';
+                renderFamiliesList();
+                manageFamiliesBtn.textContent = 'Hide Families';
+            } else {
+                familiesList.style.display = 'none';
+                manageFamiliesBtn.textContent = 'Manage Families';
+            }
+        });
+    }
+    
     // Form submission
     if (form) {
         form.addEventListener('submit', async function(e) {
@@ -1608,6 +1992,79 @@ function initModalEventListeners() {
             if (!animalType) {
                 showError('Animal type is required');
                 return;
+            }
+            
+            // Normalize and check for duplicates
+            if (animalType) {
+                const normalizedType = normalizeForDuplicateCheck(animalType);
+                
+                // Check if this type already exists (case-insensitive)
+                const existingTypes = new Set();
+                animals.forEach(animal => {
+                    if (animal.type) {
+                        existingTypes.add(normalizeForDuplicateCheck(animal.type));
+                    }
+                });
+                
+                // Also check current dropdown options
+                if (typeSelectEl) {
+                    Array.from(typeSelectEl.options).forEach(opt => {
+                        if (opt.value) {
+                            existingTypes.add(normalizeForDuplicateCheck(opt.value));
+                        }
+                    });
+                }
+                
+                // Check for duplicate (but allow if it's the same as current tracker's type)
+                const currentTracker = animals.find(a => a.id === currentEditingTracker);
+                const currentNormalized = currentTracker && currentTracker.type ? normalizeForDuplicateCheck(currentTracker.type) : null;
+                
+                if (existingTypes.has(normalizedType) && normalizedType !== currentNormalized) {
+                    if (!confirm(`The type "${normalizedType}" already exists. Do you want to use the existing type instead?`)) {
+                        return;
+                    }
+                    // Use the existing normalized value
+                    const existingType = Array.from(existingTypes).find(t => normalizeForDuplicateCheck(t) === normalizedType);
+                    animalType = existingType || normalizedType;
+                } else {
+                    animalType = normalizedType;
+                }
+            }
+            
+            if (family) {
+                const normalizedFamily = normalizeForDuplicateCheck(family);
+                
+                // Check if this family already exists
+                const existingFamilies = new Set();
+                animals.forEach(animal => {
+                    if (animal.family) {
+                        existingFamilies.add(normalizeForDuplicateCheck(animal.family));
+                    }
+                });
+                
+                // Also check current dropdown options
+                if (familySelectEl) {
+                    Array.from(familySelectEl.options).forEach(opt => {
+                        if (opt.value) {
+                            existingFamilies.add(normalizeForDuplicateCheck(opt.value));
+                        }
+                    });
+                }
+                
+                // Check for duplicate (but allow if it's the same as current tracker's family)
+                const currentTracker = animals.find(a => a.id === currentEditingTracker);
+                const currentNormalized = currentTracker && currentTracker.family ? normalizeForDuplicateCheck(currentTracker.family) : null;
+                
+                if (existingFamilies.has(normalizedFamily) && normalizedFamily !== currentNormalized) {
+                    if (!confirm(`The family "${normalizedFamily}" already exists. Do you want to use the existing family instead?`)) {
+                        return;
+                    }
+                    // Use the existing normalized value
+                    const existingFamily = Array.from(existingFamilies).find(f => normalizeForDuplicateCheck(f) === normalizedFamily);
+                    family = existingFamily || normalizedFamily;
+                } else {
+                    family = normalizedFamily;
+                }
             }
             
             // Submit update
@@ -2098,6 +2555,22 @@ function normalizeAttribute(value) {
     }
     const trimmed = String(value).trim();
     return trimmed.length > 0 ? trimmed : 'Unknown';
+}
+
+/**
+ * Normalize attribute value for duplicate checking
+ * Converts to consistent format (title case, trimmed, no extra spaces)
+ */
+function normalizeForDuplicateCheck(value) {
+    if (!value || typeof value !== 'string') return '';
+    // Trim and replace multiple spaces with single space
+    const normalized = value.trim().replace(/\s+/g, ' ');
+    // Convert to title case: first letter of each word uppercase
+    return normalized
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 }
 
 function matchesFilter(value, filterValue) {

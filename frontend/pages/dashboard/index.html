@@ -209,7 +209,13 @@
                         </select>
                         <input type="text" id="editAnimalTypeNew" class="form-input" placeholder="Or type a new type..." style="display: none;">
                     </div>
-                    <button type="button" class="btn-link" id="toggleTypeNew">+ Add New Type</button>
+                    <div class="form-group-actions">
+                        <button type="button" class="btn-link" id="toggleTypeNew">+ Add New Type</button>
+                        <button type="button" class="btn-link" id="manageTypesBtn">Manage Types</button>
+                    </div>
+                    <div id="typesList" class="options-list" style="display: none;">
+                        <!-- Types with edit/delete buttons will be inserted here -->
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="editFamily">Family</label>
@@ -219,7 +225,13 @@
                         </select>
                         <input type="text" id="editFamilyNew" class="form-input" placeholder="Or type a new family..." style="display: none;">
                     </div>
-                    <button type="button" class="btn-link" id="toggleFamilyNew">+ Add New Family</button>
+                    <div class="form-group-actions">
+                        <button type="button" class="btn-link" id="toggleFamilyNew">+ Add New Family</button>
+                        <button type="button" class="btn-link" id="manageFamiliesBtn">Manage Families</button>
+                    </div>
+                    <div id="familiesList" class="options-list" style="display: none;">
+                        <!-- Families with edit/delete buttons will be inserted here -->
+                    </div>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" id="cancelEditModal">Cancel</button>
