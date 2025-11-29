@@ -246,30 +246,34 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
 }
 
 /**
- * Filter out isolated locations that are more than 100km from all other locations
+ * Filter out isolated locations for a specific tracker
+ * A location is considered isolated if it's more than 100km from all other locations of the same tracker
  * NOTE: This only affects map display - all locations remain in the database
  */
-function filterIsolatedLocations(locations) {
-    const filteredLocations = [];
-    const MAX_DISTANCE_KM = 100;
+function filterIsolatedLocationsForTracker(trackerLocations, trackerId) {
+    if (trackerLocations.length === 0) return [];
+    if (trackerLocations.length === 1) return trackerLocations; // Single location is always valid
     
-    locations.forEach(location => {
-        const lat1 = parseFloat(location.latitude || location.lat);
-        const lng1 = parseFloat(location.longitude || location.lng || location.lon);
+    const MAX_DISTANCE_KM = 100;
+    const filteredLocations = [];
+    
+    trackerLocations.forEach(location => {
+        const lat1 = location.lat;
+        const lng1 = location.lng;
         
         // Skip if coordinates are invalid
         if (isNaN(lat1) || isNaN(lng1)) {
             return;
         }
         
-        // Check if this location is within MAX_DISTANCE_KM of any other location
+        // Check if this location is within MAX_DISTANCE_KM of any other location from the same tracker
         let hasNearbyLocation = false;
         
-        for (const otherLocation of locations) {
+        for (const otherLocation of trackerLocations) {
             if (location === otherLocation) continue; // Skip self
             
-            const lat2 = parseFloat(otherLocation.latitude || otherLocation.lat);
-            const lng2 = parseFloat(otherLocation.longitude || otherLocation.lng || otherLocation.lon);
+            const lat2 = otherLocation.lat;
+            const lng2 = otherLocation.lng;
             
             if (isNaN(lat2) || isNaN(lng2)) continue;
             
@@ -284,7 +288,7 @@ function filterIsolatedLocations(locations) {
         if (hasNearbyLocation) {
             filteredLocations.push(location);
         } else {
-            console.warn(`[Isolated Location Filtered] Location ${location.tracker_id || 'unknown'}, Fix ${location.fix_number || 'N/A'}: More than ${MAX_DISTANCE_KM}km from all other locations. Coordinates: ${lat1}, ${lng1}`);
+            console.warn(`[Isolated Location Filtered] Tracker ${trackerId}, Fix ${location.fix_number || 'N/A'}: More than ${MAX_DISTANCE_KM}km from all other locations of this tracker. Coordinates: ${lat1}, ${lng1}`);
         }
     });
     
@@ -295,9 +299,6 @@ function filterIsolatedLocations(locations) {
  * Process locations to create animals list
  */
 function processLocations(locations) {
-    // First, filter out isolated locations (>100km from all others) for display only
-    // Note: All locations remain in the database, this only affects what's shown on the map
-    locations = filterIsolatedLocations(locations);
     // Group locations by tracker ID
     const animalMap = new Map();
     
@@ -360,8 +361,18 @@ function processLocations(locations) {
         }
     });
     
-    // Convert map to array and calculate status for each animal
+    // Convert map to array, filter isolated locations per tracker, and calculate status
     animals = Array.from(animalMap.values()).map(animal => {
+        // Filter out isolated locations for this tracker (>100km from other locations of same tracker)
+        // Note: All locations remain in the database, this only affects what's shown on the map
+        const originalCount = animal.locations.length;
+        animal.locations = filterIsolatedLocationsForTracker(animal.locations, animal.id);
+        const filteredCount = animal.locations.length;
+        
+        if (originalCount !== filteredCount) {
+            console.log(`[Tracker ${animal.id}] Filtered ${originalCount - filteredCount} isolated locations (${filteredCount}/${originalCount} remaining)`);
+        }
+        
         // Calculate status based on battery level and last update time
         animal.status = calculateAnimalStatus(animal);
         return animal;
