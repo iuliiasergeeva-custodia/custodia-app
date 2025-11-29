@@ -14,6 +14,7 @@ let polylines = {}; // Store polylines for path visualization
 let selectedAnimalId = null;
 let animalColors = {}; // Store color assignments for each animal
 let animalLabelsVisible = {}; // Track which animals have labels visible
+let detectedTimezone = 'UTC'; // Detected timezone based on location coordinates
 
 // Edit Tracker Modal state
 let currentEditingTracker = null;
@@ -779,6 +780,87 @@ function formatDistance(km) {
 }
 
 /**
+ * Detect timezone from coordinates
+ * Returns IANA timezone identifier (e.g., 'Asia/Riyadh' for Saudi Arabia)
+ */
+function detectTimezoneFromCoordinates(lat, lng) {
+    // Saudi Arabia region: approximately 16-32°N, 34-55°E
+    // Riyadh is approximately 24.7136°N, 46.6753°E
+    if (lat >= 16 && lat <= 32 && lng >= 34 && lng <= 55) {
+        return 'Asia/Riyadh'; // KSA timezone (UTC+3)
+    }
+    
+    // Default to UTC if we can't determine
+    // In the future, this could be expanded with more regions or use a timezone lookup library
+    return 'UTC';
+}
+
+/**
+ * Get timezone for locations (detected from coordinates)
+ * If multiple locations exist, uses the first valid location's coordinates
+ */
+function getTimezoneForLocations(locations) {
+    if (!locations || locations.length === 0) {
+        return 'UTC';
+    }
+    
+    // Find first valid location with coordinates
+    for (const location of locations) {
+        const lat = location.lat;
+        const lng = location.lng || location.lon;
+        if (!isNaN(lat) && !isNaN(lng)) {
+            return detectTimezoneFromCoordinates(lat, lng);
+        }
+    }
+    
+    return 'UTC';
+}
+
+/**
+ * Convert date to timezone-specific date string (YYYY-MM-DD)
+ */
+function getDateStringInTimezone(date, timezone) {
+    if (!date) return null;
+    
+    const dateObj = date instanceof Date ? date : new Date(date);
+    if (isNaN(dateObj.getTime())) return null;
+    
+    // Use Intl.DateTimeFormat to get date in specific timezone
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    
+    return formatter.format(dateObj); // Returns YYYY-MM-DD format
+}
+
+/**
+ * Format date/time in specific timezone
+ */
+function formatDateInTimezone(date, timezone, options = {}) {
+    if (!date) return 'Never';
+    
+    const dateObj = date instanceof Date ? date : new Date(date);
+    if (isNaN(dateObj.getTime())) return 'Never';
+    
+    const defaultOptions = {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    };
+    
+    const formatOptions = { ...defaultOptions, ...options };
+    
+    return dateObj.toLocaleString('en-US', formatOptions);
+}
+
+/**
  * Calculate distance statistics for a tracker
  * Returns total distance and average distance per day
  * Average distance per day = (sum of daily distances) / (number of days with locations)
@@ -817,12 +899,18 @@ function calculateDistanceStatistics(locations) {
     const dailyDistances = new Map(); // Map of dateString -> distance for that day
     const locationByDay = new Map(); // Map of dateString -> array of locations for that day
     
-    // Group locations by day (YYYY-MM-DD format)
+    // Detect timezone from locations (use first valid location)
+    const timezone = getTimezoneForLocations(sortedLocations);
+    
+    // Group locations by day (YYYY-MM-DD format) in the detected timezone
     sortedLocations.forEach(location => {
         const timestamp = new Date(location.timestamp);
         if (isNaN(timestamp.getTime())) return;
         
-        const dateString = timestamp.toISOString().split('T')[0]; // YYYY-MM-DD
+        // Get date string in the detected timezone
+        const dateString = getDateStringInTimezone(timestamp, timezone);
+        if (!dateString) return;
+        
         if (!locationByDay.has(dateString)) {
             locationByDay.set(dateString, []);
         }
@@ -955,6 +1043,10 @@ function filterIsolatedLocationsForTracker(trackerLocations, trackerId) {
  * Process locations to create animals list
  */
 function processLocations(locations) {
+    // Detect timezone from first valid location coordinates
+    detectedTimezone = getTimezoneForLocations(locations);
+    console.log('[processLocations] Detected timezone:', detectedTimezone);
+    
     // Group locations by tracker ID
     const animalMap = new Map();
     
@@ -1304,35 +1396,46 @@ function setDateFilterDefaults(locations) {
     const dateFromInput = document.getElementById('dateFrom');
     const dateToInput = document.getElementById('dateTo');
     const today = new Date();
+    const tz = detectedTimezone || 'UTC';
     
-    // Set dateFrom: default and min to earliest date from database
+    // Set dateFrom: default and min to earliest date from database (in detected timezone)
     if (dateFromInput && earliestDate) {
-        const earliestDateStr = earliestDate.toISOString().split('T')[0];
+        const earliestDateStr = getDateStringInTimezone(earliestDate, tz);
+        if (earliestDateStr) {
         dateFromInput.value = earliestDateStr;
         dateFromInput.setAttribute('placeholder', earliestDateStr);
         dateFromInput.setAttribute('min', earliestDateStr);
-        // Set max to today (can't select future dates)
-        dateFromInput.setAttribute('max', today.toISOString().split('T')[0]);
+            // Set max to today (can't select future dates)
+            const todayStr = getDateStringInTimezone(today, tz);
+            if (todayStr) {
+                dateFromInput.setAttribute('max', todayStr);
+            }
+        }
     }
     
-    // Set dateTo: default and max to today
+    // Set dateTo: default and max to today (in detected timezone)
     if (dateToInput) {
-        const todayStr = today.toISOString().split('T')[0];
-        dateToInput.value = todayStr;
-        dateToInput.setAttribute('placeholder', todayStr);
-        dateToInput.setAttribute('max', todayStr); // Can't select future dates
+        const todayStr = getDateStringInTimezone(today, tz);
+        if (todayStr) {
+            dateToInput.value = todayStr;
+            dateToInput.setAttribute('placeholder', todayStr);
+            dateToInput.setAttribute('max', todayStr); // Can't select future dates
         if (earliestDate) {
-            const earliestDateStr = earliestDate.toISOString().split('T')[0];
-            dateToInput.setAttribute('min', earliestDateStr); // Can't select before earliest date
+                const earliestDateStr = getDateStringInTimezone(earliestDate, tz);
+                if (earliestDateStr) {
+                    dateToInput.setAttribute('min', earliestDateStr); // Can't select before earliest date
         }
-        console.log('[setDateFilterDefaults] Set dateTo to:', todayStr, '(today)');
+            }
+            console.log('[setDateFilterDefaults] Set dateTo to:', todayStr, '(today in', tz, 'timezone)');
+        }
     }
     
     console.log('Date filter defaults set:', {
-        from: earliestDate ? earliestDate.toISOString().split('T')[0] : null,
-        to: today.toISOString().split('T')[0], // Always defaults to today
+        from: earliestDate ? getDateStringInTimezone(earliestDate, tz) : null,
+        to: getDateStringInTimezone(today, tz), // Always defaults to today
         earliestInData: earliestDate ? earliestDate.toISOString() : null,
-        latestInData: latestDate ? latestDate.toISOString() : null
+        latestInData: latestDate ? latestDate.toISOString() : null,
+        timezone: tz
     });
 }
 
@@ -1390,7 +1493,7 @@ function renderAnimalList() {
                         <button class="btn-edit-tracker" data-tracker-id="${animal.id}" title="Edit Tracker">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <span class="animal-status ${animal.status}" title="${escapeHtml(statusHint)}">${animal.status}</span>
+                    <span class="animal-status ${animal.status}" title="${escapeHtml(statusHint)}">${animal.status}</span>
                     </div>
                 </div>
                 <div class="animal-details">
@@ -1696,8 +1799,11 @@ function updateMap() {
         console.log(`[updateMap] ${animal.id} - Initial locations: ${animal.locations.length}`);
         
         // Only apply date filter if dates are actually set (not just empty strings)
+        // Use detected timezone for date comparisons
         if ((dateFrom && dateFrom.trim() !== '') || (dateTo && dateTo.trim() !== '')) {
             const beforeFilter = filteredLocations.length;
+            const tz = detectedTimezone || 'UTC';
+            
             filteredLocations = animal.locations.filter(loc => {
                 const locDate = new Date(loc.timestamp);
                 if (isNaN(locDate.getTime())) {
@@ -1705,33 +1811,23 @@ function updateMap() {
                     return false;
                 }
                 
+                // Get date string in detected timezone for comparison
+                const locDateStr = getDateStringInTimezone(locDate, tz);
+                if (!locDateStr) return false;
+                
                 if (dateFrom && dateFrom.trim() !== '') {
-                    // Parse dateFrom as YYYY-MM-DD and set to start of day UTC
-                    const fromDate = new Date(dateFrom + 'T00:00:00Z');
-                    if (isNaN(fromDate.getTime())) {
-                        console.warn(`[updateMap] Invalid dateFrom: ${dateFrom}`);
-                    } else {
-                        // Compare dates at start of day
-                        const locDateStart = new Date(locDate);
-                        locDateStart.setUTCHours(0, 0, 0, 0);
-                        if (locDateStart < fromDate) {
-                            console.log(`[updateMap] ${animal.id} - Location date ${locDateStart.toISOString()} is before dateFrom ${fromDate.toISOString()}`);
+                    // Compare date strings (YYYY-MM-DD format) in detected timezone
+                    if (locDateStr < dateFrom) {
+                        console.log(`[updateMap] ${animal.id} - Location date ${locDateStr} (${locDate.toISOString()}) is before dateFrom ${dateFrom} (timezone: ${tz})`);
                             return false;
-                        }
                     }
                 }
                 
                 if (dateTo && dateTo.trim() !== '') {
-                    // Parse dateTo as YYYY-MM-DD and set to end of day UTC
-                    const toDate = new Date(dateTo + 'T23:59:59.999Z');
-                    if (isNaN(toDate.getTime())) {
-                        console.warn(`[updateMap] Invalid dateTo: ${dateTo}`);
-                    } else {
-                        // Compare dates - location is included if it's on or before dateTo
-                        if (locDate > toDate) {
-                            console.log(`[updateMap] ${animal.id} - Location date ${locDate.toISOString()} is after dateTo ${toDate.toISOString()}`);
+                    // Compare date strings (YYYY-MM-DD format) in detected timezone
+                    if (locDateStr > dateTo) {
+                        console.log(`[updateMap] ${animal.id} - Location date ${locDateStr} (${locDate.toISOString()}) is after dateTo ${dateTo} (timezone: ${tz})`);
                             return false;
-                        }
                     }
                 }
                 
@@ -1828,12 +1924,12 @@ function updateStatistics() {
     const avgUpdateEl = document.getElementById('avgUpdateTime');
     const avgBatteryEl = document.getElementById('avgBattery');
     const alertsEl = document.getElementById('alertsCount');
-
+    
     const trackerFilterList = document.getElementById('trackerFilter');
-    const selectedTrackerIds = trackerFilterList && trackerFilterList.selectedTrackerIds ?
-        Array.from(trackerFilterList.selectedTrackerIds) :
+    const selectedTrackerIds = trackerFilterList && trackerFilterList.selectedTrackerIds ? 
+        Array.from(trackerFilterList.selectedTrackerIds) : 
         animals.map(a => a.id);
-
+    
     const animalsById = new Map(animals.map(a => [a.id, a]));
 
     const filteredLocations = locations.filter(loc => {
@@ -1841,7 +1937,7 @@ function updateStatistics() {
         if (trackerId && !selectedTrackerIds.includes(trackerId)) {
             return false;
         }
-
+        
         const animal = animalsById.get(trackerId);
         if (!animal) {
             return false;
@@ -1857,30 +1953,30 @@ function updateStatistics() {
 
         const timestamp = loc.timestamp || loc.time;
         if (!timestamp) return false;
-
+        
         const locDate = new Date(timestamp);
         if (isNaN(locDate.getTime())) return false;
-
+        
         if (dateFrom) {
             const fromDate = new Date(dateFrom);
             fromDate.setHours(0, 0, 0, 0);
             if (locDate < fromDate) return false;
         }
-
+        
         if (dateTo) {
             const toDate = new Date(dateTo);
             toDate.setHours(23, 59, 59, 999);
             if (locDate > toDate) return false;
         }
-
+        
         return true;
     });
-
+    
     const totalLocationsEl = document.getElementById('totalLocations');
     if (totalLocationsEl) {
         totalLocationsEl.textContent = filteredLocations.length;
     }
-
+    
     const filteredAnimals = animals.filter(animal =>
         selectedTrackerIds.includes(animal.id) &&
         (status === 'all' || animal.status === status) &&
@@ -1904,7 +2000,7 @@ function updateStatistics() {
                 // Use absolute value as safety, but should already be positive
                 return Math.abs(diff);
             });
-
+        
         if (updateTimes.length > 0) {
             const avgMs = updateTimes.reduce((a, b) => a + b, 0) / updateTimes.length;
             if (avgUpdateEl && avgMs >= 0) {
@@ -1926,7 +2022,7 @@ function updateStatistics() {
     const batteries = filteredAnimals
         .map(a => a.batteryPercent)
         .filter(b => b !== null && !Number.isNaN(b));
-
+    
     if (batteries.length > 0) {
         const avg = Math.round(batteries.reduce((a, b) => a + b, 0) / batteries.length);
         if (avgBatteryEl) {
@@ -1969,9 +2065,9 @@ function initEventListeners() {
         if (filterEl) {
             filterEl.addEventListener('change', () => {
                 console.log(`[${filterId}] Filter changed, updating views`);
-                updateMap();
-                updateStatistics();
-                renderAnimalList();
+        updateMap();
+        updateStatistics();
+        renderAnimalList();
             });
         }
     });
@@ -2026,11 +2122,11 @@ function initEventListeners() {
         // Distance checkbox listener
         if (showDistanceCheckbox) {
             showDistanceCheckbox.addEventListener('change', () => {
-                updateMap();
-            });
-        }
+            updateMap();
+        });
     }
-    
+}
+
     // Modal event listeners
     initModalEventListeners();
 }
@@ -2350,7 +2446,7 @@ function initModalEventListeners() {
 
 
 /**
- * Format time for display
+ * Format time for display (using detected timezone)
  */
 function formatTime(date) {
     if (!date) return 'Never';
@@ -2364,12 +2460,12 @@ function formatTime(date) {
     const now = new Date();
     const diff = now - dateObj;
     
+    // Use detected timezone for formatting
+    const timezone = detectedTimezone || 'UTC';
+    
     // Handle negative diff (future dates or clock skew) - should show as actual date
     if (diff < 0) {
-        return dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        return formatDateInTimezone(dateObj, timezone);
     }
     
     // Less than 1 minute
@@ -2381,11 +2477,8 @@ function formatTime(date) {
     // Less than 24 hours - show hours
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
     
-    // More than 24 hours - show full date and time
-    return dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    // More than 24 hours - show full date and time in detected timezone
+    return formatDateInTimezone(dateObj, timezone);
 }
 
 /**
