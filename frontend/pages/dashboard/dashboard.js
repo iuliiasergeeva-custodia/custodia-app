@@ -779,6 +779,63 @@ function formatDistance(km) {
 }
 
 /**
+ * Calculate distance statistics for a tracker
+ * Returns total distance and average distance per day
+ */
+function calculateDistanceStatistics(locations) {
+    if (!locations || locations.length < 2) {
+        return {
+            totalDistance: 0,
+            avgDistancePerDay: 0
+        };
+    }
+    
+    // Sort locations by timestamp
+    const sortedLocations = [...locations].sort((a, b) => {
+        const dateA = new Date(a.timestamp);
+        const dateB = new Date(b.timestamp);
+        return dateA - dateB;
+    });
+    
+    // Calculate total distance
+    let totalDistance = 0;
+    for (let i = 1; i < sortedLocations.length; i++) {
+        const prev = sortedLocations[i - 1];
+        const curr = sortedLocations[i];
+        
+        // Validate coordinates
+        if (isNaN(prev.lat) || isNaN(prev.lng) || isNaN(curr.lat) || isNaN(curr.lng)) {
+            continue;
+        }
+        
+        const distance = calculateDistance(prev.lat, prev.lng, curr.lat, curr.lng);
+        totalDistance += distance;
+    }
+    
+    // Calculate number of days between first and last location
+    const firstDate = new Date(sortedLocations[0].timestamp);
+    const lastDate = new Date(sortedLocations[sortedLocations.length - 1].timestamp);
+    
+    // Validate dates
+    if (isNaN(firstDate.getTime()) || isNaN(lastDate.getTime())) {
+        return {
+            totalDistance: totalDistance,
+            avgDistancePerDay: 0
+        };
+    }
+    
+    const daysDiff = (lastDate - firstDate) / (1000 * 60 * 60 * 24); // Convert to days
+    
+    // Calculate average distance per day (minimum 1 day to avoid division issues)
+    const avgDistancePerDay = daysDiff >= 1 ? totalDistance / daysDiff : totalDistance;
+    
+    return {
+        totalDistance: totalDistance,
+        avgDistancePerDay: avgDistancePerDay
+    };
+}
+
+/**
  * Filter out isolated locations for a specific tracker
  * A location is considered isolated if it's more than 100km from all other locations of the same tracker
  * NOTE: This only affects map display - all locations remain in the database
@@ -905,6 +962,11 @@ function processLocations(locations) {
         if (originalCount !== filteredCount) {
             console.log(`[Tracker ${animal.id}] Filtered ${originalCount - filteredCount} isolated locations (${filteredCount}/${originalCount} remaining)`);
         }
+        
+        // Calculate distance statistics
+        const distanceStats = calculateDistanceStatistics(animal.locations);
+        animal.totalDistance = distanceStats.totalDistance;
+        animal.avgDistancePerDay = distanceStats.avgDistancePerDay;
         
         // Calculate status based on battery level and last update time
         animal.status = calculateAnimalStatus(animal);
@@ -1279,6 +1341,14 @@ function renderAnimalList() {
                     <div class="animal-details-row">
                         <span class="animal-details-label">Battery:</span>
                         <span>${batteryText}</span>
+                    </div>
+                    <div class="animal-details-row">
+                        <span class="animal-details-label">Total Distance:</span>
+                        <span>${animal.totalDistance !== undefined ? formatDistance(animal.totalDistance) : '--'}</span>
+                    </div>
+                    <div class="animal-details-row">
+                        <span class="animal-details-label">Avg Distance/Day:</span>
+                        <span>${animal.avgDistancePerDay !== undefined ? formatDistance(animal.avgDistancePerDay) : '--'}</span>
                     </div>
                 </div>
             </div>
