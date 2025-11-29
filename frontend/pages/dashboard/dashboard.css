@@ -124,8 +124,72 @@ body {
     color: var(--text-secondary);
 }
 
+/* Filters Section - Collapsible */
+.sidebar-filters-section {
+    margin-bottom: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: var(--spacing-md);
+}
+
+.filters-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.filters-header h3 {
+    margin: 0;
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.filters-toggle-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-fast);
+    border-radius: var(--radius-sm);
+}
+
+.filters-toggle-btn:hover {
+    background: var(--background-secondary);
+    color: var(--accent-color);
+}
+
+.filters-toggle-btn i {
+    font-size: var(--font-size-sm);
+    transition: transform var(--transition-fast);
+}
+
+.filters-toggle-btn.expanded i {
+    transform: rotate(180deg);
+}
+
 .sidebar-filters {
     margin-bottom: var(--spacing-lg);
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+.sidebar-filters.collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin-bottom: 0;
+    overflow: hidden;
+}
+
+.sidebar-filters.expanded {
+    max-height: 2000px; /* Large enough for all filters */
+    opacity: 1;
 }
 
 .filter-group {

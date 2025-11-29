@@ -552,8 +552,9 @@ document.addEventListener('DOMContentLoaded', function() {
  */
 function initDashboard() {
     initMap();
-    loadMockData();
     initEventListeners();
+    initFiltersToggle();
+    loadMockData();
 }
 
 /**
@@ -2044,6 +2045,57 @@ function updateStatistics() {
 /**
  * Initialize event listeners
  */
+/**
+ * Initialize filters toggle functionality
+ */
+function initFiltersToggle() {
+    const filtersHeader = document.getElementById('filtersHeader');
+    const filtersToggleBtn = document.getElementById('filtersToggleBtn');
+    const filtersToggleIcon = document.getElementById('filtersToggleIcon');
+    const sidebarFilters = document.getElementById('sidebarFilters');
+    
+    if (!filtersHeader || !filtersToggleBtn || !filtersToggleIcon || !sidebarFilters) {
+        console.warn('Filters toggle elements not found');
+        return;
+    }
+    
+    // Start collapsed by default - ensure state is set
+    sidebarFilters.classList.add('collapsed');
+    sidebarFilters.classList.remove('expanded');
+    
+    // Toggle function
+    function toggleFilters(e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        const isCollapsed = sidebarFilters.classList.contains('collapsed') || sidebarFilters.style.display === 'none';
+        
+        if (isCollapsed) {
+            // Expand
+            sidebarFilters.classList.remove('collapsed');
+            sidebarFilters.classList.add('expanded');
+            sidebarFilters.style.display = 'block';
+            filtersToggleBtn.classList.add('expanded');
+            filtersToggleIcon.classList.remove('fa-chevron-down');
+            filtersToggleIcon.classList.add('fa-chevron-up');
+        } else {
+            // Collapse
+            sidebarFilters.classList.remove('expanded');
+            sidebarFilters.classList.add('collapsed');
+            sidebarFilters.style.display = 'none';
+            filtersToggleBtn.classList.remove('expanded');
+            filtersToggleIcon.classList.remove('fa-chevron-up');
+            filtersToggleIcon.classList.add('fa-chevron-down');
+        }
+    }
+    
+    // Add click listeners
+    filtersHeader.addEventListener('click', toggleFilters);
+    filtersToggleBtn.addEventListener('click', toggleFilters);
+}
+
 function initEventListeners() {
     // Refresh button
     document.getElementById('refreshBtn').addEventListener('click', () => {

@@ -65,8 +65,15 @@
             </div>
             
             <!-- Filters -->
-            <div class="sidebar-filters">
-                <div class="filter-group">
+            <div class="sidebar-filters-section">
+                <div class="filters-header" id="filtersHeader">
+                    <h3>Filters</h3>
+                    <button type="button" class="filters-toggle-btn" id="filtersToggleBtn" title="Toggle filters">
+                        <i class="fas fa-chevron-down" id="filtersToggleIcon"></i>
+                    </button>
+                </div>
+                <div class="sidebar-filters" id="sidebarFilters" style="display: none;">
+                    <div class="filter-group">
                     <div class="filter-group-header">
                         <label for="trackerFilter">Filter by Tracker</label>
                         <button type="button" id="toggleAllTrackers" class="toggle-all-btn" title="Toggle all trackers">
@@ -119,6 +126,7 @@
                         <input type="checkbox" id="showDistanceCheckbox" class="filter-checkbox">
                         <span>Show distance between markers</span>
                     </label>
+                </div>
                 </div>
             </div>
             
