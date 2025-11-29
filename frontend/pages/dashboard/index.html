@@ -46,6 +46,9 @@
                     <button class="btn btn-icon" id="refreshBtn" title="Refresh Data">
                         <i class="fas fa-sync-alt"></i>
                     </button>
+                    <button class="btn btn-icon" id="logoutBtn" title="Logout" style="display: none;">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
                 </div>
                 <div class="hamburger">
                     <span class="bar"></span>
@@ -203,6 +206,41 @@
 
         </div>
     </main>
+
+    <!-- Login/Signup Modal -->
+    <div id="authModal" class="modal" style="display: block;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2 id="authModalTitle">Sign Up</h2>
+                <button class="modal-close" id="closeAuthModal" aria-label="Close" style="display: none;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="authError" class="auth-error" style="display: none;"></div>
+            <form id="authForm">
+                <div id="clientSlugGroup" class="form-group" style="display: none;">
+                    <label for="clientSlug">Client (optional)</label>
+                    <input type="text" id="clientSlug" name="client_slug" class="form-input" placeholder="Leave empty for default client">
+                </div>
+                <div class="form-group" id="nameGroup">
+                    <label for="authName">Name</label>
+                    <input type="text" id="authName" name="name" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="authEmail">Email</label>
+                    <input type="email" id="authEmail" name="email" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="authPassword">Password</label>
+                    <input type="password" id="authPassword" name="password" class="form-input" required minlength="6">
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary" id="authSubmitBtn">Sign Up</button>
+                    <button type="button" class="btn btn-link" id="toggleAuthMode">Already have an account? Log in</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Edit Tracker Modal -->
     <div id="editTrackerModal" class="modal">

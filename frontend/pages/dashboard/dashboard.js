@@ -547,10 +547,187 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// Authentication state
+let currentUser = null;
+let isAuthenticated = false;
+
+/**
+ * Check authentication status
+ */
+async function checkAuth() {
+    try {
+        const response = await fetch('/api/auth/session', {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.success && data.authenticated) {
+            isAuthenticated = true;
+            currentUser = data.user;
+            hideAuthModal();
+            // Show logout button
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.style.display = 'block';
+            }
+            return true;
+        } else {
+            isAuthenticated = false;
+            currentUser = null;
+            // Hide logout button
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.style.display = 'none';
+            }
+            showAuthModal();
+            return false;
+        }
+    } catch (error) {
+        console.error('Error checking auth:', error);
+        showAuthModal();
+        return false;
+    }
+}
+
+/**
+ * Show auth modal
+ */
+function showAuthModal() {
+    const authModal = document.getElementById('authModal');
+    if (authModal) {
+        authModal.style.display = 'block';
+        // Get client_slug from URL if present
+        const urlParams = new URLSearchParams(window.location.search);
+        const clientSlug = urlParams.get('client');
+        if (clientSlug) {
+            const clientSlugInput = document.getElementById('clientSlug');
+            const clientSlugGroup = document.getElementById('clientSlugGroup');
+            if (clientSlugInput && clientSlugGroup) {
+                clientSlugInput.value = clientSlug;
+                clientSlugGroup.style.display = 'block';
+            }
+        }
+    }
+}
+
+/**
+ * Hide auth modal
+ */
+function hideAuthModal() {
+    const authModal = document.getElementById('authModal');
+    if (authModal) {
+        authModal.style.display = 'none';
+    }
+}
+
+/**
+ * Initialize authentication
+ */
+function initAuth() {
+    const authForm = document.getElementById('authForm');
+    const toggleAuthMode = document.getElementById('toggleAuthMode');
+    const authModalTitle = document.getElementById('authModalTitle');
+    const authSubmitBtn = document.getElementById('authSubmitBtn');
+    const nameGroup = document.getElementById('nameGroup');
+    const authName = document.getElementById('authName');
+    let isLoginMode = false;
+    
+    // Toggle between signup and login
+    if (toggleAuthMode) {
+        toggleAuthMode.addEventListener('click', () => {
+            isLoginMode = !isLoginMode;
+            if (isLoginMode) {
+                authModalTitle.textContent = 'Log In';
+                authSubmitBtn.textContent = 'Log In';
+                toggleAuthMode.textContent = "Don't have an account? Sign up";
+                nameGroup.style.display = 'none';
+                authName.required = false;
+            } else {
+                authModalTitle.textContent = 'Sign Up';
+                authSubmitBtn.textContent = 'Sign Up';
+                toggleAuthMode.textContent = 'Already have an account? Log in';
+                nameGroup.style.display = 'block';
+                authName.required = true;
+            }
+        });
+    }
+    
+    // Handle form submission
+    if (authForm) {
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            const name = document.getElementById('authName').value;
+            const clientSlug = document.getElementById('clientSlug')?.value || null;
+            
+            const errorDiv = document.getElementById('authError');
+            errorDiv.style.display = 'none';
+            errorDiv.textContent = '';
+            
+            try {
+                let response;
+                if (isLoginMode) {
+                    // Login
+                    response = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ email, password })
+                    });
+                } else {
+                    // Signup
+                    response = await fetch('/api/auth/signup', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ email, password, name, client_slug: clientSlug })
+                    });
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                isAuthenticated = true;
+                currentUser = data.user;
+                hideAuthModal();
+                // Show logout button
+                const logoutBtn = document.getElementById('logoutBtn');
+                if (logoutBtn) {
+                    logoutBtn.style.display = 'block';
+                }
+                // Reload data after authentication
+                loadMockData();
+                } else {
+                    errorDiv.textContent = data.error || 'Authentication failed';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Auth error:', error);
+                errorDiv.textContent = 'An error occurred. Please try again.';
+                errorDiv.style.display = 'block';
+            }
+        });
+    }
+}
+
 /**
  * Initialize dashboard
  */
-function initDashboard() {
+async function initDashboard() {
+    // Check authentication first
+    const authenticated = await checkAuth();
+    
+    if (!authenticated) {
+        initAuth();
+        return; // Don't initialize dashboard if not authenticated
+    }
+    
     initMap();
     initEventListeners();
     initFiltersToggle();
@@ -2221,7 +2398,46 @@ function downloadCSV() {
     }
 }
 
+/**
+ * Logout function
+ */
+async function logout() {
+    try {
+        const response = await fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            isAuthenticated = false;
+            currentUser = null;
+            // Hide logout button
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.style.display = 'none';
+            }
+            // Show auth modal
+            showAuthModal();
+            // Clear dashboard
+            if (map) {
+                map.remove();
+                map = null;
+            }
+            animals = [];
+            locations = [];
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
+    }
+}
+
 function initEventListeners() {
+    // Logout button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+    }
+    
     // Download CSV button
     const downloadCsvBtn = document.getElementById('downloadCsvBtn');
     if (downloadCsvBtn) {
