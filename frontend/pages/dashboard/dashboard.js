@@ -230,9 +230,74 @@ function parseCSV(csvText) {
 }
 
 /**
+ * Calculate distance between two coordinates using Haversine formula
+ * Returns distance in kilometers
+ */
+function calculateDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+/**
+ * Filter out isolated locations that are more than 100km from all other locations
+ * NOTE: This only affects map display - all locations remain in the database
+ */
+function filterIsolatedLocations(locations) {
+    const filteredLocations = [];
+    const MAX_DISTANCE_KM = 100;
+    
+    locations.forEach(location => {
+        const lat1 = parseFloat(location.latitude || location.lat);
+        const lng1 = parseFloat(location.longitude || location.lng || location.lon);
+        
+        // Skip if coordinates are invalid
+        if (isNaN(lat1) || isNaN(lng1)) {
+            return;
+        }
+        
+        // Check if this location is within MAX_DISTANCE_KM of any other location
+        let hasNearbyLocation = false;
+        
+        for (const otherLocation of locations) {
+            if (location === otherLocation) continue; // Skip self
+            
+            const lat2 = parseFloat(otherLocation.latitude || otherLocation.lat);
+            const lng2 = parseFloat(otherLocation.longitude || otherLocation.lng || otherLocation.lon);
+            
+            if (isNaN(lat2) || isNaN(lng2)) continue;
+            
+            const distance = calculateDistance(lat1, lng1, lat2, lng2);
+            
+            if (distance <= MAX_DISTANCE_KM) {
+                hasNearbyLocation = true;
+                break; // Found at least one nearby location, no need to check others
+            }
+        }
+        
+        if (hasNearbyLocation) {
+            filteredLocations.push(location);
+        } else {
+            console.warn(`[Isolated Location Filtered] Location ${location.tracker_id || 'unknown'}, Fix ${location.fix_number || 'N/A'}: More than ${MAX_DISTANCE_KM}km from all other locations. Coordinates: ${lat1}, ${lng1}`);
+        }
+    });
+    
+    return filteredLocations;
+}
+
+/**
  * Process locations to create animals list
  */
 function processLocations(locations) {
+    // First, filter out isolated locations (>100km from all others) for display only
+    // Note: All locations remain in the database, this only affects what's shown on the map
+    locations = filterIsolatedLocations(locations);
     // Group locations by tracker ID
     const animalMap = new Map();
     
