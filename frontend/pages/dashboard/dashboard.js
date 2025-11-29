@@ -2573,9 +2573,9 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
             
             // Add distance label only if checkbox is checked
             if (showDistances) {
-                // Position distance label along the line path at 1/3 point to avoid arrow overlap
-                // Arrow is at midpoint (0.5), so we place label at 1/3 or 2/3 to create spacing
-                const labelPosition = index % 2 === 0 ? 0.33 : 0.67; // Alternate between 1/3 and 2/3
+                // Position distance label along the line path to avoid arrow overlap
+                // Arrow is at midpoint (0.5), so we place label closer to start/end (15% or 85%) for maximum separation
+                const labelPosition = index % 2 === 0 ? 0.15 : 0.85; // Alternate between 15% and 85% along segment
                 const labelLat = location.lat + (nextLocation.lat - location.lat) * labelPosition;
                 const labelLng = location.lng + (nextLocation.lng - location.lng) * labelPosition;
                 
