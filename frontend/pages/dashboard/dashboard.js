@@ -837,14 +837,38 @@ function calculateDistanceStatistics(locations) {
 
 /**
  * Filter out isolated locations for a specific tracker
- * A location is considered isolated if it's more than 100km from all other locations of the same tracker
+ * A location is filtered if:
+ * 1. It's more than 100km from all other locations of the same tracker, OR
+ * 2. It's more than 200km from the average center of all locations for this tracker
  * NOTE: This only affects map display - all locations remain in the database
  */
 function filterIsolatedLocationsForTracker(trackerLocations, trackerId) {
     if (trackerLocations.length === 0) return [];
     if (trackerLocations.length === 1) return trackerLocations; // Single location is always valid
     
-    const MAX_DISTANCE_KM = 100;
+    const MAX_DISTANCE_FROM_OTHER_KM = 100;
+    const MAX_DISTANCE_FROM_CENTER_KM = 200;
+    
+    // First, calculate the average center of all locations
+    let sumLat = 0;
+    let sumLng = 0;
+    let validCount = 0;
+    
+    trackerLocations.forEach(location => {
+        const lat = location.lat;
+        const lng = location.lng;
+        if (!isNaN(lat) && !isNaN(lng)) {
+            sumLat += lat;
+            sumLng += lng;
+            validCount++;
+        }
+    });
+    
+    if (validCount === 0) return [];
+    
+    const avgCenterLat = sumLat / validCount;
+    const avgCenterLng = sumLng / validCount;
+    
     const filteredLocations = [];
     
     trackerLocations.forEach(location => {
@@ -856,7 +880,14 @@ function filterIsolatedLocationsForTracker(trackerLocations, trackerId) {
             return;
         }
         
-        // Check if this location is within MAX_DISTANCE_KM of any other location from the same tracker
+        // Check 1: Distance from average center (must be within 200km)
+        const distanceFromCenter = calculateDistance(lat1, lng1, avgCenterLat, avgCenterLng);
+        if (distanceFromCenter > MAX_DISTANCE_FROM_CENTER_KM) {
+            console.warn(`[Isolated Location Filtered] Tracker ${trackerId}, Fix ${location.fix_number || 'N/A'}: More than ${MAX_DISTANCE_FROM_CENTER_KM}km from average center. Coordinates: ${lat1}, ${lng1}, Distance: ${distanceFromCenter.toFixed(2)}km`);
+            return;
+        }
+        
+        // Check 2: Must be within 100km of at least one other location
         let hasNearbyLocation = false;
         
         for (const otherLocation of trackerLocations) {
@@ -869,7 +900,7 @@ function filterIsolatedLocationsForTracker(trackerLocations, trackerId) {
             
             const distance = calculateDistance(lat1, lng1, lat2, lng2);
             
-            if (distance <= MAX_DISTANCE_KM) {
+            if (distance <= MAX_DISTANCE_FROM_OTHER_KM) {
                 hasNearbyLocation = true;
                 break; // Found at least one nearby location, no need to check others
             }
@@ -878,7 +909,7 @@ function filterIsolatedLocationsForTracker(trackerLocations, trackerId) {
         if (hasNearbyLocation) {
             filteredLocations.push(location);
         } else {
-            console.warn(`[Isolated Location Filtered] Tracker ${trackerId}, Fix ${location.fix_number || 'N/A'}: More than ${MAX_DISTANCE_KM}km from all other locations of this tracker. Coordinates: ${lat1}, ${lng1}`);
+            console.warn(`[Isolated Location Filtered] Tracker ${trackerId}, Fix ${location.fix_number || 'N/A'}: More than ${MAX_DISTANCE_FROM_OTHER_KM}km from all other locations of this tracker. Coordinates: ${lat1}, ${lng1}`);
         }
     });
     
@@ -953,7 +984,9 @@ function processLocations(locations) {
     
     // Convert map to array, filter isolated locations per tracker, and calculate status
     animals = Array.from(animalMap.values()).map(animal => {
-        // Filter out isolated locations for this tracker (>100km from other locations of same tracker)
+        // Filter out isolated locations for this tracker:
+        // - More than 100km from other locations of same tracker
+        // - More than 200km from average center of all locations
         // Note: All locations remain in the database, this only affects what's shown on the map
         const originalCount = animal.locations.length;
         animal.locations = filterIsolatedLocationsForTracker(animal.locations, animal.id);
@@ -963,7 +996,7 @@ function processLocations(locations) {
             console.log(`[Tracker ${animal.id}] Filtered ${originalCount - filteredCount} isolated locations (${filteredCount}/${originalCount} remaining)`);
         }
         
-        // Calculate distance statistics
+        // Calculate distance statistics using filtered locations only (excludes isolated/outlier locations)
         const distanceStats = calculateDistanceStatistics(animal.locations);
         animal.totalDistance = distanceStats.totalDistance;
         animal.avgDistancePerDay = distanceStats.avgDistancePerDay;
