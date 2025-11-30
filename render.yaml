@@ -27,7 +27,5 @@ services:
         value: abs123qwe
       - key: ADMIN_API_KEY
         value: abs123qwe
-      - key: SESSION_SECRET
-        sync: false  # Set manually in Render dashboard - generate strong random key
     healthCheckPath: /api/health
 

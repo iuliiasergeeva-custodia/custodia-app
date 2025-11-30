@@ -3,34 +3,16 @@ const nodemailer = require('nodemailer');
 const cors = require('cors');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
-const session = require('express-session');
 require('dotenv').config();
 const ingestLocations = require('./backend/app/handlers/ingestLocations');
 const adminRouter = require('./backend/app/handlers/admin');
-const authRouter = require('./backend/app/handlers/auth');
 
 const app = express();
 // Use PORT from environment, or default to 3000 for local development
 const PORT = process.env.PORT || 3000;
 
-// Session configuration
-const sessionSecret = process.env.SESSION_SECRET || 'custodia-secret-key-change-in-production';
-app.use(session({
-    secret: sessionSecret,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
-}));
-
 // Middleware
-app.use(cors({
-    origin: true,
-    credentials: true
-}));
+app.use(cors());
 app.use(express.json());
 
 // Request logging middleware (for debugging)
@@ -220,18 +202,16 @@ app.get('/', (req, res) => {
 const db = require('./backend/app/db.js');
 
 // API endpoints (before catch-all routes)
-app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
 app.post('/api/locations', ingestLocations);
 
-// Tracker management endpoint (by slug for dashboard) - filtered by client
-app.get('/api/trackers/:slug', requireAuth, async (req, res) => {
+// Tracker management endpoint (by slug for dashboard)
+app.get('/api/trackers/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
-        const clientId = req.session.clientId;
         const result = await db.query(
-            'SELECT id, slug, animal_type, animal_name, family FROM trackers WHERE slug = $1 AND client_id = $2',
-            [slug, clientId]
+            'SELECT id, slug, animal_type, animal_name, family FROM trackers WHERE slug = $1',
+            [slug]
         );
         
         if (result.rows.length === 0) {
@@ -255,30 +235,16 @@ app.get('/api/trackers/:slug', requireAuth, async (req, res) => {
     }
 });
 
-app.put('/api/trackers/:slug', requireAuth, async (req, res) => {
+app.put('/api/trackers/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
         const { animal_type, animal_name, family } = req.body;
-        const clientId = req.session.clientId;
         
         // Validate required fields
         if (!animal_type || !animal_name) {
             return res.status(400).json({
                 success: false,
                 error: 'Missing required fields: animal_type and animal_name are required'
-            });
-        }
-        
-        // Verify tracker belongs to user's client
-        const trackerCheck = await db.query(
-            'SELECT id FROM trackers WHERE slug = $1 AND client_id = $2',
-            [slug, clientId]
-        );
-        
-        if (trackerCheck.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                error: 'Tracker not found or access denied'
             });
         }
         
@@ -311,23 +277,10 @@ app.put('/api/trackers/:slug', requireAuth, async (req, res) => {
     }
 });
 
-// Middleware to check authentication
-function requireAuth(req, res, next) {
-    if (!req.session || !req.session.userId) {
-        return res.status(401).json({
-            success: false,
-            error: 'Authentication required',
-            authenticated: false
-        });
-    }
-    next();
-}
-
-// Database endpoint - fetches locations from PostgreSQL (filtered by client)
-app.get('/api/locations', requireAuth, async (req, res) => {
+// Database endpoint - fetches locations from PostgreSQL
+app.get('/api/locations', async (req, res) => {
     try {
-        const clientId = req.session.clientId;
-        console.log('📊 [DATABASE] Fetching locations from PostgreSQL for client:', clientId);
+        console.log('📊 [DATABASE] Fetching locations from PostgreSQL...');
         console.log('📊 [DATABASE] DATABASE_URL exists:', !!process.env.DATABASE_URL);
         
         // Test connection first
@@ -353,11 +306,10 @@ app.get('/api/locations', requireAuth, async (req, res) => {
             FROM locations l
             JOIN trackers t ON l.tracker_id = t.id
             LEFT JOIN clients c ON t.client_id = c.id
-            WHERE t.client_id = $1
             ORDER BY l.timestamp ASC
         `;
         
-        const result = await db.query(query, [clientId]);
+        const result = await db.query(query);
         console.log(`✅ [DATABASE] Fetched ${result.rows.length} locations from database`);
         
         // If no data, return empty CSV with header
@@ -469,13 +421,8 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// Serve the dashboard page (specific route) - require authentication
-app.get('/pages/dashboard', (req, res, next) => {
-    // Check if user is authenticated
-    if (!req.session || !req.session.userId) {
-        // Redirect to dashboard but show login modal
-        return res.sendFile(path.join(__dirname, 'frontend', 'pages', 'dashboard', 'index.html'));
-    }
+// Serve the dashboard page (specific route)
+app.get('/pages/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend', 'pages', 'dashboard', 'index.html'));
 });
 
