@@ -569,7 +569,7 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
 .stat-card:hover::after {
     content: attr(data-hint);
     position: absolute;
-    top: calc(100% + 8px);
+    bottom: calc(100% + 8px);
     left: 50%;
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.9);
@@ -581,7 +581,7 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
     white-space: normal;
     max-width: 300px;
     word-wrap: break-word;
-    z-index: 10000;
+    z-index: 99999;
     pointer-events: none;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
@@ -589,12 +589,12 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
 .stat-card:hover::before {
     content: '';
     position: absolute;
-    top: calc(100% + 3px);
+    bottom: calc(100% + 3px);
     left: 50%;
     transform: translateX(-50%);
     border: 5px solid transparent;
-    border-bottom-color: rgba(0, 0, 0, 0.9);
-    z-index: 10001;
+    border-top-color: rgba(0, 0, 0, 0.9);
+    z-index: 99999;
     pointer-events: none;
 }
 
