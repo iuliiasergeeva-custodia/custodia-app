@@ -555,11 +555,37 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
     gap: var(--spacing-md);
     box-shadow: var(--shadow-light);
     transition: var(--transition-fast);
+    cursor: help;
+    position: relative;
 }
 
 .stat-card:hover {
     box-shadow: var(--shadow-medium);
     transform: translateY(-2px);
+}
+
+.stat-hint {
+    color: var(--text-secondary);
+    font-size: 18px;
+    opacity: 0.7;
+    transition: all var(--transition-fast);
+    cursor: help;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-left: auto;
+}
+
+.stat-card:hover .stat-hint {
+    opacity: 1;
+    color: var(--accent-color);
+    transform: scale(1.1);
+}
+
+.stat-hint i {
+    display: block;
 }
 
 .stat-icon {
