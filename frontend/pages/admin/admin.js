@@ -141,13 +141,56 @@ function renderTable() {
         return;
     }
 
+    // Helper function to format dates
+    function formatDate(value) {
+        if (!value) return '';
+        
+        // Try to parse as Date
+        const date = new Date(value);
+        if (isNaN(date.getTime())) {
+            // If not a valid date, return as-is
+            return value;
+        }
+        
+        // Format as yyyy-mm-dd hh:mm am/pm
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        let hours = date.getHours();
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'pm' : 'am';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // the hour '0' should be '12'
+        const formattedHours = String(hours).padStart(2, '0');
+        
+        return `${year}-${month}-${day} ${formattedHours}:${minutes} ${ampm}`;
+    }
+    
+    // Identify date/timestamp columns (common patterns)
+    const dateColumns = config.columns.filter(col => 
+        col.toLowerCase().includes('timestamp') || 
+        col.toLowerCase().includes('time') ||
+        col.toLowerCase().includes('date') ||
+        col.toLowerCase().includes('created_at') ||
+        col.toLowerCase().includes('updated_at') ||
+        col.toLowerCase().includes('last_seen')
+    );
+
     state.rows.forEach((row) => {
         const tr = document.createElement('tr');
         tr.dataset.rowId = row[config.primaryKey];
         config.columns.forEach((column) => {
             const td = document.createElement('td');
             const value = row[column];
-            td.textContent = value === null || value === undefined ? '' : value;
+            
+            // Format if it's a date column
+            if (value !== null && value !== undefined && dateColumns.includes(column)) {
+                td.textContent = formatDate(value);
+            } else {
+                td.textContent = value === null || value === undefined ? '' : value;
+            }
+            
             tr.appendChild(td);
         });
         const actionsTd = document.createElement('td');
