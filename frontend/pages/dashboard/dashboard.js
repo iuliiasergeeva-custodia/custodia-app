@@ -610,14 +610,44 @@ function initMap() {
 }
 
 /**
+ * Get URL parameter by name
+ */
+function getURLParameter(name) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(name);
+}
+
+/**
  * Load mock data from CSV
  */
 async function loadMockData() {
     try {
         console.log('Loading location data...');
         
+        // Get client filter from URL parameter
+        const clientSlug = getURLParameter('client');
+        if (clientSlug) {
+            console.log(`📊 [DASHBOARD] Filtering by client: ${clientSlug}`);
+            // Show client filter indicator
+            const indicator = document.getElementById('clientFilterIndicator');
+            const indicatorText = document.getElementById('clientFilterText');
+            if (indicator && indicatorText) {
+                indicator.style.display = 'flex';
+                indicatorText.textContent = `Client: ${clientSlug}`;
+            }
+        } else {
+            // Hide client filter indicator if no filter
+            const indicator = document.getElementById('clientFilterIndicator');
+            if (indicator) {
+                indicator.style.display = 'none';
+            }
+        }
+        
         // Try database endpoint first, then fallback to CSV
         let csvPath = '/api/locations';
+        if (clientSlug) {
+            csvPath += `?client=${encodeURIComponent(clientSlug)}`;
+        }
         let response = await fetch(csvPath);
         
         if (!response.ok) {
@@ -1504,7 +1534,13 @@ function renderAnimalList() {
         (status === 'all' || animal.status === status) &&
         matchesFilter(animal.type, type) &&
         matchesFilter(animal.family, family)
-    );
+    ).sort((a, b) => {
+        // Sort by most recent location update (most recent first)
+        // Trackers without lastUpdate go to the bottom
+        if (!a.lastUpdate) return 1;
+        if (!b.lastUpdate) return -1;
+        return new Date(b.lastUpdate) - new Date(a.lastUpdate);
+    });
     
     // Render animal list
     if (filteredAnimals.length === 0) {
