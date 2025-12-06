@@ -1075,12 +1075,28 @@ function processLocations(locations) {
         }
         
         const animal = animalMap.get(trackerId);
-        const timestamp = location.timestamp || location.time || new Date().toISOString();
+        let timestamp = location.timestamp || location.time || new Date().toISOString();
         const lat = parseFloat(location.latitude || location.lat);
         const lng = parseFloat(location.longitude || location.lng || location.lon);
         const batteryVoltage = location.battery_voltage ? parseFloat(location.battery_voltage) : null;
         const family = normalizeAttribute(location.family || location.family_name || location.group || animal.family);
         const type = normalizeAttribute(location.animal_type || location.type || animal.type);
+        
+        // Data health check: Fix future timestamps
+        const timestampDate = new Date(timestamp);
+        const now = new Date();
+        
+        if (!isNaN(timestampDate.getTime())) {
+            // If timestamp is in the future (more than 1 minute ahead), fix it to current time
+            if (timestampDate > now + 60000) { // Allow 1 minute clock skew
+                console.warn(`[Data Health Check] Future timestamp detected for tracker ${trackerId}: ${timestamp}. Fixing to current time.`);
+                timestamp = now.toISOString();
+            }
+        } else {
+            // Invalid timestamp, use current time
+            console.warn(`[Data Health Check] Invalid timestamp for tracker ${trackerId}: ${timestamp}. Using current time.`);
+            timestamp = now.toISOString();
+        }
         
         if (!isNaN(lat) && !isNaN(lng)) {
             animal.locations.push({
@@ -1092,14 +1108,14 @@ function processLocations(locations) {
             });
             
             // Update last update time - ensure we parse dates correctly for comparison
-            const timestampDate = new Date(timestamp);
+            const correctedTimestampDate = new Date(timestamp);
             const currentLastUpdate = animal.lastUpdate ? new Date(animal.lastUpdate) : null;
             
             // Only update if timestamp is valid and is newer than current last update
-            if (!isNaN(timestampDate.getTime())) {
-                if (!currentLastUpdate || isNaN(currentLastUpdate.getTime()) || timestampDate > currentLastUpdate) {
+            if (!isNaN(correctedTimestampDate.getTime())) {
+                if (!currentLastUpdate || isNaN(currentLastUpdate.getTime()) || correctedTimestampDate > currentLastUpdate) {
                     // Store as ISO string for consistent parsing later
-                    animal.lastUpdate = timestampDate.toISOString();
+                    animal.lastUpdate = correctedTimestampDate.toISOString();
                     animal.batteryVoltage = batteryVoltage;
                     animal.initialBatteryVoltage = initialBatteryVoltage || animal.initialBatteryVoltage || batteryVoltage;
                     animal.batteryPercent = calculateBatteryPercentage(animal.batteryVoltage, animal.initialBatteryVoltage);
@@ -1111,6 +1127,7 @@ function processLocations(locations) {
     });
     
     // Convert map to array, filter isolated locations per tracker, and calculate status
+    // Data health issues (future timestamps) are already fixed above during data processing
     animals = Array.from(animalMap.values()).map(animal => {
         // Filter out isolated locations for this tracker:
         // - More than 100km from other locations of same tracker
@@ -1122,6 +1139,26 @@ function processLocations(locations) {
         
         if (originalCount !== filteredCount) {
             console.log(`[Tracker ${animal.id}] Filtered ${originalCount - filteredCount} isolated locations (${filteredCount}/${originalCount} remaining)`);
+        }
+        
+        // Recalculate lastUpdate from filtered locations (excludes outliers)
+        // This ensures lastUpdate matches what's actually displayed on the map
+        if (animal.locations.length > 0) {
+            // Sort locations by timestamp and get the most recent one
+            const sortedLocations = [...animal.locations].sort((a, b) => {
+                return new Date(a.timestamp) - new Date(b.timestamp);
+            });
+            const lastLocation = sortedLocations[sortedLocations.length - 1];
+            const lastTimestamp = new Date(lastLocation.timestamp);
+            
+            if (!isNaN(lastTimestamp.getTime())) {
+                animal.lastUpdate = lastTimestamp.toISOString();
+                // Also update battery voltage from the last filtered location
+                if (lastLocation.batteryVoltage !== null) {
+                    animal.batteryVoltage = lastLocation.batteryVoltage;
+                    animal.batteryPercent = calculateBatteryPercentage(animal.batteryVoltage, animal.initialBatteryVoltage);
+                }
+            }
         }
         
         // Calculate distance statistics using filtered locations only (excludes isolated/outlier locations)
@@ -1931,51 +1968,61 @@ function updateStatistics() {
         Array.from(trackerFilterList.selectedTrackerIds) : 
         animals.map(a => a.id);
     
-    const animalsById = new Map(animals.map(a => [a.id, a]));
-
-    const filteredLocations = locations.filter(loc => {
-        const trackerId = (loc.tracker_id || loc.trackerId || loc.animal_id || loc.animalId || '').toString();
-        if (trackerId && !selectedTrackerIds.includes(trackerId)) {
-            return false;
+    // Count locations from animal.locations (excludes outliers) to match what's displayed
+    // This ensures dashboard count matches what's actually shown on map and exported in CSV
+    let filteredLocationCount = 0;
+    const tz = detectedTimezone || 'UTC';
+    
+    animals.forEach(animal => {
+        // Apply tracker filter
+        if (!selectedTrackerIds.includes(animal.id)) {
+            return;
         }
         
-        const animal = animalsById.get(trackerId);
-        if (!animal) {
-            return false;
-        }
-
+        // Apply status filter
         if (status !== 'all' && animal.status !== status) {
-            return false;
-        }
-
-        if (!matchesFilter(animal.type, type) || !matchesFilter(animal.family, family)) {
-            return false;
-        }
-
-        const timestamp = loc.timestamp || loc.time;
-        if (!timestamp) return false;
-        
-        const locDate = new Date(timestamp);
-        if (isNaN(locDate.getTime())) return false;
-        
-        if (dateFrom) {
-            const fromDate = new Date(dateFrom);
-            fromDate.setHours(0, 0, 0, 0);
-            if (locDate < fromDate) return false;
+            return;
         }
         
-        if (dateTo) {
-            const toDate = new Date(dateTo);
-            toDate.setHours(23, 59, 59, 999);
-            if (locDate > toDate) return false;
+        // Apply type filter
+        if (type !== 'all' && !matchesFilter(animal.type, type)) {
+            return;
         }
         
-        return true;
+        // Apply family filter
+        if (family !== 'all' && !matchesFilter(animal.family, family)) {
+            return;
+        }
+        
+        // Count locations from animal.locations (already filtered for outliers)
+        // Apply date filter to these locations (using timezone-aware logic)
+        animal.locations.forEach(location => {
+            if (dateFrom || dateTo) {
+                const locDate = new Date(location.timestamp);
+                if (isNaN(locDate.getTime())) {
+                    return;
+                }
+                
+                // Get date string in detected timezone for comparison
+                const locDateStr = getDateStringInTimezone(locDate, tz);
+                if (!locDateStr) return;
+                
+                // Compare date strings (YYYY-MM-DD format) in detected timezone
+                if (dateFrom && locDateStr < dateFrom) {
+                    return;
+                }
+                if (dateTo && locDateStr > dateTo) {
+                    return;
+                }
+            }
+            
+            filteredLocationCount++;
+        });
     });
     
     const totalLocationsEl = document.getElementById('totalLocations');
     if (totalLocationsEl) {
-        totalLocationsEl.textContent = filteredLocations.length;
+        totalLocationsEl.textContent = filteredLocationCount;
     }
     
     const filteredAnimals = animals.filter(animal =>
@@ -1989,10 +2036,22 @@ function updateStatistics() {
         const now = new Date();
         const updateTimes = filteredAnimals
             .filter(a => {
-                if (!a.lastUpdate) return false;
+                if (!a.lastUpdate) {
+                    console.log(`[updateStatistics] Animal ${a.id} (${a.name}) has no lastUpdate`);
+            return false;
+        }
                 const lastUpdateDate = new Date(a.lastUpdate);
+                const isValid = !isNaN(lastUpdateDate.getTime());
+                const isNotFuture = lastUpdateDate <= now + 60000; // Allow 1 minute clock skew
+                
+                if (!isValid) {
+                    console.log(`[updateStatistics] Animal ${a.id} (${a.name}) has invalid lastUpdate: ${a.lastUpdate}`);
+                } else if (!isNotFuture) {
+                    console.log(`[updateStatistics] Animal ${a.id} (${a.name}) has future lastUpdate: ${a.lastUpdate} (now: ${now.toISOString()})`);
+                }
+                
                 // Only include valid dates that are in the past (or very recent future due to clock skew)
-                return !isNaN(lastUpdateDate.getTime()) && lastUpdateDate <= now + 60000; // Allow 1 minute clock skew
+                return isValid && isNotFuture;
             })
             .map(a => {
                 const lastUpdateDate = new Date(a.lastUpdate);
@@ -2002,6 +2061,8 @@ function updateStatistics() {
                 return Math.abs(diff);
             });
         
+        console.log(`[updateStatistics] Found ${updateTimes.length} valid update times out of ${filteredAnimals.length} filtered animals`);
+        
         if (updateTimes.length > 0) {
             const avgMs = updateTimes.reduce((a, b) => a + b, 0) / updateTimes.length;
             if (avgUpdateEl && avgMs >= 0) {
@@ -2010,6 +2071,7 @@ function updateStatistics() {
                 avgUpdateEl.textContent = '--';
             }
         } else {
+            console.warn(`[updateStatistics] No valid update times found. Showing '--'`);
             if (avgUpdateEl) {
                 avgUpdateEl.textContent = '--';
             }
