@@ -479,32 +479,33 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
 .animal-status:hover::after {
     content: attr(title);
     position: absolute;
-    bottom: 100%;
+    bottom: calc(100% + 8px);
     left: 50%;
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.9);
     color: white;
-    padding: var(--spacing-xs) var(--spacing-sm);
+    padding: 8px 12px;
     border-radius: var(--radius-sm);
     font-size: var(--font-size-xs);
     font-weight: 400;
-    white-space: nowrap;
-    z-index: 1000;
-    margin-bottom: 5px;
+    white-space: normal;
+    max-width: 250px;
+    word-wrap: break-word;
+    z-index: 10000;
     pointer-events: none;
     text-transform: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .animal-status:hover::before {
     content: '';
     position: absolute;
-    bottom: 100%;
+    bottom: calc(100% + 3px);
     left: 50%;
     transform: translateX(-50%);
     border: 5px solid transparent;
     border-top-color: rgba(0, 0, 0, 0.9);
-    margin-bottom: -5px;
-    z-index: 1000;
+    z-index: 10001;
     pointer-events: none;
 }
 
@@ -564,28 +565,41 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
     transform: translateY(-2px);
 }
 
+/* Tooltip on hover for statistics cards */
+.stat-card:hover::after {
+    content: attr(data-hint);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    white-space: normal;
+    max-width: 300px;
+    word-wrap: break-word;
+    z-index: 10000;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.stat-card:hover::before {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 3px);
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.9);
+    z-index: 10001;
+    pointer-events: none;
+}
+
 .stat-hint {
-    color: var(--text-secondary);
-    font-size: 18px;
-    opacity: 0.7;
-    transition: all var(--transition-fast);
-    cursor: help;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    margin-left: auto;
-}
-
-.stat-card:hover .stat-hint {
-    opacity: 1;
-    color: var(--accent-color);
-    transform: scale(1.1);
-}
-
-.stat-hint i {
-    display: block;
+    display: none; /* Hide info icons, use hover tooltip instead */
 }
 
 .stat-icon {
