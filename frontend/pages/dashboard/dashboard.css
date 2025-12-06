@@ -556,49 +556,11 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
     gap: var(--spacing-md);
     box-shadow: var(--shadow-light);
     transition: var(--transition-fast);
-    cursor: help;
-    position: relative;
 }
 
 .stat-card:hover {
     box-shadow: var(--shadow-medium);
     transform: translateY(-2px);
-    z-index: 99998;
-}
-
-/* Tooltip on hover for statistics cards - using fixed positioning to escape overflow */
-.stat-card:hover::after {
-    content: attr(data-hint);
-    position: fixed;
-    left: var(--tooltip-left, 50%);
-    top: var(--tooltip-top, auto);
-    bottom: var(--tooltip-bottom, auto);
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.9);
-    color: white;
-    padding: 8px 12px;
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-xs);
-    font-weight: 400;
-    white-space: normal;
-    max-width: 300px;
-    word-wrap: break-word;
-    z-index: 99999;
-    pointer-events: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.stat-card:hover::before {
-    content: '';
-    position: fixed;
-    left: var(--tooltip-left, 50%);
-    top: var(--tooltip-top-arrow, auto);
-    bottom: var(--tooltip-bottom-arrow, auto);
-    transform: translateX(-50%);
-    border: 5px solid transparent;
-    border-top-color: rgba(0, 0, 0, 0.9);
-    z-index: 99999;
-    pointer-events: none;
 }
 
 .stat-hint {

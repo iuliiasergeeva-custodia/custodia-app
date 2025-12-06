@@ -2013,11 +2013,11 @@ function updateStatistics() {
                 }
                 if (dateTo && locDateStr > dateTo) {
                     return;
-                }
+        }
             }
             
             filteredLocationCount++;
-        });
+    });
     });
     
     const totalLocationsEl = document.getElementById('totalLocations');
@@ -2090,7 +2090,7 @@ function updateStatistics() {
         const avg = Math.round(batteries.reduce((a, b) => a + b, 0) / batteries.length);
         if (avgBatteryEl) {
             avgBatteryEl.textContent = `${avg}%`;
-        }
+    }
     } else {
         if (avgBatteryEl) {
             avgBatteryEl.textContent = 'N/A';
@@ -2284,44 +2284,6 @@ function downloadCSV() {
 }
 
 function initEventListeners() {
-    // Setup tooltips for statistics cards - position them directly above cards
-    const statCards = document.querySelectorAll('.stat-card');
-    statCards.forEach(card => {
-        card.addEventListener('mouseenter', function(e) {
-            const rect = this.getBoundingClientRect();
-            // Position tooltip above the card using fixed positioning
-            // Calculate position relative to viewport (what fixed positioning uses)
-            const spacing = 8;
-            const estimatedTooltipHeight = 80; // Estimate for multi-line tooltips
-            
-            // Position tooltip's bottom edge 8px above card's top
-            // So tooltip's top = card.top - spacing - tooltip height
-            const tooltipTop = rect.top - spacing - estimatedTooltipHeight;
-            
-            // Center horizontally on card
-            const tooltipLeft = rect.left + rect.width / 2;
-            
-            // Arrow should point down from tooltip to card
-            // Position arrow tip at bottom of tooltip
-            const arrowTop = rect.top - spacing;
-            
-            this.style.setProperty('--tooltip-top', `${tooltipTop}px`);
-            this.style.setProperty('--tooltip-bottom', 'auto');
-            this.style.setProperty('--tooltip-left', `${tooltipLeft}px`);
-            this.style.setProperty('--tooltip-top-arrow', `${arrowTop}px`);
-            this.style.setProperty('--tooltip-bottom-arrow', 'auto');
-        });
-        
-        card.addEventListener('mouseleave', function() {
-            // Clean up on mouse leave
-            this.style.removeProperty('--tooltip-top');
-            this.style.removeProperty('--tooltip-bottom');
-            this.style.removeProperty('--tooltip-left');
-            this.style.removeProperty('--tooltip-top-arrow');
-            this.style.removeProperty('--tooltip-bottom-arrow');
-        });
-    });
-    
     // Download CSV button
     const downloadCsvBtn = document.getElementById('downloadCsvBtn');
     if (downloadCsvBtn) {
