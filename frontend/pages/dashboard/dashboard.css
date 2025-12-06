@@ -569,7 +569,7 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
 .stat-card:hover::after {
     content: attr(data-hint);
     position: absolute;
-    bottom: calc(100% + 8px);
+    top: calc(100% + 8px);
     left: 50%;
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.9);
@@ -589,11 +589,11 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
 .stat-card:hover::before {
     content: '';
     position: absolute;
-    bottom: calc(100% + 3px);
+    top: calc(100% + 3px);
     left: 50%;
     transform: translateX(-50%);
     border: 5px solid transparent;
-    border-top-color: rgba(0, 0, 0, 0.9);
+    border-bottom-color: rgba(0, 0, 0, 0.9);
     z-index: 10001;
     pointer-events: none;
 }
