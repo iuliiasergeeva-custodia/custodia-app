@@ -2284,6 +2284,23 @@ function downloadCSV() {
 }
 
 function initEventListeners() {
+    // Setup tooltips for statistics cards
+    const statCards = document.querySelectorAll('.stat-card');
+    statCards.forEach(card => {
+        card.addEventListener('mouseenter', function(e) {
+            const rect = this.getBoundingClientRect();
+            const tooltipTop = rect.top - 8; // Position above the card
+            const tooltipLeft = rect.left + rect.width / 2;
+            const arrowTop = rect.top - 3;
+            
+            this.style.setProperty('--tooltip-top', `${tooltipTop}px`);
+            this.style.setProperty('--tooltip-bottom', 'auto');
+            this.style.setProperty('--tooltip-left', `${tooltipLeft}px`);
+            this.style.setProperty('--tooltip-top-arrow', `${arrowTop}px`);
+            this.style.setProperty('--tooltip-bottom-arrow', 'auto');
+        });
+    });
+    
     // Download CSV button
     const downloadCsvBtn = document.getElementById('downloadCsvBtn');
     if (downloadCsvBtn) {

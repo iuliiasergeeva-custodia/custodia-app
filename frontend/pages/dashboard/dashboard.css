@@ -563,14 +563,16 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
 .stat-card:hover {
     box-shadow: var(--shadow-medium);
     transform: translateY(-2px);
+    z-index: 99998;
 }
 
-/* Tooltip on hover for statistics cards */
+/* Tooltip on hover for statistics cards - using fixed positioning to escape overflow */
 .stat-card:hover::after {
     content: attr(data-hint);
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
+    position: fixed;
+    left: var(--tooltip-left, 50%);
+    top: var(--tooltip-top, auto);
+    bottom: var(--tooltip-bottom, auto);
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.9);
     color: white;
@@ -588,9 +590,10 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 .stat-card:hover::before {
     content: '';
-    position: absolute;
-    bottom: calc(100% + 3px);
-    left: 50%;
+    position: fixed;
+    left: var(--tooltip-left, 50%);
+    top: var(--tooltip-top-arrow, auto);
+    bottom: var(--tooltip-bottom-arrow, auto);
     transform: translateX(-50%);
     border: 5px solid transparent;
     border-top-color: rgba(0, 0, 0, 0.9);
