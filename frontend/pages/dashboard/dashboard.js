@@ -2061,15 +2061,24 @@ function updateStatistics() {
     });
     
     const totalLocationsEl = document.getElementById('totalLocations');
-    const showUnfilteredCheckbox = document.getElementById('showUnfilteredLocations');
+    const lastUpdateEl = document.getElementById('lastUpdateTime');
+    
+    // Always show filtered count (what's actually displayed on map)
+    const displayCount = filteredLocationCount;
+    console.log(`[updateStatistics] Showing filtered count: ${displayCount}`);
+    
+    // Update scorecard
     if (totalLocationsEl) {
-        // If checkbox is checked and we have a total DB count, show that instead
-        if (showUnfilteredCheckbox && showUnfilteredCheckbox.checked && totalDbLocationCount !== null) {
-            console.log(`[updateStatistics] Showing unfiltered count: ${totalDbLocationCount} (checkbox checked)`);
-            totalLocationsEl.textContent = totalDbLocationCount;
-        } else {
-            console.log(`[updateStatistics] Showing filtered count: ${filteredLocationCount} (checkbox unchecked or no DB count)`);
-            totalLocationsEl.textContent = filteredLocationCount;
+        totalLocationsEl.textContent = displayCount;
+    }
+    
+    // Update header to match scorecard
+    if (lastUpdateEl && totalDbLocationCount !== null) {
+        // Only update if we have DB data (not CSV fallback)
+        const dataSource = lastUpdateEl.getAttribute('data-source') || 'database';
+        if (dataSource === 'database') {
+            lastUpdateEl.innerHTML = `<span style="color: #10b981; font-weight: 600;">DB: ${displayCount} locations</span>`;
+            lastUpdateEl.title = `Data loaded from PostgreSQL database (${displayCount} locations - showing filtered)`;
         }
     }
     
@@ -2379,15 +2388,6 @@ function initEventListeners() {
     if (dateTo) {
         dateTo.addEventListener('change', () => {
             updateMap();
-            updateStatistics();
-        });
-    }
-    
-    // Show unfiltered locations checkbox listener
-    const showUnfilteredCheckbox = document.getElementById('showUnfilteredLocations');
-    if (showUnfilteredCheckbox) {
-        showUnfilteredCheckbox.addEventListener('change', () => {
-            // Only update statistics, not the map (map still shows filtered locations)
             updateStatistics();
         });
     }
@@ -2810,9 +2810,15 @@ function escapeHtml(text) {
 function showDataSourceIndicator(source, count) {
     const lastUpdateEl = document.getElementById('lastUpdateTime');
     if (lastUpdateEl) {
+        // Store data source for later reference
+        lastUpdateEl.setAttribute('data-source', source);
+        lastUpdateEl.setAttribute('data-total-count', count !== 'unknown' ? count : '0');
+        
         if (source === 'database') {
-            lastUpdateEl.innerHTML = `<span style="color: #10b981; font-weight: 600;">DB: ${count} locations</span>`;
-            lastUpdateEl.title = `Data loaded from PostgreSQL database (${count} locations)`;
+            // Initially show total DB count, but updateStatistics will sync it with scorecard
+            const initialCount = count !== 'unknown' ? parseInt(count, 10) : 0;
+            lastUpdateEl.innerHTML = `<span style="color: #10b981; font-weight: 600;">DB: ${initialCount} locations</span>`;
+            lastUpdateEl.title = `Data loaded from PostgreSQL database (${initialCount} locations)`;
         } else if (source === 'csv') {
             lastUpdateEl.innerHTML = `<span style="color: #f59e0b; font-weight: 600;">CSV (fallback)</span>`;
             lastUpdateEl.title = 'Data loaded from CSV file (database unavailable)';
