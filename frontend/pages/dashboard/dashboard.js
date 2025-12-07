@@ -15,6 +15,7 @@ let selectedAnimalId = null;
 let animalColors = {}; // Store color assignments for each animal
 let animalLabelsVisible = {}; // Track which animals have labels visible
 let detectedTimezone = 'UTC'; // Detected timezone based on location coordinates
+let totalDbLocationCount = null; // Total unfiltered location count from database
 
 // Edit Tracker Modal state
 let currentEditingTracker = null;
@@ -695,10 +696,13 @@ async function loadMockData() {
         console.log('📦 Data source:', dataSource === 'database' ? '✅ DATABASE (PostgreSQL)' : dataSource === 'csv-file' ? '📄 CSV FILE (fallback)' : '❓ Unknown');
         if (dataSource === 'database') {
             console.log('✅ Location count from database:', locationCount);
+            // Store total DB location count for unfiltered display
+            totalDbLocationCount = locationCount !== 'unknown' ? parseInt(locationCount, 10) : null;
             // Show success message in UI
             showDataSourceIndicator('database', locationCount);
         } else if (dataSource === 'csv-file') {
             console.warn('⚠️ Using CSV fallback - database may not be available');
+            totalDbLocationCount = null; // No DB count available when using CSV
             showDataSourceIndicator('csv', null);
         }
         console.log('📏 CSV length:', csvText.length);
@@ -2057,8 +2061,14 @@ function updateStatistics() {
     });
     
     const totalLocationsEl = document.getElementById('totalLocations');
+    const showUnfilteredCheckbox = document.getElementById('showUnfilteredLocations');
     if (totalLocationsEl) {
-        totalLocationsEl.textContent = filteredLocationCount;
+        // If checkbox is checked and we have a total DB count, show that instead
+        if (showUnfilteredCheckbox && showUnfilteredCheckbox.checked && totalDbLocationCount !== null) {
+            totalLocationsEl.textContent = totalDbLocationCount;
+        } else {
+            totalLocationsEl.textContent = filteredLocationCount;
+        }
     }
     
     const filteredAnimals = animals.filter(animal =>
@@ -2367,6 +2377,15 @@ function initEventListeners() {
     if (dateTo) {
         dateTo.addEventListener('change', () => {
             updateMap();
+            updateStatistics();
+        });
+    }
+    
+    // Show unfiltered locations checkbox listener
+    const showUnfilteredCheckbox = document.getElementById('showUnfilteredLocations');
+    if (showUnfilteredCheckbox) {
+        showUnfilteredCheckbox.addEventListener('change', () => {
+            // Only update statistics, not the map (map still shows filtered locations)
             updateStatistics();
         });
     }
