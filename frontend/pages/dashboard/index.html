@@ -36,6 +36,10 @@
                     </a>
                 </div>
                 <div class="nav-actions">
+                    <div id="clientFilterIndicator" class="client-filter-indicator" style="display: none;">
+                        <i class="fas fa-filter"></i>
+                        <span id="clientFilterText">Client: --</span>
+                    </div>
                     <div class="last-update">
                         <i class="fas fa-clock"></i>
                         <span id="lastUpdateTime">--</span>
@@ -153,7 +157,13 @@
                     </div>
                     <div class="stat-info">
                         <h3 class="stat-value" id="totalLocations">0</h3>
-                        <p class="stat-label">Total Locations</p>
+                        <div class="stat-label-row">
+                            <p class="stat-label">Total Locations</p>
+                            <label class="unfiltered-checkbox-label" title="Show all unfiltered locations from database">
+                                <input type="checkbox" id="showUnfilteredLocations" class="unfiltered-checkbox">
+                                <span class="checkbox-text">All</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
                 <div class="stat-card">

@@ -2065,8 +2065,10 @@ function updateStatistics() {
     if (totalLocationsEl) {
         // If checkbox is checked and we have a total DB count, show that instead
         if (showUnfilteredCheckbox && showUnfilteredCheckbox.checked && totalDbLocationCount !== null) {
+            console.log(`[updateStatistics] Showing unfiltered count: ${totalDbLocationCount} (checkbox checked)`);
             totalLocationsEl.textContent = totalDbLocationCount;
         } else {
+            console.log(`[updateStatistics] Showing filtered count: ${filteredLocationCount} (checkbox unchecked or no DB count)`);
             totalLocationsEl.textContent = filteredLocationCount;
         }
     }

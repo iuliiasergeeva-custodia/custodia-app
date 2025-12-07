@@ -283,6 +283,12 @@ app.get('/api/locations', async (req, res) => {
         console.log('📊 [DATABASE] Fetching locations from PostgreSQL...');
         console.log('📊 [DATABASE] DATABASE_URL exists:', !!process.env.DATABASE_URL);
         
+        // Get client filter from query parameter
+        const clientSlug = req.query.client;
+        if (clientSlug) {
+            console.log(`📊 [DATABASE] Filtering by client slug: ${clientSlug}`);
+        }
+        
         // Test connection first
         const connectionTest = await db.testConnection();
         if (!connectionTest) {
@@ -290,7 +296,8 @@ app.get('/api/locations', async (req, res) => {
             throw new Error('Database connection failed. Please check DATABASE_URL and ensure database is accessible.');
         }
         
-        const query = `
+        // Build query with optional client filter
+        let query = `
             SELECT 
                 t.slug as tracker_id,
                 c.slug as client_slug,
@@ -306,11 +313,18 @@ app.get('/api/locations', async (req, res) => {
             FROM locations l
             JOIN trackers t ON l.tracker_id = t.id
             LEFT JOIN clients c ON t.client_id = c.id
-            ORDER BY l.timestamp ASC
         `;
         
-        const result = await db.query(query);
-        console.log(`✅ [DATABASE] Fetched ${result.rows.length} locations from database`);
+        const queryParams = [];
+        if (clientSlug) {
+            query += ` WHERE c.slug = $1`;
+            queryParams.push(clientSlug);
+        }
+        
+        query += ` ORDER BY l.timestamp ASC`;
+        
+        const result = await db.query(query, queryParams);
+        console.log(`✅ [DATABASE] Fetched ${result.rows.length} locations from database${clientSlug ? ` (filtered by client: ${clientSlug})` : ''}`);
         
         // If no data, return empty CSV with header
         if (result.rows.length === 0) {

@@ -117,39 +117,44 @@ function normalizePackets(payload, errors) {
     }
 
     return payload.packets.map((packet, index) => {
+        // Track errors for this specific packet only
+        const packetErrors = [];
+
         if (!packet || typeof packet !== 'object') {
-            errors.push(`packets[${index}] must be an object`);
-            return null;
+            packetErrors.push(`packets[${index}] must be an object`);
         }
 
         const deviceId = packet.device_id;
         if (deviceId === undefined || deviceId === null || Number.isNaN(Number(deviceId))) {
-            errors.push(`packets[${index}].device_id is required and must be numeric`);
+            packetErrors.push(`packets[${index}].device_id is required and must be numeric`);
         }
 
         const trackerSlug = String(Number(deviceId) - 1000).padStart(3, '0');
 
         const timestamp = normalizeTimestamp(packet.timestamp !== undefined ? Number(packet.timestamp) * 1000 : null);
         if (!timestamp) {
-            errors.push(`packets[${index}].timestamp must be a valid Unix timestamp (seconds)`);
+            packetErrors.push(`packets[${index}].timestamp must be a valid Unix timestamp (seconds)`);
         }
 
         const latitude = normalizeNumber(packet.latitude);
         if (latitude === null || latitude < -90 || latitude > 90) {
-            errors.push(`packets[${index}].latitude must be a number between -90 and 90`);
+            packetErrors.push(`packets[${index}].latitude must be a number between -90 and 90`);
         }
 
         const longitude = normalizeNumber(packet.longitude);
         if (longitude === null || longitude < -180 || longitude > 180) {
-            errors.push(`packets[${index}].longitude must be a number between -180 and 180`);
+            packetErrors.push(`packets[${index}].longitude must be a number between -180 and 180`);
         }
 
         const voltage = normalizeNumber(packet.voltage);
         if (voltage === null) {
-            errors.push(`packets[${index}].voltage must be numeric`);
+            packetErrors.push(`packets[${index}].voltage must be numeric`);
         }
 
-        if (errors.length > 0) {
+        // Only check errors for this packet, not the cumulative errors array
+        if (packetErrors.length > 0) {
+            // Add this packet's errors to the shared errors array
+            errors.push(...packetErrors);
             return null;
         }
 
