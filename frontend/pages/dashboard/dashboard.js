@@ -1160,22 +1160,14 @@ function processLocations(locations) {
         }
     });
     
-    // Convert map to array, filter isolated locations per tracker, and calculate status
+    // Convert map to array and calculate status
     // Data health issues (future timestamps) are already fixed above during data processing
+    // NOTE: Isolated location filtering is disabled - showing ALL locations
     animals = Array.from(animalMap.values()).map(animal => {
-        // Filter out isolated locations for this tracker:
-        // - More than 100km from other locations of same tracker
-        // - More than 200km from average center of all locations
-        // Note: All locations remain in the database, this only affects what's shown on the map
-        const originalCount = animal.locations.length;
-        animal.locations = filterIsolatedLocationsForTracker(animal.locations, animal.id);
-        const filteredCount = animal.locations.length;
+        // Show all locations (no filtering of isolated/outlier locations)
+        console.log(`[Tracker ${animal.id}] Showing all ${animal.locations.length} locations (no filtering)`);
         
-        if (originalCount !== filteredCount) {
-            console.log(`[Tracker ${animal.id}] Filtered ${originalCount - filteredCount} isolated locations (${filteredCount}/${originalCount} remaining)`);
-        }
-        
-        // Recalculate lastUpdate from filtered locations (excludes outliers)
+        // Recalculate lastUpdate from all locations
         // This ensures lastUpdate matches what's actually displayed on the map
         if (animal.locations.length > 0) {
             // Sort locations by timestamp and get the most recent one
@@ -1187,7 +1179,7 @@ function processLocations(locations) {
             
             if (!isNaN(lastTimestamp.getTime())) {
                 animal.lastUpdate = lastTimestamp.toISOString();
-                // Also update battery voltage from the last filtered location
+                // Also update battery voltage from the last location
                 if (lastLocation.batteryVoltage !== null) {
                     animal.batteryVoltage = lastLocation.batteryVoltage;
                     animal.batteryPercent = calculateBatteryPercentage(animal.batteryVoltage, animal.initialBatteryVoltage);
@@ -1195,7 +1187,7 @@ function processLocations(locations) {
             }
         }
         
-        // Calculate distance statistics using filtered locations only (excludes isolated/outlier locations)
+        // Calculate distance statistics using all locations
         const distanceStats = calculateDistanceStatistics(animal.locations);
         animal.totalDistance = distanceStats.totalDistance;
         animal.avgDistancePerDay = distanceStats.avgDistancePerDay;
@@ -2008,7 +2000,7 @@ function updateStatistics() {
         Array.from(trackerFilterList.selectedTrackerIds) : 
         animals.map(a => a.id);
     
-    // Count locations from animal.locations (excludes outliers) to match what's displayed
+    // Count locations from animal.locations to match what's displayed
     // This ensures dashboard count matches what's actually shown on map and exported in CSV
     let filteredLocationCount = 0;
     const tz = detectedTimezone || 'UTC';
