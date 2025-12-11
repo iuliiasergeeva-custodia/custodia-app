@@ -4,7 +4,7 @@
  * Scheduled Fake Tracker Data Generator
  * 
  * Simulates realistic animal movement inside KAUST campus for demo purposes.
- * Sends GPS coordinates every 15 minutes to the repeater-ingest API endpoint.
+ * Sends GPS coordinates every 15 minutes to the /api/locations API endpoint.
  * 
  * Usage: node scheduled_fake_tracker_data.js
  */
@@ -12,7 +12,13 @@
 const axios = require('axios');
 
 // Configuration
-const API_ENDPOINT = process.env.API_ENDPOINT || 'https://custodia.world/api/repeater-ingest';
+// Use API_ENDPOINT env var, or construct from RENDER_SERVICE_URL, or fallback
+// The endpoint should be /api/locations (POST) for repeater data ingestion
+const RENDER_SERVICE_URL = process.env.RENDER_SERVICE_URL || process.env.RENDER_EXTERNAL_URL;
+const DEFAULT_ENDPOINT = RENDER_SERVICE_URL 
+    ? `${RENDER_SERVICE_URL}/api/locations`
+    : 'http://localhost:3000/api/locations';
+const API_ENDPOINT = process.env.API_ENDPOINT || DEFAULT_ENDPOINT;
 const API_KEY = process.env.LOCATIONS_API_KEY || 'abs123qwe';
 const INTERVAL_MINUTES = 15;
 const REPEATER_ID = 'DEMO-RPT-001';

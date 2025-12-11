@@ -44,4 +44,10 @@ services:
           property: connectionString
       - key: LOCATIONS_API_KEY
         value: abs123qwe
+      - key: RENDER_SERVICE_URL
+        fromService:
+          type: web
+          name: custodia-web
+          property: host
+        transform: https://${host}
 
