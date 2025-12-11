@@ -29,3 +29,19 @@ services:
         value: abs123qwe
     healthCheckPath: /api/health
 
+  - type: worker
+    name: custodia-tracker-simulator
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node backend/scripts/scheduled_fake_tracker_data.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: custodia-db
+          property: connectionString
+      - key: LOCATIONS_API_KEY
+        value: abs123qwe
+
