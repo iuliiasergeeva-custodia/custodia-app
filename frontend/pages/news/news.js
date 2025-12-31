@@ -77,28 +77,42 @@ function createNewsPost(post) {
         day: 'numeric'
     }) : '';
     
-    // Create media HTML
+    // Create media HTML - group by 4 and make scrollable
     let mediaHTML = '';
     if (post.media && post.media.length > 0) {
-        mediaHTML = '<div class="news-post-media">';
-        post.media.forEach(mediaItem => {
-            if (mediaItem.type === 'image') {
-                mediaHTML += `
-                    <div class="news-post-media-item">
-                        <img src="${mediaItem.src}" alt="${escapeHtml(post.title)}">
-                    </div>
-                `;
-            } else if (mediaItem.type === 'video') {
-                mediaHTML += `
-                    <div class="news-post-media-item">
-                        <video controls>
-                            <source src="${mediaItem.src}" type="video/mp4">
-                            Your browser does not support the video tag.
-                        </video>
-                    </div>
-                `;
-            }
+        // Group media items into groups of 4
+        const mediaGroups = [];
+        for (let i = 0; i < post.media.length; i += 4) {
+            mediaGroups.push(post.media.slice(i, i + 4));
+        }
+        
+        // If more than one group, make it scrollable
+        const isScrollable = mediaGroups.length > 1;
+        mediaHTML = `<div class="news-post-media-container ${isScrollable ? 'scrollable' : ''}">`;
+        
+        mediaGroups.forEach((group, groupIndex) => {
+            mediaHTML += '<div class="news-post-media-group">';
+            group.forEach(mediaItem => {
+                if (mediaItem.type === 'image') {
+                    mediaHTML += `
+                        <div class="news-post-media-item">
+                            <img src="${mediaItem.src}" alt="${escapeHtml(post.title)}">
+                        </div>
+                    `;
+                } else if (mediaItem.type === 'video') {
+                    mediaHTML += `
+                        <div class="news-post-media-item">
+                            <video controls>
+                                <source src="${mediaItem.src}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                    `;
+                }
+            });
+            mediaHTML += '</div>';
         });
+        
         mediaHTML += '</div>';
     }
     
