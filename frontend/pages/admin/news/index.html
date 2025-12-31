@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - News Editor | Custodia</title>
+    
+    <!-- Shared Styles -->
+    <link rel="stylesheet" href="/frontend/styles/variables.css">
+    <link rel="stylesheet" href="/frontend/styles/buttons.css">
+    <link rel="stylesheet" href="/frontend/styles/forms.css">
+    <link rel="stylesheet" href="/frontend/shared/layout.css">
+    
+    <!-- Admin News Styles -->
+    <link rel="stylesheet" href="/frontend/pages/admin/news/news-admin.css">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Login Gate -->
+    <div id="loginGate" class="login-gate">
+        <div class="login-form">
+            <h2>Admin Access Required</h2>
+            <p>Please enter the admin password to continue.</p>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="adminPassword">Admin Password</label>
+                    <input type="password" id="adminPassword" name="adminPassword" required autocomplete="off">
+                </div>
+                <button type="submit" class="btn btn-primary">Login</button>
+            </form>
+            <div id="loginError" class="error-message" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Main Admin Interface -->
+    <div id="adminInterface" class="admin-interface" style="display: none;">
+        <header class="admin-header">
+            <div class="container">
+                <h1>News Editor</h1>
+                <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+            </div>
+        </header>
+
+        <main class="admin-main">
+            <div class="container">
+                <!-- Create/Edit Form -->
+                <section class="admin-section">
+                    <h2 id="formTitle">Create New Post</h2>
+                    <form id="postForm" class="post-form">
+                        <input type="hidden" id="postId" name="postId">
+                        
+                        <div class="form-group">
+                            <label for="postTitle">Title <span class="required">*</span></label>
+                            <input type="text" id="postTitle" name="title" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="postDate">Date</label>
+                            <input type="datetime-local" id="postDate" name="date">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="postExcerpt">Excerpt</label>
+                            <textarea id="postExcerpt" name="excerpt" rows="3" placeholder="Leave empty to auto-generate from content"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="postContent">Content <span class="required">*</span></label>
+                            <textarea id="postContent" name="content" rows="10" required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Media Files</label>
+                            <div class="media-upload">
+                                <input type="file" id="mediaFiles" name="files" multiple accept="image/*,video/*">
+                                <label for="mediaFiles" class="file-upload-label">
+                                    <i class="fas fa-upload"></i> Choose Files
+                                </label>
+                                <div id="uploadedMedia" class="uploaded-media"></div>
+                                <div id="uploadProgress" class="upload-progress" style="display: none;">
+                                    <i class="fas fa-spinner fa-spin"></i> Uploading...
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary" id="saveBtn">Save Post</button>
+                            <button type="button" class="btn btn-secondary" id="cancelBtn" style="display: none;">Cancel</button>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- Existing Posts List -->
+                <section class="admin-section">
+                    <h2>Existing Posts</h2>
+                    <div id="postsList" class="posts-list">
+                        <div class="loading">Loading posts...</div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="/frontend/pages/admin/news/news-admin.js"></script>
+</body>
+</html>

@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', function() {
     initContactForm();
     initScrollEffects();
     initAnimations();
+    initNews();
+    initURLSectionScroll();
 });
 
 // Navigation functionality
@@ -309,5 +311,120 @@ function initAnimations() {
         .team-member:nth-child(2) { transition-delay: 0.2s; }
     `;
     document.head.appendChild(style);
+}
+
+// News functionality
+async function initNews() {
+    const newsContainer = document.getElementById('newsCards');
+    if (!newsContainer) return;
+    
+    try {
+        const response = await fetch('/api/news');
+        if (!response.ok) {
+            throw new Error('Failed to fetch news');
+        }
+        
+        const posts = await response.json();
+        
+        // Show only latest 6 posts
+        const latestPosts = posts.slice(0, 6);
+        
+        if (latestPosts.length === 0) {
+            newsContainer.innerHTML = '<div class="news-empty">No news posts yet. Check back soon!</div>';
+            return;
+        }
+        
+        newsContainer.innerHTML = latestPosts.map(post => createNewsCard(post)).join('');
+        
+        // Add click handlers
+        newsContainer.querySelectorAll('.news-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const postId = this.dataset.postId;
+                window.location.href = `/pages/news?post=${postId}`;
+            });
+        });
+        
+    } catch (error) {
+        console.error('Error loading news:', error);
+        newsContainer.innerHTML = '<div class="news-empty">Unable to load news. Please try again later.</div>';
+    }
+}
+
+function createNewsCard(post) {
+    // Get thumbnail (first image or video)
+    let thumbnail = '';
+    if (post.media && post.media.length > 0) {
+        const firstMedia = post.media[0];
+        if (firstMedia.type === 'image') {
+            thumbnail = `<img src="${firstMedia.src}" alt="${post.title}" class="news-card-thumbnail">`;
+        } else if (firstMedia.type === 'video') {
+            thumbnail = `<video class="news-card-thumbnail" muted><source src="${firstMedia.src}" type="video/mp4"></video>`;
+        }
+    }
+    
+    // Format date
+    const date = post.date ? new Date(post.date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    }) : '';
+    
+    // Add class if no thumbnail for different styling
+    const noThumbnailClass = !thumbnail ? 'news-card-no-thumbnail' : '';
+    
+    // For cards without thumbnails, use more content if excerpt is short
+    let displayText = post.excerpt || '';
+    if (!thumbnail && post.content && (!post.excerpt || post.excerpt.length < 200)) {
+        // Use first 400 characters of content for cards without images
+        displayText = post.content.substring(0, 400).trim();
+        if (post.content.length > 400) {
+            displayText += '...';
+        }
+    }
+    
+    return `
+        <div class="news-card ${noThumbnailClass}" data-post-id="${post.id}">
+            ${thumbnail}
+            <div class="news-card-content">
+                <h3 class="news-card-title">${escapeHtml(post.title)}</h3>
+                ${date ? `<div class="news-card-date">${date}</div>` : ''}
+                ${displayText ? `<p class="news-card-excerpt">${escapeHtml(displayText)}</p>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// URL parameter section scrolling
+function initURLSectionScroll() {
+    // Get URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const sectionParam = urlParams.get('section');
+    
+    if (sectionParam) {
+        // Map section names to section IDs
+        const sectionMap = {
+            'news': 'news',
+            'partners': 'partners',
+            'products': 'products',
+            'about': 'about',
+            'team': 'team',
+            'contact': 'contact'
+        };
+        
+        const sectionId = sectionMap[sectionParam.toLowerCase()];
+        
+        if (sectionId) {
+            // Wait a bit for page to fully load, then scroll
+            setTimeout(() => {
+                smoothScrollTo(sectionId, 20);
+            }, 300);
+        }
+    }
 }
 

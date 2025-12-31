@@ -39,6 +39,17 @@
     transform: translateY(-2px);
 }
 
+.btn-danger {
+    background: #e53e3e;
+    color: white;
+    border: none;
+}
+
+.btn-danger:hover {
+    background: #c53030;
+    transform: translateY(-2px);
+}
+
 .btn-submit {
     width: 100%;
     padding: var(--spacing-lg);

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News & Updates - Custodia</title>
+    <meta name="description" content="Latest news and updates from Custodia - Smart Animal Tracking Systems">
+    
+    <!-- Shared Styles -->
+    <link rel="stylesheet" href="/frontend/styles/variables.css">
+    <link rel="stylesheet" href="/frontend/styles/buttons.css">
+    <link rel="stylesheet" href="/frontend/shared/layout.css">
+    
+    <!-- News Page Styles -->
+    <link rel="stylesheet" href="/frontend/pages/news/news.css">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="nav">
+            <div class="nav-container">
+                <div class="nav-logo">
+                    <a href="/">
+                        <img src="/frontend/assets/images/custodia_logo_header_white.webp" alt="Custodia Logo" class="logo">
+                        <span class="logo-text">Custodia</span>
+                    </a>
+                </div>
+                <ul class="nav-menu">
+                    <li><a href="/#partners" class="nav-link">Partners</a></li>
+                    <li><a href="/#products" class="nav-link">Products</a></li>
+                    <li><a href="/#about" class="nav-link">About</a></li>
+                    <li><a href="/#team" class="nav-link">Team</a></li>
+                    <li><a href="/#contact" class="nav-link cta-button">Contact Us</a></li>
+                </ul>
+                <div class="hamburger">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="news-page">
+        <div class="container">
+            <div class="page-header">
+                <h1 class="page-title">News & Updates</h1>
+                <p class="page-description">Stay informed about our latest developments, product updates, and company news</p>
+            </div>
+
+            <div class="news-posts" id="newsPosts">
+                <div class="news-loading">Loading news...</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <img src="/frontend/assets/images/custodia_logo_header_white.webp" alt="Custodia Logo">
+                </div>
+                <p class="footer-text">&copy; 2024 Custodia. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- News Page Scripts -->
+    <script type="module" src="/frontend/pages/news/news.js"></script>
+</body>
+</html>

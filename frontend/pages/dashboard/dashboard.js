@@ -1132,7 +1132,8 @@ function processLocations(locations) {
             timestamp = now.toISOString();
         }
         
-        if (!isNaN(lat) && !isNaN(lng)) {
+        // Filter out invalid coordinates: NaN, null, or 0.0 (invalid GPS data)
+        if (!isNaN(lat) && !isNaN(lng) && lat !== 0.0 && lng !== 0.0) {
             animal.locations.push({
                 lat,
                 lng,

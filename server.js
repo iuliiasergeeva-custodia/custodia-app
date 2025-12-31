@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 const ingestLocations = require('./backend/app/handlers/ingestLocations');
 const adminRouter = require('./backend/app/handlers/admin');
+const newsRouter = require('./backend/app/handlers/news');
 
 const app = express();
 // Use PORT from environment, or default to 3000 for local development
@@ -202,7 +203,22 @@ app.get('/', (req, res) => {
 const db = require('./backend/app/db.js');
 
 // API endpoints (before catch-all routes)
+// IMPORTANT: More specific routes must come BEFORE less specific ones
+
+// Debug middleware to see which route is hit
+app.use('/api/admin/news', (req, res, next) => {
+    console.log('📍 [ROUTE] Request to /api/admin/news - using news router');
+    next();
+});
+app.use('/api/admin/news', newsRouter.admin);  // Must come before /api/admin
+
+app.use('/api/admin', (req, res, next) => {
+    console.log('📍 [ROUTE] Request to /api/admin/* - using admin router');
+    next();
+});
 app.use('/api/admin', adminRouter);
+
+app.use('/api/news', newsRouter);
 app.post('/api/locations', ingestLocations);
 
 // Tracker management endpoint (by slug for dashboard)

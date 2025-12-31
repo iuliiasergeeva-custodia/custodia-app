@@ -1,0 +1,23 @@
+[
+  {
+    "id": "news-1767148845207-nzxaa4",
+    "title": "Introducing Custodia ",
+    "date": "2025-07-23T02:40:00.000Z",
+    "excerpt": "Whether it’s a camel roaming the Saudi desert or a wild gazelle in a royal reserve, animals deserve to be safe and traceable.\nThat’s why we’ve created...",
+    "content": "Whether it’s a camel roaming the Saudi desert or a wild gazelle in a royal reserve, animals deserve to be safe and traceable.\nThat’s why we’ve created Custodia: a modular tracking platform using LoRa mesh, GPS, satellite fallback, and smart alerts.\n🐫 Camel owners can stop worrying about lost animals.\n 🚧 Governments can prevent deadly accidents.\n 🌍 Wildlife managers can monitor species in real time.\nWe believe technology can make animal care more humane, efficient, and connected — even in the world’s harshest environments.\nFollow us as we pilot, test, and scale. This is just the beginning.",
+    "media": []
+  },
+  {
+    "id": "news-1767148910152-59d620q",
+    "title": "Meet the Team Behind Custodia 🐪",
+    "date": "2025-08-17T16:41:00.000Z",
+    "excerpt": "Behind every Custodia tracker is a small but determined founding team:\n👨‍🔬 Gilberto Castro Sustaita — our CTO.\n An Electrical Engineer with experien...",
+    "content": "Behind every Custodia tracker is a small but determined founding team:\n👨‍🔬 Gilberto Castro Sustaita — our CTO.\n An Electrical Engineer with experience in R&D at Schaeffler, Gilberto now applies his passion for innovation to develop Custodia’s IoT animal trackers. He leads the design of our LoRa and Meshtastic-based systems, as well as our satellite-enabled solution.\n👩‍💻 Julia Sergeeva — our CEO.\n With a background in applied mathematics, product management, and e-commerce startups, Julia drives customer discovery, fundraising, brand building, and the development of our dashboard and digital presence.\n\n✨ What unites us?\n-> A love for learning and using modern tech to transform established markets.\n-> A shared belief that animals deserve better care.\n-> A mission to engineer tracking technology that is robust, scalable, and truly animal-centered.\n\nWe’re building Custodia to protect endangered wildlife and improve animal safety in harsh environments.\nIf you’re working in wildlife conservation, ag-tech, or rural infrastructure, we’d love to connect and exchange ideas.",
+    "media": [
+      {
+        "type": "image",
+        "src": "/frontend/assets/news/1767148909269-dvlzkg.jpeg"
+      }
+    ]
+  }
+]
