@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
+const db = require('../db');
 const router = express.Router();
 
 // Admin key check middleware
@@ -70,8 +71,6 @@ const upload = multer({
 async function ensureDirectories() {
     try {
         await fs.mkdir(newsAssetsDir, { recursive: true });
-        const dataDir = path.join(__dirname, '../../../frontend/data');
-        await fs.mkdir(dataDir, { recursive: true });
     } catch (error) {
         console.error('Error creating directories:', error);
     }
@@ -80,30 +79,172 @@ async function ensureDirectories() {
 // Initialize directories on module load
 ensureDirectories();
 
-// Get news data file path
-function getNewsDataPath() {
-    return path.join(__dirname, '../../../frontend/data/news.json');
-}
-
-// Read news data
-async function readNewsData() {
+// Database functions
+async function getAllPosts() {
     try {
-        const dataPath = getNewsDataPath();
-        const data = await fs.readFile(dataPath, 'utf8');
-        return JSON.parse(data);
-    } catch (error) {
-        if (error.code === 'ENOENT') {
-            // File doesn't exist, return empty array
-            return [];
+        // Get all posts with their media
+        const postsResult = await db.query(
+            'SELECT id, title, date, excerpt, content, created_at, updated_at FROM news_posts ORDER BY date DESC, created_at DESC'
+        );
+        
+        const posts = postsResult.rows;
+        
+        // Get media for all posts
+        if (posts.length > 0) {
+            const postIds = posts.map(p => p.id);
+            const mediaResult = await db.query(
+                'SELECT post_id, type, src, display_order FROM news_media WHERE post_id = ANY($1) ORDER BY post_id, display_order',
+                [postIds]
+            );
+            
+            // Group media by post_id
+            const mediaByPost = {};
+            mediaResult.rows.forEach(media => {
+                if (!mediaByPost[media.post_id]) {
+                    mediaByPost[media.post_id] = [];
+                }
+                mediaByPost[media.post_id].push({
+                    type: media.type,
+                    src: media.src
+                });
+            });
+            
+            // Attach media to posts
+            posts.forEach(post => {
+                post.media = mediaByPost[post.id] || [];
+            });
         }
+        
+        return posts;
+    } catch (error) {
+        console.error('❌ [NEWS DB] Error fetching posts:', error);
         throw error;
     }
 }
 
-// Write news data
-async function writeNewsData(data) {
-    const dataPath = getNewsDataPath();
-    await fs.writeFile(dataPath, JSON.stringify(data, null, 2), 'utf8');
+async function getPostById(id) {
+    try {
+        const postResult = await db.query(
+            'SELECT id, title, date, excerpt, content, created_at, updated_at FROM news_posts WHERE id = $1',
+            [id]
+        );
+        
+        if (postResult.rows.length === 0) {
+            return null;
+        }
+        
+        const post = postResult.rows[0];
+        
+        // Get media for this post
+        const mediaResult = await db.query(
+            'SELECT type, src, display_order FROM news_media WHERE post_id = $1 ORDER BY display_order',
+            [id]
+        );
+        
+        post.media = mediaResult.rows.map(m => ({
+            type: m.type,
+            src: m.src
+        }));
+        
+        return post;
+    } catch (error) {
+        console.error('❌ [NEWS DB] Error fetching post:', error);
+        throw error;
+    }
+}
+
+async function savePost(postData) {
+    const client = await db.getClient();
+    
+    try {
+        await client.query('BEGIN');
+        
+        const { id, title, date, excerpt, content, media } = postData;
+        const postDate = date || new Date().toISOString();
+        
+        if (id) {
+            // Update existing post
+            await client.query(
+                'UPDATE news_posts SET title = $1, date = $2, excerpt = $3, content = $4, updated_at = NOW() WHERE id = $5',
+                [title, postDate, excerpt || null, content, id]
+            );
+            
+            // Delete existing media
+            await client.query('DELETE FROM news_media WHERE post_id = $1', [id]);
+        } else {
+            // Create new post
+            const newId = `news-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+            await client.query(
+                'INSERT INTO news_posts (id, title, date, excerpt, content) VALUES ($1, $2, $3, $4, $5)',
+                [newId, title, postDate, excerpt || null, content]
+            );
+            postData.id = newId;
+        }
+        
+        // Insert media
+        if (media && media.length > 0) {
+            for (let i = 0; i < media.length; i++) {
+                const mediaItem = media[i];
+                await client.query(
+                    'INSERT INTO news_media (post_id, type, src, display_order) VALUES ($1, $2, $3, $4)',
+                    [postData.id, mediaItem.type, mediaItem.src, i]
+                );
+            }
+        }
+        
+        await client.query('COMMIT');
+        
+        // Return the saved post
+        return await getPostById(postData.id);
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+async function deletePost(id) {
+    const client = await db.getClient();
+    
+    try {
+        await client.query('BEGIN');
+        
+        // Get media paths before deleting
+        const mediaResult = await client.query(
+            'SELECT src FROM news_media WHERE post_id = $1',
+            [id]
+        );
+        
+        // Delete post (cascade will delete media records)
+        const result = await client.query('DELETE FROM news_posts WHERE id = $1 RETURNING id', [id]);
+        
+        if (result.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return null;
+        }
+        
+        // Optionally delete media files from filesystem
+        for (const media of mediaResult.rows) {
+            if (media.src) {
+                const filePath = path.join(__dirname, '../../../frontend', media.src);
+                try {
+                    await fs.unlink(filePath);
+                } catch (error) {
+                    // Ignore errors if file doesn't exist
+                    console.warn('Could not delete media file:', filePath);
+                }
+            }
+        }
+        
+        await client.query('COMMIT');
+        return id;
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
 }
 
 // Public router for GET /api/news
@@ -112,15 +253,8 @@ const publicRouter = express.Router();
 // GET /api/news - Public endpoint to get all news posts
 publicRouter.get('/', async (req, res) => {
     try {
-        const posts = await readNewsData();
-        // Sort by date descending (newest first)
-        const sortedPosts = posts.sort((a, b) => {
-            const dateA = new Date(a.date || 0);
-            const dateB = new Date(b.date || 0);
-            return dateB - dateA;
-        });
-        
-        res.json(sortedPosts);
+        const posts = await getAllPosts();
+        res.json(posts);
     } catch (error) {
         console.error('❌ [NEWS API] Error fetching news:', error);
         res.status(500).json({
@@ -136,15 +270,8 @@ const adminRouter = express.Router();
 // GET /api/admin/news - Get all posts (admin, same as public but requires auth)
 adminRouter.get('/', checkAdminKey, async (req, res) => {
     try {
-        const posts = await readNewsData();
-        // Sort by date descending (newest first)
-        const sortedPosts = posts.sort((a, b) => {
-            const dateA = new Date(a.date || 0);
-            const dateB = new Date(b.date || 0);
-            return dateB - dateA;
-        });
-        
-        res.json(sortedPosts);
+        const posts = await getAllPosts();
+        res.json(posts);
     } catch (error) {
         console.error('❌ [NEWS API] Error fetching news:', error);
         res.status(500).json({
@@ -229,8 +356,6 @@ adminRouter.post('/', checkAdminKey, async (req, res) => {
             });
         }
         
-        const posts = await readNewsData();
-        
         // Auto-generate excerpt if not provided
         let finalExcerpt = excerpt;
         if (!finalExcerpt && content) {
@@ -240,54 +365,21 @@ adminRouter.post('/', checkAdminKey, async (req, res) => {
             }
         }
         
-        // Use current date if not provided
-        const postDate = date || new Date().toISOString();
+        const postData = {
+            id,
+            title,
+            date,
+            excerpt: finalExcerpt,
+            content,
+            media: media || []
+        };
         
-        if (id) {
-            // Update existing post
-            const index = posts.findIndex(p => p.id === id);
-            if (index === -1) {
-                return res.status(404).json({
-                    success: false,
-                    error: 'Post not found'
-                });
-            }
-            
-            posts[index] = {
-                ...posts[index],
-                title,
-                date: postDate,
-                excerpt: finalExcerpt,
-                content,
-                media: media || []
-            };
-            
-            await writeNewsData(posts);
-            
-            res.json({
-                success: true,
-                post: posts[index]
-            });
-        } else {
-            // Create new post
-            const newId = `news-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-            const newPost = {
-                id: newId,
-                title,
-                date: postDate,
-                excerpt: finalExcerpt,
-                content,
-                media: media || []
-            };
-            
-            posts.push(newPost);
-            await writeNewsData(posts);
-            
-            res.json({
-                success: true,
-                post: newPost
-            });
-        }
+        const savedPost = await savePost(postData);
+        
+        res.json({
+            success: true,
+            post: savedPost
+        });
     } catch (error) {
         console.error('❌ [NEWS API] Error saving news post:', error);
         res.status(500).json({
@@ -302,38 +394,18 @@ adminRouter.post('/', checkAdminKey, async (req, res) => {
 adminRouter.delete('/:id', checkAdminKey, async (req, res) => {
     try {
         const { id } = req.params;
-        const posts = await readNewsData();
+        const deletedId = await deletePost(id);
         
-        const index = posts.findIndex(p => p.id === id);
-        if (index === -1) {
+        if (!deletedId) {
             return res.status(404).json({
                 success: false,
                 error: 'Post not found'
             });
         }
         
-        // Optionally delete associated media files
-        const post = posts[index];
-        if (post.media && Array.isArray(post.media)) {
-            for (const mediaItem of post.media) {
-                if (mediaItem.src) {
-                    const filePath = path.join(__dirname, '../../../frontend', mediaItem.src);
-                    try {
-                        await fs.unlink(filePath);
-                    } catch (error) {
-                        // Ignore errors if file doesn't exist
-                        console.warn('Could not delete media file:', filePath);
-                    }
-                }
-            }
-        }
-        
-        posts.splice(index, 1);
-        await writeNewsData(posts);
-        
         res.json({
             success: true,
-            deletedId: id
+            deletedId: deletedId
         });
     } catch (error) {
         console.error('❌ [NEWS API] Error deleting news post:', error);
@@ -346,10 +418,5 @@ adminRouter.delete('/:id', checkAdminKey, async (req, res) => {
 });
 
 // Export both routers
-const newsRouters = {
-    public: publicRouter,
-    admin: adminRouter
-};
-
 module.exports = publicRouter;
 module.exports.admin = adminRouter;
