@@ -5,6 +5,29 @@ const fs = require('fs').promises;
 const db = require('../db');
 const router = express.Router();
 
+// Cloudinary setup (optional - falls back to filesystem if not configured)
+let cloudinary = null;
+const useCloudinary = process.env.CLOUDINARY_CLOUD_NAME && 
+                      process.env.CLOUDINARY_API_KEY && 
+                      process.env.CLOUDINARY_API_SECRET;
+
+if (useCloudinary) {
+    try {
+        cloudinary = require('cloudinary').v2;
+        cloudinary.config({
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+            api_key: process.env.CLOUDINARY_API_KEY,
+            api_secret: process.env.CLOUDINARY_API_SECRET
+        });
+        console.log('✅ [NEWS] Cloudinary configured - media will be stored in cloud');
+    } catch (error) {
+        console.warn('⚠️ [NEWS] Cloudinary package not installed, using filesystem storage');
+        console.warn('   Run: npm install cloudinary');
+    }
+} else {
+    console.log('ℹ️ [NEWS] Cloudinary not configured - using filesystem storage (files may be lost on deployment)');
+}
+
 // Admin key check middleware
 const ADMIN_KEY = process.env.ADMIN_KEY || process.env.ADMIN_API_KEY;
 
@@ -224,15 +247,33 @@ async function deletePost(id) {
             return null;
         }
         
-        // Optionally delete media files from filesystem
+        // Delete media files (from Cloudinary or filesystem)
         for (const media of mediaResult.rows) {
             if (media.src) {
-                const filePath = path.join(__dirname, '../../../frontend', media.src);
-                try {
-                    await fs.unlink(filePath);
-                } catch (error) {
-                    // Ignore errors if file doesn't exist
-                    console.warn('Could not delete media file:', filePath);
+                // Check if it's a Cloudinary URL
+                if (media.src.includes('cloudinary.com') || media.src.includes('res.cloudinary.com')) {
+                    // Extract public_id from Cloudinary URL
+                    try {
+                        const urlParts = media.src.split('/');
+                        const folderIndex = urlParts.findIndex(part => part === 'custodia');
+                        if (folderIndex !== -1) {
+                            const publicId = urlParts.slice(folderIndex).join('/').replace(/\.[^/.]+$/, '');
+                            const resourceType = media.src.includes('/video/') ? 'video' : 'image';
+                            await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+                            console.log(`✅ [NEWS] Deleted from Cloudinary: ${publicId}`);
+                        }
+                    } catch (error) {
+                        console.warn('Could not delete from Cloudinary:', media.src, error.message);
+                    }
+                } else {
+                    // Delete from filesystem
+                    const filePath = path.join(__dirname, '../../../frontend', media.src);
+                    try {
+                        await fs.unlink(filePath);
+                    } catch (error) {
+                        // Ignore errors if file doesn't exist
+                        console.warn('Could not delete media file:', filePath);
+                    }
                 }
             }
         }
@@ -304,17 +345,43 @@ adminRouter.post('/upload', checkAdminKey, upload.array('files', 10), async (req
                 continue;
             }
             
-            // Generate unique filename
-            const ext = path.extname(file.originalname) || 
-                       (isImage ? '.jpg' : '.mp4');
-            const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
-            const newPath = path.join(newsAssetsDir, uniqueName);
+            let publicPath;
             
-            // Rename file
-            await fs.rename(file.path, newPath);
-            
-            // Create public path (matches static file serving)
-            const publicPath = `/frontend/assets/news/${uniqueName}`;
+            if (cloudinary && useCloudinary) {
+                // Upload to Cloudinary
+                try {
+                    const uploadOptions = {
+                        folder: 'custodia/news',
+                        resource_type: isVideo ? 'video' : 'image',
+                        use_filename: true,
+                        unique_filename: true,
+                        overwrite: false
+                    };
+                    
+                    const result = await cloudinary.uploader.upload(file.path, uploadOptions);
+                    publicPath = result.secure_url; // Use HTTPS URL
+                    
+                    // Clean up temporary file
+                    await fs.unlink(file.path).catch(() => {});
+                    
+                    console.log(`✅ [NEWS] Uploaded to Cloudinary: ${publicPath}`);
+                } catch (cloudinaryError) {
+                    console.error('❌ [NEWS] Cloudinary upload failed, falling back to filesystem:', cloudinaryError.message);
+                    // Fall back to filesystem
+                    const ext = path.extname(file.originalname) || (isImage ? '.jpg' : '.mp4');
+                    const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
+                    const newPath = path.join(newsAssetsDir, uniqueName);
+                    await fs.rename(file.path, newPath);
+                    publicPath = `/frontend/assets/news/${uniqueName}`;
+                }
+            } else {
+                // Use filesystem storage (local dev or fallback)
+                const ext = path.extname(file.originalname) || (isImage ? '.jpg' : '.mp4');
+                const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
+                const newPath = path.join(newsAssetsDir, uniqueName);
+                await fs.rename(file.path, newPath);
+                publicPath = `/frontend/assets/news/${uniqueName}`;
+            }
             
             uploadedFiles.push({
                 type: isImage ? 'image' : 'video',

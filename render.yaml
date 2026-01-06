@@ -29,6 +29,12 @@ services:
         value: abs123qwe
       - key: ADMIN_KEY
         sync: false  # Set manually in Render dashboard (use your secure password)
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false  # Set manually in Render dashboard (from Cloudinary account)
+      - key: CLOUDINARY_API_KEY
+        sync: false  # Set manually in Render dashboard (from Cloudinary account)
+      - key: CLOUDINARY_API_SECRET
+        sync: false  # Set manually in Render dashboard (from Cloudinary account)
     healthCheckPath: /api/health
 
   - type: worker

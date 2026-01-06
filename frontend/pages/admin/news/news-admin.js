@@ -97,12 +97,14 @@ function getAdminKey() {
     return sessionStorage.getItem(ADMIN_KEY_STORAGE);
 }
 
+// Global variable for current media (needed for edit functionality)
+let currentMedia = [];
+
 // Initialize post form
 function initPostForm() {
     const postForm = document.getElementById('postForm');
     const mediaFiles = document.getElementById('mediaFiles');
     const cancelBtn = document.getElementById('cancelBtn');
-    let currentMedia = [];
     
     // Handle file selection
     mediaFiles.addEventListener('change', async function(e) {
@@ -143,9 +145,11 @@ function initPostForm() {
         }
     });
     
-    // Render media previews
-    function renderMediaPreviews() {
+    // Render media previews (make it accessible globally)
+    window.renderMediaPreviews = function() {
         const uploadedMediaDiv = document.getElementById('uploadedMedia');
+        if (!uploadedMediaDiv) return;
+        
         uploadedMediaDiv.innerHTML = currentMedia.map((media, index) => {
             if (media.type === 'image') {
                 return `
@@ -173,10 +177,13 @@ function initPostForm() {
             btn.addEventListener('click', function() {
                 const index = parseInt(this.dataset.index);
                 currentMedia.splice(index, 1);
-                renderMediaPreviews();
+                window.renderMediaPreviews();
             });
         });
-    }
+    };
+    
+    // Also keep local reference for convenience
+    const renderMediaPreviews = window.renderMediaPreviews;
     
     // Handle form submission
     postForm.addEventListener('submit', async function(e) {
@@ -249,27 +256,56 @@ function initPostForm() {
         cancelBtn.style.display = 'none';
     });
     
-    // Edit post handler (will be set in loadPosts)
+    // Edit post handler (accessible globally)
     window.editPost = function(post) {
+        if (!post || !post.id) {
+            console.error('Invalid post data:', post);
+            return;
+        }
+        
         document.getElementById('postId').value = post.id;
-        document.getElementById('postTitle').value = post.title;
-        document.getElementById('postContent').value = post.content;
+        document.getElementById('postTitle').value = post.title || '';
+        document.getElementById('postContent').value = post.content || '';
         document.getElementById('postExcerpt').value = post.excerpt || '';
         
         if (post.date) {
             const date = new Date(post.date);
             const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
             document.getElementById('postDate').value = localDate.toISOString().slice(0, 16);
+        } else {
+            document.getElementById('postDate').value = '';
         }
         
-        currentMedia = post.media || [];
-        renderMediaPreviews();
+        currentMedia = Array.isArray(post.media) ? [...post.media] : [];
+        window.renderMediaPreviews();
         
         document.getElementById('formTitle').textContent = 'Edit Post';
         cancelBtn.style.display = 'inline-block';
         
         // Scroll to form
-        document.querySelector('.post-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const form = document.querySelector('.post-form');
+        if (form) {
+            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+    
+    // Helper function to edit post from button click
+    window.editPostFromButton = function(button) {
+        const postData = button.getAttribute('data-post');
+        if (postData) {
+            try {
+                // Decode base64 and parse JSON
+                const decoded = atob(postData);
+                const post = JSON.parse(decoded);
+                window.editPost(post);
+            } catch (error) {
+                console.error('Error parsing post data:', error);
+                console.error('Post data:', postData);
+                alert('Error loading post data. Please refresh the page.');
+            }
+        } else {
+            console.error('No post data found on button');
+        }
     };
 }
 
@@ -296,12 +332,15 @@ async function loadPosts() {
             return;
         }
         
-        postsList.innerHTML = posts.map(post => {
+        postsList.innerHTML = posts.map((post, index) => {
             const date = post.date ? new Date(post.date).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
             }) : 'No date';
+            
+            // Store post data in a data attribute - use base64 encoding to avoid escaping issues
+            const postData = btoa(JSON.stringify(post));
             
             return `
                 <div class="post-item">
@@ -310,7 +349,7 @@ async function loadPosts() {
                         <div class="post-item-meta">${date} • ${post.media ? post.media.length : 0} media file(s)</div>
                     </div>
                     <div class="post-item-actions">
-                        <button class="btn btn-secondary btn-icon" onclick="editPost(${escapeHtml(JSON.stringify(post))})" title="Edit">
+                        <button class="btn btn-secondary btn-icon" onclick="editPostFromButton(this)" data-post="${postData}" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button class="btn btn-danger btn-icon" onclick="deletePost('${post.id}')" title="Delete">
