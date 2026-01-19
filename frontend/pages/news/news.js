@@ -96,13 +96,13 @@ function createNewsPost(post) {
                 if (mediaItem.type === 'image') {
                     mediaHTML += `
                         <div class="news-post-media-item">
-                            <img src="${mediaItem.src}" alt="${escapeHtml(post.title)}">
+                            <img src="${mediaItem.src}" alt="${escapeHtml(post.title)}" onerror="this.parentElement.innerHTML='<div style=\\'padding:2rem;text-align:center;color:#999;\\'>Image not available</div>';">
                         </div>
                     `;
                 } else if (mediaItem.type === 'video') {
                     mediaHTML += `
                         <div class="news-post-media-item">
-                            <video controls>
+                            <video controls onerror="this.parentElement.innerHTML='<div style=\\'padding:2rem;text-align:center;color:#999;\\'>Video not available</div>';">
                                 <source src="${mediaItem.src}" type="video/mp4">
                                 Your browser does not support the video tag.
                             </video>

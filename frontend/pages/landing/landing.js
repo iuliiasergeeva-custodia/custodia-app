@@ -356,9 +356,10 @@ function createNewsCard(post) {
     if (post.media && post.media.length > 0) {
         const firstMedia = post.media[0];
         if (firstMedia.type === 'image') {
-            thumbnail = `<img src="${firstMedia.src}" alt="${post.title}" class="news-card-thumbnail">`;
+            // Add error handler for broken images
+            thumbnail = `<img src="${firstMedia.src}" alt="${post.title}" class="news-card-thumbnail" onerror="this.style.display='none'; this.parentElement.classList.add('news-card-no-thumbnail');">`;
         } else if (firstMedia.type === 'video') {
-            thumbnail = `<video class="news-card-thumbnail" muted><source src="${firstMedia.src}" type="video/mp4"></video>`;
+            thumbnail = `<video class="news-card-thumbnail" muted onerror="this.style.display='none'; this.parentElement.classList.add('news-card-no-thumbnail');"><source src="${firstMedia.src}" type="video/mp4"></video>`;
         }
     }
     
