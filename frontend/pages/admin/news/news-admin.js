@@ -260,54 +260,47 @@ function initPostForm() {
     window.editPost = function(post) {
         if (!post || !post.id) {
             console.error('Invalid post data:', post);
+            alert('Error: Invalid post data');
             return;
         }
         
-        document.getElementById('postId').value = post.id;
-        document.getElementById('postTitle').value = post.title || '';
-        document.getElementById('postContent').value = post.content || '';
-        document.getElementById('postExcerpt').value = post.excerpt || '';
+        console.log('Editing post:', post.id, post.title);
         
-        if (post.date) {
-            const date = new Date(post.date);
-            const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-            document.getElementById('postDate').value = localDate.toISOString().slice(0, 16);
-        } else {
-            document.getElementById('postDate').value = '';
-        }
-        
-        currentMedia = Array.isArray(post.media) ? [...post.media] : [];
-        window.renderMediaPreviews();
-        
-        document.getElementById('formTitle').textContent = 'Edit Post';
-        cancelBtn.style.display = 'inline-block';
-        
-        // Scroll to form
-        const form = document.querySelector('.post-form');
-        if (form) {
-            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    };
-    
-    // Helper function to edit post from button click
-    window.editPostFromButton = function(button) {
-        const postData = button.getAttribute('data-post');
-        if (postData) {
-            try {
-                // Decode base64 and parse JSON
-                const decoded = atob(postData);
-                const post = JSON.parse(decoded);
-                window.editPost(post);
-            } catch (error) {
-                console.error('Error parsing post data:', error);
-                console.error('Post data:', postData);
-                alert('Error loading post data. Please refresh the page.');
+        try {
+            document.getElementById('postId').value = post.id;
+            document.getElementById('postTitle').value = post.title || '';
+            document.getElementById('postContent').value = post.content || '';
+            document.getElementById('postExcerpt').value = post.excerpt || '';
+            
+            if (post.date) {
+                const date = new Date(post.date);
+                const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+                document.getElementById('postDate').value = localDate.toISOString().slice(0, 16);
+            } else {
+                document.getElementById('postDate').value = '';
             }
-        } else {
-            console.error('No post data found on button');
+            
+            currentMedia = Array.isArray(post.media) ? [...post.media] : [];
+            console.log('Setting currentMedia:', currentMedia);
+            window.renderMediaPreviews();
+            
+            document.getElementById('formTitle').textContent = 'Edit Post';
+            cancelBtn.style.display = 'inline-block';
+            
+            // Scroll to form
+            const form = document.querySelector('.post-form');
+            if (form) {
+                form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        } catch (error) {
+            console.error('Error in editPost:', error);
+            alert('Error loading post: ' + error.message);
         }
     };
 }
+
+// Store posts globally for edit functionality
+let allPosts = [];
 
 // Load posts list
 async function loadPosts() {
@@ -325,23 +318,21 @@ async function loadPosts() {
             throw new Error('Failed to fetch posts');
         }
         
-        const posts = await response.json();
+        allPosts = await response.json();
         
-        if (posts.length === 0) {
+        if (allPosts.length === 0) {
             postsList.innerHTML = '<div class="empty-state">No posts yet. Create your first post above!</div>';
             return;
         }
         
-        postsList.innerHTML = posts.map((post, index) => {
+        postsList.innerHTML = allPosts.map((post, index) => {
             const date = post.date ? new Date(post.date).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
             }) : 'No date';
             
-            // Store post data in a data attribute - use base64 encoding to avoid escaping issues
-            const postData = btoa(JSON.stringify(post));
-            
+            // Store post ID and use event listener instead of inline onclick
             return `
                 <div class="post-item">
                     <div class="post-item-info">
@@ -349,7 +340,7 @@ async function loadPosts() {
                         <div class="post-item-meta">${date} • ${post.media ? post.media.length : 0} media file(s)</div>
                     </div>
                     <div class="post-item-actions">
-                        <button class="btn btn-secondary btn-icon" onclick="editPostFromButton(this)" data-post="${postData}" title="Edit">
+                        <button class="btn btn-secondary btn-icon edit-post-btn" data-post-id="${post.id}" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button class="btn btn-danger btn-icon" onclick="deletePost('${post.id}')" title="Delete">
@@ -359,6 +350,21 @@ async function loadPosts() {
                 </div>
             `;
         }).join('');
+        
+        // Add event listeners to edit buttons
+        postsList.querySelectorAll('.edit-post-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const postId = this.getAttribute('data-post-id');
+                const post = allPosts.find(p => p.id === postId);
+                if (post) {
+                    console.log('Found post to edit:', post);
+                    window.editPost(post);
+                } else {
+                    console.error('Post not found:', postId, 'Available posts:', allPosts.map(p => p.id));
+                    alert('Error: Post not found. Please refresh the page.');
+                }
+            });
+        });
         
     } catch (error) {
         console.error('Error loading posts:', error);
