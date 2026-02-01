@@ -23,8 +23,8 @@
 .form-group textarea {
     width: 100%;
     padding: 0.75rem;
-    border: 2px solid #e2e8f0;
-    border-radius: 6px;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
     font-size: 0.9rem;
     transition: border-color var(--transition-fast);
     font-family: var(--font-family);
@@ -44,11 +44,11 @@
 /* Form Validation */
 .form-group input.error,
 .form-group textarea.error {
-    border-color: #e53e3e;
+    border-color: #8b3a3a;
 }
 
 .form-group .error-message {
-    color: #e53e3e;
+    color: #8b3a3a;
     font-size: var(--font-size-sm);
     margin-top: var(--spacing-xs);
     display: none;
@@ -59,12 +59,13 @@
     display: block;
 }
 
-/* Success Message */
+/* Success Message – olive tint (AWT) */
 .success-message {
-    background: #c6f6d5;
-    color: #22543d;
+    background: rgba(94, 107, 79, 0.12);
+    color: var(--color-olive);
     padding: var(--spacing-md);
     border-radius: var(--radius-md);
+    border: 1px solid rgba(94, 107, 79, 0.25);
     margin-bottom: var(--spacing-lg);
     display: none;
 }

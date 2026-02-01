@@ -401,29 +401,41 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// URL parameter section scrolling
+// URL parameter and hash section scrolling – same logic as header links
+const SCROLL_OFFSET = 20; // same as header nav links
+
 function initURLSectionScroll() {
-    // Get URL parameters
+    // Hash in URL (e.g. /#how-it-works, /#contact) – scroll like header click
+    const hash = window.location.hash;
+    if (hash) {
+        const sectionId = hash.replace(/^#/, '');
+        if (sectionId && document.getElementById(sectionId)) {
+            setTimeout(() => {
+                smoothScrollTo(sectionId, SCROLL_OFFSET);
+            }, 100);
+            return;
+        }
+    }
+
+    // Query param ?section=news etc.
     const urlParams = new URLSearchParams(window.location.search);
     const sectionParam = urlParams.get('section');
-    
+
     if (sectionParam) {
-        // Map section names to section IDs
         const sectionMap = {
             'news': 'news',
             'partners': 'partners',
-            'products': 'products',
+            'products': 'our-products',
             'about': 'about',
             'team': 'team',
             'contact': 'contact'
         };
-        
+
         const sectionId = sectionMap[sectionParam.toLowerCase()];
-        
+
         if (sectionId) {
-            // Wait a bit for page to fully load, then scroll
             setTimeout(() => {
-                smoothScrollTo(sectionId, 20);
+                smoothScrollTo(sectionId, SCROLL_OFFSET);
             }, 300);
         }
     }

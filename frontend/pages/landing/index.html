@@ -15,27 +15,26 @@
     <!-- Landing Page Styles -->
     <link rel="stylesheet" href="/frontend/pages/landing/landing.css">
     
-    <!-- Fonts -->
+    <!-- Fonts: Montserrat (headlines), Alice caps (subheadlines), Open Sans (body / normal text) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Alice&family=Montserrat:wght@500;600;700&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
+<body id="top">
     <!-- Header -->
     <header class="header">
         <nav class="nav">
             <div class="nav-container">
-                <div class="nav-logo">
+                <a href="/#top" class="nav-logo" aria-label="Custodia home">
                     <img src="/frontend/assets/images/custodia_logo_header_white.webp" alt="Custodia Logo" class="logo">
                     <span class="logo-text">Custodia</span>
-                </div>
+                </a>
                 <ul class="nav-menu">
-                    <li><a href="#partners" class="nav-link">Partners</a></li>
-                    <li><a href="#products" class="nav-link">Our Products</a></li>
-                    <li><a href="#about" class="nav-link">About</a></li>
-                    <li><a href="#news" class="nav-link">News</a></li>
+                    <li><a href="#how-it-works" class="nav-link">How it works</a></li>
+                    <li><a href="#our-products" class="nav-link">Our Products</a></li>
                     <li><a href="#team" class="nav-link">Team</a></li>
+                    <li><a href="#news" class="nav-link">News</a></li>
                     <li><a href="#contact" class="nav-link cta-button">Contact Us</a></li>
                 </ul>
                 <div class="hamburger">
@@ -47,150 +46,78 @@
         </nav>
     </header>
 
-    <!-- Hero Section -->
+    <!-- Hero Section – video background + overlay -->
     <section class="hero">
+        <video class="hero-video" autoplay muted loop playsinline aria-hidden="true">
+            <source src="/frontend/assets/images/video_back.MOV" type="video/quicktime">
+            <source src="/frontend/assets/images/video_back.MOV" type="video/mp4">
+        </video>
+        <div class="hero-overlay" aria-hidden="true"></div>
         <div class="hero-container">
             <div class="hero-content">
-                <h1 class="hero-title">Real-time insight. Full coverage. Zero compromise.</h1>
-                <p class="hero-description">Custodia is building a new generation of smart animal tracking systems for wildlife conservation and livestock management in remote areas.</p>
+                <h1 class="hero-title">Reliable animal tracking — beyond cellular coverage</h1>
+                <p class="hero-description">Custodia provides scalable, low-power animal tracking for remote environments using a hybrid LoRa + satellite system built for conservation and real-world deployment.</p>
                 <div class="hero-buttons">
-                    <a href="#products" class="btn btn-primary">Explore Products</a>
+                    <a href="/pages/products" class="btn btn-primary">Explore Products</a>
                     <a href="#contact" class="btn btn-secondary">Contact Us</a>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Partners Section -->
-    <section id="partners" class="partners">
+    <!-- How it works -->
+    <section id="how-it-works" class="how-it-works">
         <div class="container">
-            <div class="section-header">
-                <h2 class="section-title">Built With Field Experts & Piloted in Real Environments</h2>
-                <p class="section-description">Our devices are co-developed and tested by those who rely on them every day.</p>
-            </div>
-            <div class="partners-logos">
-                <div class="partner-logo">
-                    <img src="/frontend/assets/images/partner_camelclub_logo.jpg" alt="Camel Club Partner">
-                </div>
-                <div class="partner-logo">
-                    <img src="/frontend/assets/images/partner_imam_logo.png" alt="IMAM Partner">
-                </div>
-                <div class="partner-logo">
-                    <img src="/frontend/assets/images/partner_kaust_logo.png" alt="KAUST Partner">
-                </div>
-                <div class="partner-logo">
-                    <img src="/frontend/assets/images/partner_neom_logo.jpg" alt="NEOM Partner">
-                </div>
+            <h2 class="how-it-works-title">
+                <span class="how-it-works-title-dark">How it</span>
+                <span class="how-it-works-title-accent"> works</span>
+            </h2>
+            <div class="how-it-works-diagram">
+                <img src="/frontend/assets/images/infographics.png" alt="How it works: from tagged animals through satellite, UHF tower, transceiver and receiver to AWT Cloud, then to Web, Mobile and PC" class="how-it-works-image">
             </div>
         </div>
     </section>
 
-    <!-- Products Section -->
-    <section id="products" class="products">
+    <!-- Our Products Section – dark background, four columns, no cards -->
+    <section id="our-products" class="our-products">
         <div class="container">
-            <div class="section-header">
-                <h2 class="section-title">Smart Devices for Tracking and Protection</h2>
-                <p class="section-description">Custodia's hardware lineup ensures safety, visibility, and peace of mind</p>
-            </div>
-            <div class="products-grid">
-                <!-- Product 1: Myriota HyperPulse -->
-                <div class="product-card">
-                    <div class="product-image">
-                        <img src="/frontend/assets/images/myriota-model.png" alt="Myriota HyperPulse Model">
+            <h2 class="our-products-title">
+                <span class="our-products-title-dark">Our</span>
+                <span class="our-products-title-accent"> Products</span>
+            </h2>
+            <div class="our-products-grid">
+                <a href="/pages/products" class="our-products-column" aria-label="LoRa Tracking Collar – view product">
+                    <h3 class="our-products-column-heading">LoRa Tracking Collar</h3>
+                    <div class="our-products-column-image">
+                        <img src="/frontend/assets/images/lora_tracker.png" alt="LoRa Tracking Collar">
                     </div>
-                    <div class="product-content">
-                        <h3 class="product-title">Myriota HyperPulse Model</h3>
-                        <p class="product-description">New generation of global tracking — smarter, faster, and more efficient</p>
-                        <p class="product-details">Myriota HyperPulse™ enables direct-to-satellite communication with ultra-low power consumption and high message reliability. Unlike traditional satellite systems, HyperPulse™ allows frequent GPS updates (as fast as every 15 minutes) while keeping battery life measured in years, not months.</p>
-                        <div class="product-assets product-assets-horizontal">
-                            <img src="/frontend/assets/images/model_1_icons.svg" alt="Model 1 Icons A">
-                            <img src="/frontend/assets/images/model_1_icons_1.svg" alt="Model 1 Icons B">
-                        </div>
+                    <p class="our-products-unique"><strong>Why it’s unique:</strong> Ultra-low power, scalable, and cost-efficient for hundreds of animals.</p>
+                    <span class="our-products-read-more">Read more <i class="fas fa-arrow-right"></i></span>
+                </a>
+                <a href="/pages/products" class="our-products-column" aria-label="LoRa Repeater – view product">
+                    <h3 class="our-products-column-heading">LoRa Repeater</h3>
+                    <div class="our-products-column-image">
+                        <img src="/frontend/assets/images/lora_repeater.png" alt="LoRa Repeater">
                     </div>
-                </div>
-
-                <!-- Product 2: LoRa + Mesh Repeaters -->
-                <div class="product-card product-reverse">
-                    <div class="product-content">
-                        <h3 class="product-title">LoRa + Mesh of Repeaters</h3>
-                        <p class="product-description">Cost-efficient tracking using local infrastructure</p>
-                        <p class="product-details">Repeaters cover up to 7 km each radius LoS based on terrain. Ideal for defined zones and fenced reserves</p>
-                        <div class="product-assets">
-                            <img src="/frontend/assets/images/model_2_icons.svg" alt="Model 2 Icons A">
-                            <img src="/frontend/assets/images/model_2_icons_1.svg" alt="Model 2 Icons B">
-                        </div>
+                    <p class="our-products-unique"><strong>Why it’s unique:</strong> Minimal infrastructure, massive coverage, zero per-tracker cost increase.</p>
+                    <span class="our-products-read-more">Read more <i class="fas fa-arrow-right"></i></span>
+                </a>
+                <a href="/pages/products" class="our-products-column" aria-label="Hybrid Satellite + LoRa Collar – view product">
+                    <h3 class="our-products-column-heading">Hybrid Satellite + LoRa Collar</h3>
+                    <div class="our-products-column-image">
+                        <img src="/frontend/assets/images/satellite_lora_tracker.png" alt="Hybrid Satellite + LoRa Collar">
                     </div>
-                    <div class="product-image">
-                        <img src="/frontend/assets/images/mesh_repeaters_scheme.png" alt="LoRa + Mesh of Repeaters">
+                    <p class="our-products-unique"><strong>Why it’s unique:</strong> Satellite scale without satellite-level costs.</p>
+                    <span class="our-products-read-more">Read more <i class="fas fa-arrow-right"></i></span>
+                </a>
+                <a href="/pages/products" class="our-products-column" aria-label="AI Camera Traps – view product">
+                    <h3 class="our-products-column-heading">AI Camera Traps</h3>
+                    <div class="our-products-column-image">
+                        <img src="/frontend/assets/images/ai_camera_trap.png" alt="AI Camera Traps">
                     </div>
-                </div>
-
-                <!-- Product 3: LoRa + Satellite Model -->
-                <div class="product-card">
-                    <div class="product-image">
-                        <img src="/frontend/assets/images/satellite_mesh_scheme.png" alt="LoRa + Satellite Model">
-                    </div>
-                    <div class="product-content">
-                        <h3 class="product-title">LoRa + Satellite Model</h3>
-                        <p class="product-description">Works anywhere, no infrastructure required</p>
-                        <p class="product-details">Ideal for pack animals - only lead animal wears a collar with satellite connectivity, while the rest of the group uses LoRa</p>
-                        <div class="product-assets product-assets-horizontal">
-                            <img src="/frontend/assets/images/model_1_icons.svg" alt="Model 1 Icons A">
-                            <img src="/frontend/assets/images/model_1_icons_1.svg" alt="Model 1 Icons B">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Why Custodia Section -->
-    <section id="about" class="why-custodia">
-        <div class="why-custodia-bg">
-            <img src="/frontend/assets/images/leopard.webp" alt="Background" class="bg-image">
-            <div class="bg-overlay"></div>
-        </div>
-        <div class="container">
-            <div class="section-header">
-                <h2 class="section-title">Why Custodia</h2>
-            </div>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-header">
-                        <div class="feature-icon">
-                            <img src="/frontend/assets/images/hybrid_uplink_icon.svg" alt="Hybrid Uplink">
-                        </div>
-                        <h3 class="feature-title">Hybrid Uplink Options</h3>
-                    </div>
-                    <p class="feature-description">Operate entirely on LoRa repeaters for defined areas or add a satellite collar for wide‑roaming animals.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-header">
-                        <div class="feature-icon">
-                            <img src="/frontend/assets/images/lora_mesh_icon.svg" alt="LoRa Mesh">
-                        </div>
-                        <h3 class="feature-title">LoRa Mesh</h3>
-                    </div>
-                    <p class="feature-description">Ultra‑low‑power radios shrink collar size and extend battery life, using LoRa makes the system energy efficient and cost-effective.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-header">
-                        <div class="feature-icon">
-                            <img src="/frontend/assets/images/complient_data_icon.svg" alt="Compliant Data">
-                        </div>
-                        <h3 class="feature-title">Compliant Data Operations</h3>
-                    </div>
-                    <p class="feature-description">All data is processed and stored on Saudi servers in compliance with local regulations.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-header">
-                        <div class="feature-icon">
-                            <img src="/frontend/assets/images/custom_fir_hardware_icon.svg" alt="Custom Hardware">
-                        </div>
-                        <h3 class="feature-title">Custom‑fit Hardware</h3>
-                    </div>
-                    <p class="feature-description">Choose collar weight, battery capacity, and strap material to suit species of different types, weights, and sizes.</p>
-                </div>
+                    <p class="our-products-unique"><strong>Why it’s unique:</strong> No manual data retrieval, no video review, real-time intelligence.</p>
+                    <span class="our-products-read-more">Read more <i class="fas fa-arrow-right"></i></span>
+                </a>
             </div>
         </div>
     </section>
@@ -200,12 +127,15 @@
         <div class="container">
             <div class="contact-content">
                 <div class="contact-visual">
-                    <img src="/frontend/assets/images/oryx.webp" alt="Oryx">
+                    <video class="contact-video" autoplay muted loop playsinline aria-label="Oryx">
+                        <source src="/frontend/assets/images/oryx.MOV" type="video/quicktime">
+                        <source src="/frontend/assets/images/oryx.MOV" type="video/mp4">
+                    </video>
                 </div>
                 <div class="contact-form-container">
                     <div class="contact-info">
                         <h2 class="section-title">Become Our Customer</h2>
-                        <p class="section-description">Leave your info and we will contact you with more details about our product, early releases, special discounts and partnership information</p>
+                        <p class="section-description">Reach out to us for detailed quotation, order or if you want to be in the loop for early releases, special discounts or become a partner</p>
                     </div>
                     <form class="contact-form" id="contactForm">
                         <div class="form-row">
@@ -251,7 +181,7 @@
         <div class="container">
             <div class="section-header">
                 <h2 class="section-title">Meet The Team</h2>
-                <p class="section-description">We are MSc students from KAUST's Technology and Entrepreneurship program, passionate about safety and connectivity.</p>
+                <p class="section-description">Custodia is led by a technical founding team with backgrounds in embedded systems, data, and product — united by hands-on experience deploying technology in real conservation environments.</p>
             </div>
             <div class="team-grid">
                 <div class="team-member">
@@ -320,7 +250,7 @@
                 <div class="footer-logo">
                     <img src="/frontend/assets/images/custodia_logo_header_white.webp" alt="Custodia Logo">
                 </div>
-                <p class="footer-text">&copy; 2024 Custodia. All rights reserved.</p>
+                <p class="footer-text">&copy; 2026 Custodia. All rights reserved.</p>
             </div>
         </div>
     </footer>

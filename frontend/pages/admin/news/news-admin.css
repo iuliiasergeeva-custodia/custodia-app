@@ -1,7 +1,7 @@
-/* Admin News Editor Styles */
+/* Admin News Editor Styles – AWT palette */
 
 body {
-    background: #f7fafc;
+    background: var(--color-off-white);
     font-family: var(--font-family);
 }
 
@@ -20,21 +20,22 @@ body {
 }
 
 .login-form {
-    background: white;
+    background: var(--background-card);
     padding: 2rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-heavy);
     max-width: 400px;
     width: 90%;
 }
 
 .login-form h2 {
     margin-bottom: 0.5rem;
-    color: var(--color-text);
+    color: var(--text-primary);
 }
 
 .login-form p {
-    color: #718096;
+    color: var(--color-muted);
     margin-bottom: 1.5rem;
     font-size: 0.9375rem;
 }
@@ -47,14 +48,14 @@ body {
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 500;
-    color: var(--color-text);
+    color: var(--text-primary);
 }
 
 .login-form input[type="password"] {
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
     font-size: 1rem;
 }
 
@@ -63,12 +64,13 @@ body {
 }
 
 .error-message {
-    background: #fed7d7;
-    color: #c53030;
+    background: rgba(139, 58, 58, 0.12);
+    color: #8b3a3a;
     padding: 0.75rem;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     margin-top: 1rem;
     font-size: 0.9375rem;
+    border: 1px solid rgba(139, 58, 58, 0.25);
 }
 
 /* Admin Interface */
@@ -77,8 +79,8 @@ body {
 }
 
 .admin-header {
-    background: white;
-    border-bottom: 1px solid #e2e8f0;
+    background: var(--background-card);
+    border-bottom: 1px solid var(--color-border);
     padding: 1.5rem 0;
     margin-bottom: 2rem;
 }
@@ -94,7 +96,7 @@ body {
 
 .admin-header h1 {
     font-size: 1.75rem;
-    color: var(--color-text);
+    color: var(--text-primary);
     margin: 0;
 }
 
@@ -105,19 +107,20 @@ body {
 }
 
 .admin-section {
-    background: white;
-    border-radius: 12px;
+    background: var(--background-card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
     padding: 2rem;
     margin-bottom: 2rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-medium);
 }
 
 .admin-section h2 {
     font-size: 1.5rem;
-    color: var(--color-text);
+    color: var(--text-primary);
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
-    border-bottom: 2px solid #e2e8f0;
+    border-bottom: 2px solid var(--color-border);
 }
 
 /* Post Form */
@@ -131,11 +134,11 @@ body {
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 500;
-    color: var(--color-text);
+    color: var(--text-primary);
 }
 
 .required {
-    color: #e53e3e;
+    color: #8b3a3a;
 }
 
 .form-group input[type="text"],
@@ -143,8 +146,8 @@ body {
 .form-group textarea {
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
     font-size: 1rem;
     font-family: inherit;
 }
@@ -165,17 +168,17 @@ body {
 .file-upload-label {
     display: inline-block;
     padding: 0.75rem 1.5rem;
-    background: #edf2f7;
-    border: 2px dashed #cbd5e0;
-    border-radius: 6px;
+    background: var(--color-off-white);
+    border: 2px dashed var(--color-border);
+    border-radius: var(--radius-md);
     cursor: pointer;
     transition: all 0.3s ease;
     text-align: center;
 }
 
 .file-upload-label:hover {
-    background: #e2e8f0;
-    border-color: var(--color-primary);
+    background: var(--background-card);
+    border-color: var(--color-earth);
 }
 
 .file-upload-label i {
@@ -193,9 +196,9 @@ body {
     position: relative;
     width: 150px;
     height: 150px;
-    border-radius: 8px;
+    border-radius: var(--radius-xl);
     overflow: hidden;
-    border: 2px solid #e2e8f0;
+    border: 2px solid var(--color-border);
 }
 
 .media-preview img,
@@ -229,10 +232,11 @@ body {
 .upload-progress {
     margin-top: 1rem;
     padding: 1rem;
-    background: #edf2f7;
-    border-radius: 6px;
+    background: var(--color-off-white);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
     text-align: center;
-    color: #4a5568;
+    color: var(--color-muted);
 }
 
 .form-actions {
@@ -249,9 +253,9 @@ body {
 }
 
 .post-item {
-    background: #f7fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    background: var(--color-off-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
     padding: 1.5rem;
     display: flex;
     justify-content: space-between;
@@ -260,8 +264,8 @@ body {
 }
 
 .post-item:hover {
-    border-color: var(--color-primary);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-color: var(--color-earth);
+    box-shadow: var(--shadow-medium);
 }
 
 .post-item-info {
@@ -271,13 +275,13 @@ body {
 .post-item-title {
     font-size: 1.125rem;
     font-weight: 600;
-    color: var(--color-text);
+    color: var(--text-primary);
     margin-bottom: 0.5rem;
 }
 
 .post-item-meta {
     font-size: 0.875rem;
-    color: #718096;
+    color: var(--color-muted);
     margin-bottom: 0.25rem;
 }
 
@@ -299,22 +303,23 @@ body {
 .loading {
     text-align: center;
     padding: 2rem;
-    color: #718096;
+    color: var(--color-muted);
 }
 
 .empty-state {
     text-align: center;
     padding: 3rem;
-    color: #718096;
+    color: var(--color-muted);
 }
 
 .success-message {
-    background: #c6f6d5;
-    color: #22543d;
+    background: rgba(94, 107, 79, 0.12);
+    color: var(--color-olive);
     padding: 0.75rem;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     margin-bottom: 1rem;
     font-size: 0.9375rem;
+    border: 1px solid rgba(94, 107, 79, 0.25);
 }
 
 /* Responsive */

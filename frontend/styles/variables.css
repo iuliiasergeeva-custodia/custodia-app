@@ -1,25 +1,55 @@
-/* Design system variables */
+/* Design system – AWT-inspired: deep charcoal, off-white, muted olive, earth brown (no bright greens/blues) */
 
 :root {
-    /* Color Palette (Custodia) */
-    --primary-color: #183227;       /* Deep green (brand) */
-    --primary-light: #254f3b;       /* Slightly lighter */
-    --secondary-color: #5C6B58;     /* Muted olive */
-    --accent-color: #74875E;        /* Accent green */
-    --accent-2-color: #8B9C74;      /* Lighter accent */
-    --text-primary: #183227;        /* Primary text */
-    --text-secondary: #5C6B58;      /* Secondary text */
-    --text-light: #8B9C74;          /* Light text */
-    --background-primary: #ffffff;  /* White */
-    --background-secondary: #f6f8f6; /* Subtle light */
-    --background-dark: #183227;     /* Brand dark */
-    --border-color: #e2e8f0;       /* Light border */
-    --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.1);
-    --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.1);
-    --shadow-heavy: 0 10px 25px rgba(0, 0, 0, 0.15);
-    
-    /* Typography */
-    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    /* Primary colors */
+    --color-charcoal: #1F1F1F;       /* Deep charcoal / almost black – headers, footer, hero overlays */
+    --color-off-white: #F4F4F2;      /* Off-white / warm gray – main backgrounds, content sections */
+
+    /* Accent colors */
+    --color-olive: #5E6B4F;          /* Muted olive green – section dividers, subtle highlights, icons (very AWT) */
+    --color-earth: #8A6A4F;          /* Earth brown / bronze – buttons, CTAs, emphasis text */
+
+    /* Supporting neutrals */
+    --color-muted: #8C8C8C;          /* Mid gray – secondary text, captions */
+    --color-border: #D6D6D4;         /* Light border gray – lines, card borders, separators */
+
+    /* Semantic mapping (for existing styles) */
+    --color-dark: var(--color-charcoal);
+    --color-sand: var(--color-off-white);
+    --color-sand-light: var(--color-off-white);
+    --primary-color: var(--color-charcoal);
+    --primary-light: #3a3a3a;
+    --secondary-color: var(--color-olive);
+    --accent-color: var(--color-earth);
+    --accent-2-color: var(--color-olive);
+    --text-primary: var(--color-charcoal);
+    --text-secondary: var(--color-muted);
+    --text-light: var(--color-muted);
+    --text-on-light: var(--color-charcoal);
+    --text-on-light-soft: #4a4a4a;
+    --text-on-dark: var(--color-off-white);
+    --background-primary: var(--color-off-white);
+    --background-secondary: var(--color-off-white);
+    --background-dark: var(--color-charcoal);
+    --background-card: #FFFFFF;
+    --border-color: var(--color-border);
+    --overlay-dark: rgba(31, 31, 31, 0.85);
+
+    /* Shadows – soft, neutral (no green tint) */
+    --shadow-light: 0 1px 4px rgba(31, 31, 31, 0.06);
+    --shadow-medium: 0 4px 14px rgba(31, 31, 31, 0.08);
+    --shadow-heavy: 0 8px 24px rgba(31, 31, 31, 0.1);
+    --shadow-button: 0 2px 8px rgba(31, 31, 31, 0.12);
+
+    /* Typography – Montserrat (headlines), Alice caps (subheadlines), Open Sans (body / normal text) */
+    --font-headline: 'Montserrat', sans-serif;
+    --font-subheadline: 'Alice', Georgia, serif;
+    --font-body: 'Open Sans', sans-serif;
+    --font-heading: var(--font-headline);
+    --font-family: var(--font-body);
+    --letter-spacing-accent: 0.02em;
+    --letter-spacing-caps: 0.04em;
+
     --font-size-xs: 0.75rem;
     --font-size-sm: 0.875rem;
     --font-size-base: 1rem;
@@ -29,7 +59,7 @@
     --font-size-3xl: 1.875rem;
     --font-size-4xl: 2.25rem;
     --font-size-5xl: 3rem;
-    
+
     /* Spacing */
     --spacing-xs: 0.25rem;
     --spacing-sm: 0.5rem;
@@ -39,13 +69,13 @@
     --spacing-2xl: 3rem;
     --spacing-3xl: 4rem;
     --spacing-4xl: 6rem;
-    
-    /* Border Radius */
-    --radius-sm: 0.25rem;
-    --radius-md: 0.5rem;
-    --radius-lg: 0.75rem;
-    --radius-xl: 1rem;
-    
+
+    /* Border Radius – minimal rounding */
+    --radius-sm: 2px;
+    --radius-md: 4px;
+    --radius-lg: 6px;
+    --radius-xl: 8px;
+
     /* Transitions */
     --transition-fast: 0.15s ease-in-out;
     --transition-normal: 0.3s ease-in-out;
@@ -54,11 +84,11 @@
 
 /* Base body styles */
 body {
-    font-family: var(--font-family);
+    font-family: var(--font-body);
     font-size: var(--font-size-base);
+    font-weight: 400;
     line-height: 1.6;
     color: var(--text-primary);
     background-color: var(--background-primary);
     overflow-x: hidden;
 }
-

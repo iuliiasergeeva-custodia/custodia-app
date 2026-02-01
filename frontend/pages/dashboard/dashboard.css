@@ -350,8 +350,8 @@ input.filter-select[type="date"]:active {
 }
 
 .tracker-filter-item.selected:hover {
-    background: #2d8659;
-    border-color: #2d8659;
+    background: #765a43;
+    border-color: #765a43;
 }
 
 .tracker-filter-item-info {
@@ -478,18 +478,21 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .animal-status.active {
-    background: #d4edda;
-    color: #155724;
+    background: rgba(94, 107, 79, 0.12);
+    color: var(--color-olive);
+    border: 1px solid rgba(94, 107, 79, 0.25);
 }
 
 .animal-status.inactive {
-    background: #f8d7da;
-    color: #721c24;
+    background: rgba(139, 58, 58, 0.12);
+    color: #8b3a3a;
+    border: 1px solid rgba(139, 58, 58, 0.25);
 }
 
 .animal-status.alert {
-    background: #fff3cd;
-    color: #856404;
+    background: rgba(138, 106, 79, 0.15);
+    color: var(--color-earth);
+    border: 1px solid rgba(138, 106, 79, 0.3);
 }
 
 /* Tooltip on hover for status badges */

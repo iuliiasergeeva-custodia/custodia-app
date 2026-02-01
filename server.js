@@ -24,6 +24,11 @@ app.use((req, res, next) => {
     next();
 });
 
+// Serve landing page at root (custodia.world shows landing directly, no redirect)
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend', 'pages', 'landing', 'index.html'));
+});
+
 // Serve static files from frontend
 app.use(express.static(path.join(__dirname, 'frontend')));
 app.use('/frontend', express.static(path.join(__dirname, 'frontend')));
@@ -192,11 +197,6 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
             error: 'Failed to send message. Please try again later.'
         });
     }
-});
-
-// Serve the landing page
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend', 'pages', 'landing', 'index.html'));
 });
 
 // Database connection
