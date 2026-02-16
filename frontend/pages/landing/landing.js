@@ -9,7 +9,6 @@ import {
 } from '/frontend/shared/utils.js';
 
 document.addEventListener('DOMContentLoaded', function() {
-    initUTMCapture();
     initNavigation();
     initContactForm();
     initScrollEffects();
@@ -17,36 +16,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initNews();
     initURLSectionScroll();
 });
-
-// Capture UTM params from URL for GTM and form submission
-function initUTMCapture() {
-    const params = new URLSearchParams(window.location.search);
-    const utm = {
-        utm_source: params.get('utm_source') || '',
-        utm_medium: params.get('utm_medium') || '',
-        utm_campaign: params.get('utm_campaign') || ''
-    };
-    if (utm.utm_source || utm.utm_medium || utm.utm_campaign) {
-        sessionStorage.setItem('custodia_utm', JSON.stringify(utm));
-        if (typeof window.dataLayer !== 'undefined') {
-            window.dataLayer.push({
-                event: 'utm_captured',
-                utm_source: utm.utm_source,
-                utm_medium: utm.utm_medium,
-                utm_campaign: utm.utm_campaign
-            });
-        }
-    }
-}
-
-function getStoredUTM() {
-    try {
-        const raw = sessionStorage.getItem('custodia_utm');
-        return raw ? JSON.parse(raw) : { utm_source: '', utm_medium: '', utm_campaign: '' };
-    } catch (e) {
-        return { utm_source: '', utm_medium: '', utm_campaign: '' };
-    }
-}
 
 // Navigation functionality
 function initNavigation() {
@@ -132,11 +101,7 @@ function initContactForm() {
         try {
             // Get form data
             const formData = new FormData(contactForm);
-            const utm = getStoredUTM();
-            if (utm.utm_source) formData.append('utm_source', utm.utm_source);
-            if (utm.utm_medium) formData.append('utm_medium', utm.utm_medium);
-            if (utm.utm_campaign) formData.append('utm_campaign', utm.utm_campaign);
-
+            
             console.log('📝 Form submission started');
             console.log('Form data:', {
                 firstName: formData.get('firstName'),

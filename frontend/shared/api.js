@@ -57,12 +57,6 @@ export async function submitContactForm(formData) {
         message: formData.get('message'),
         timestamp: new Date().toISOString()
     };
-    const utmSource = formData.get('utm_source');
-    const utmMedium = formData.get('utm_medium');
-    const utmCampaign = formData.get('utm_campaign');
-    if (utmSource) data.utm_source = utmSource;
-    if (utmMedium) data.utm_medium = utmMedium;
-    if (utmCampaign) data.utm_campaign = utmCampaign;
 
     return fetchAPI('/api/contact', {
         method: 'POST',
