@@ -1258,8 +1258,8 @@
     position: fixed;
     bottom: 2rem;
     right: 2rem;
-    width: 60px;
-    height: 60px;
+    width: 72px;
+    height: 72px;
     background: #25D366;
     border-radius: 50%;
     display: flex;
@@ -1270,7 +1270,7 @@
     transition: all 0.3s ease;
     text-decoration: none;
     color: white;
-    font-size: 2rem;
+    font-size: 2.5rem;
 }
 
 .whatsapp-float:hover {
@@ -1285,7 +1285,7 @@
 
 .whatsapp-tooltip {
     position: absolute;
-    right: 70px;
+    right: 82px;
     background: var(--color-charcoal);
     color: var(--color-off-white);
     padding: 0.5rem 1rem;
@@ -1314,11 +1314,11 @@
 
 @media (max-width: 768px) {
     .whatsapp-float {
-        width: 56px;
-        height: 56px;
+        width: 64px;
+        height: 64px;
         bottom: 1.5rem;
         right: 1.5rem;
-        font-size: 1.75rem;
+        font-size: 2.25rem;
     }
     
     .whatsapp-tooltip {

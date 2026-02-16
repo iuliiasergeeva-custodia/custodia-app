@@ -84,7 +84,7 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
     console.log('Request body:', JSON.stringify(req.body, null, 2));
     
     try {
-        const { firstName, lastName, email, phone, message, timestamp } = req.body;
+        const { firstName, lastName, email, phone, message, timestamp, utm_source, utm_medium, utm_campaign } = req.body;
 
         // Validate required fields
         if (!firstName || !lastName || !email || !phone) {
@@ -122,6 +122,11 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
                         <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
                         <p><strong>Phone:</strong> <a href="tel:${phone}">${phone}</a></p>
                         <p><strong>Submitted:</strong> ${new Date(timestamp).toLocaleString()}</p>
+                        ${(utm_source || utm_medium || utm_campaign) ? `
+                        <p><strong>UTM Source:</strong> ${utm_source || '—'}</p>
+                        <p><strong>UTM Medium:</strong> ${utm_medium || '—'}</p>
+                        <p><strong>UTM Campaign:</strong> ${utm_campaign || '—'}</p>
+                        ` : ''}
                     </div>
                     ${message ? `
                     <div style="background: #e6fffa; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -143,7 +148,12 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
                 Email: ${email}
                 Phone: ${phone}
                 Submitted: ${new Date(timestamp).toLocaleString()}
-                
+                ${(utm_source || utm_medium || utm_campaign) ? `
+                UTM Source: ${utm_source || '—'}
+                UTM Medium: ${utm_medium || '—'}
+                UTM Campaign: ${utm_campaign || '—'}
+                ` : ''}
+
                 ${message ? `Message:\n${message}` : ''}
                 
                 This message was sent from the Custodia website contact form.
