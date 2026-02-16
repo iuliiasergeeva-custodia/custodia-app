@@ -1,21 +1,22 @@
-# Favicon in Google Search Results
+# Favicon: tab vs Google
 
-Google often shows your **favicon** (the small icon next to your site in search results). To improve the chance your Custodia logo appears:
+- **Browser tab:** The site uses `logo_tab.svg` so the icon in the tab stays sharp. No change needed.
+- **Google search:** The small icon next to your result is chosen by Google. They work best with a **small PNG**, not SVG.
 
-## 1. Use a PNG for Google (recommended)
+So: tab = SVG (already set). Google = add a PNG as below.
 
-Google supports **PNG** favicons and tends to use them reliably. Your `logo_tab.svg` is very large; a small PNG works better.
+## Add a PNG for Google (optional but recommended)
+
+Google prefers a **PNG** at **48×48** or **96×96** pixels for the search-result icon. One file is enough; 48×48 is fine.
 
 **Steps:**
-1. Export your logo as PNG at **48×48** and **96×96** pixels (e.g. from Figma/Illustrator or an SVG→PNG tool).
-2. Save as:
-   - `frontend/assets/images/favicon_48.png`
-   - `frontend/assets/images/favicon_96.png`
-3. In `frontend/pages/landing/index.html` (and other pages), add **before** the other favicon lines:
+1. Export your Custodia logo as PNG at **48×48** pixels (Figma, Illustrator, or any SVG→PNG tool).
+2. Save it as: `frontend/assets/images/favicon_48.png`
+3. In `frontend/pages/landing/index.html`, inside `<head>`, add this **before** the existing favicon lines:
    ```html
    <link rel="icon" type="image/png" sizes="48x48" href="/frontend/assets/images/favicon_48.png">
-   <link rel="icon" type="image/png" sizes="96x96" href="/frontend/assets/images/favicon_96.png">
    ```
+4. Do the same in `frontend/index.html` if you want the root page to send the same icon to Google.
 
 ## 2. Ask Google to recrawl
 
