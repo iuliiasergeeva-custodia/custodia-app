@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initAnimations();
     initNews();
     initURLSectionScroll();
+    initGtmTracking();
 });
 
 // Navigation functionality
@@ -120,7 +121,7 @@ function initContactForm() {
             contactForm.reset();
             removeValidationErrors(contactForm);
 
-            // GTM: contact form success event
+            // GTM: contact form submit success event
             window.dataLayer = window.dataLayer || [];
             window.dataLayer.push({
                 event: 'contact_form_submit',
@@ -392,10 +393,12 @@ function createNewsCard(post) {
     }
     
     return `
-        <div class="news-card ${noThumbnailClass}"
-             data-post-id="${post.id}"
-             data-gtm-section="news"
-             data-gtm-action="view_news_${post.id}">
+        <div
+            class="news-card ${noThumbnailClass}"
+            data-post-id="${post.id}"
+            data-gtm-section="news"
+            data-gtm-action="view_news_${post.id}"
+        >
             ${thumbnail}
             <div class="news-card-content">
                 <h3 class="news-card-title">${escapeHtml(post.title)}</h3>
@@ -410,6 +413,36 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// GTM + GA4 tracking – custom dataLayer events only
+function initGtmTracking() {
+    document.addEventListener('click', function (event) {
+        const target = event.target.closest('[data-gtm-action]');
+        if (!target) {
+            return;
+        }
+
+        const actionId = target.getAttribute('data-gtm-action');
+        const section = target.getAttribute('data-gtm-section') || '';
+
+        // Determine link URL if this CTA is or is inside an <a>
+        let href = '';
+        const linkEl = target.closest('a');
+        if (linkEl && linkEl.getAttribute) {
+            href = linkEl.getAttribute('href') || '';
+        }
+
+        const eventName = actionId === 'whatsapp' ? 'whatsapp_click' : 'cta_click';
+
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({
+            event: eventName,
+            section,
+            action_id: actionId,
+            link_url: href || ''
+        });
+    });
 }
 
 // URL parameter and hash section scrolling – same logic as header links

@@ -33,7 +33,14 @@
                     </a>
                 </div>
                 <ul class="nav-menu">
-                    <li><a href="/#contact" class="nav-link cta-button">Contact Us</a></li>
+                    <li>
+                        <a
+                            href="/#contact"
+                            class="nav-link cta-button"
+                            data-gtm-section="header"
+                            data-gtm-action="contact_us_h"
+                        >Contact Us</a>
+                    </li>
                 </ul>
             </div>
         </nav>
@@ -101,15 +108,46 @@
     </footer>
 
     <!-- Floating WhatsApp Button -->
-    <a href="https://wa.me/966544514032"
-       target="_blank"
-       rel="noopener noreferrer"
-       class="whatsapp-float"
-       aria-label="Contact us on WhatsApp"
-       data-gtm-section="floating"
-       data-gtm-action="whatsapp">
+    <a
+        href="https://wa.me/966544514032"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="whatsapp-float"
+        aria-label="Contact us on WhatsApp"
+        data-gtm-section="floating"
+        data-gtm-action="whatsapp"
+    >
         <i class="fab fa-whatsapp"></i>
         <span class="whatsapp-tooltip">Connect with us</span>
     </a>
+
+    <script>
+      // Minimal GTM tracking on products page – same semantics as landing
+      document.addEventListener('click', function (event) {
+        const target = event.target.closest('[data-gtm-action]');
+        if (!target) {
+          return;
+        }
+
+        const actionId = target.getAttribute('data-gtm-action');
+        const section = target.getAttribute('data-gtm-section') || '';
+
+        let href = '';
+        const linkEl = target.closest('a');
+        if (linkEl && linkEl.getAttribute) {
+          href = linkEl.getAttribute('href') || '';
+        }
+
+        const eventName = actionId === 'whatsapp' ? 'whatsapp_click' : 'cta_click';
+
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({
+          event: eventName,
+          section,
+          action_id: actionId,
+          link_url: href || ''
+        });
+      });
+    </script>
 </body>
 </html>
