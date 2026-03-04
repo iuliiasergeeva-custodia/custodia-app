@@ -120,6 +120,14 @@ function initContactForm() {
             contactForm.reset();
             removeValidationErrors(contactForm);
 
+            // GTM: contact form success event
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({
+                event: 'contact_form_submit',
+                section: 'contact',
+                action_id: 'contact_form'
+            });
+
         } catch (error) {
             console.error('❌ Error sending message:', error);
             console.error('Error details:', {
@@ -384,7 +392,10 @@ function createNewsCard(post) {
     }
     
     return `
-        <div class="news-card ${noThumbnailClass}" data-post-id="${post.id}">
+        <div class="news-card ${noThumbnailClass}"
+             data-post-id="${post.id}"
+             data-gtm-section="news"
+             data-gtm-action="view_news_${post.id}">
             ${thumbnail}
             <div class="news-card-content">
                 <h3 class="news-card-title">${escapeHtml(post.title)}</h3>
