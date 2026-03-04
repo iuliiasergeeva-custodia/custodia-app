@@ -8,6 +8,22 @@ import {
     smoothScrollTo 
 } from '/frontend/shared/utils.js';
 
+// UTM parameters – captured once and attached to all custom GTM events
+const UTM_PARAMS = (() => {
+    let utm_source = '';
+    let utm_medium = '';
+    let utm_campaign = '';
+    try {
+        const params = new URLSearchParams(window.location.search);
+        utm_source = params.get('utm_source') || '';
+        utm_medium = params.get('utm_medium') || '';
+        utm_campaign = params.get('utm_campaign') || '';
+    } catch (e) {
+        console.warn('Unable to parse UTM parameters', e);
+    }
+    return { utm_source, utm_medium, utm_campaign };
+})();
+
 document.addEventListener('DOMContentLoaded', function() {
     initNavigation();
     initContactForm();
@@ -126,7 +142,10 @@ function initContactForm() {
             window.dataLayer.push({
                 event: 'contact_form_submit',
                 section: 'contact',
-                action_id: 'contact_form'
+                action_id: 'contact_form',
+                utm_source: UTM_PARAMS.utm_source,
+                utm_medium: UTM_PARAMS.utm_medium,
+                utm_campaign: UTM_PARAMS.utm_campaign
             });
 
         } catch (error) {
@@ -440,7 +459,10 @@ function initGtmTracking() {
             event: eventName,
             section,
             action_id: actionId,
-            link_url: href || ''
+            link_url: href || '',
+            utm_source: UTM_PARAMS.utm_source,
+            utm_medium: UTM_PARAMS.utm_medium,
+            utm_campaign: UTM_PARAMS.utm_campaign
         });
     });
 }
