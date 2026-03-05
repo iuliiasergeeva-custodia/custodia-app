@@ -50,7 +50,13 @@ CREATE TABLE trackers (
 CREATE TABLE repeaters (
     id SERIAL PRIMARY KEY,
     repeater_id VARCHAR(50) UNIQUE NOT NULL,
-    last_seen TIMESTAMP DEFAULT NOW()
+    client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+    longitude DECIMAL(9,6),
+    latitude DECIMAL(9,6),
+    height DECIMAL(8,2),
+    total_locations_collected INTEGER NOT NULL DEFAULT 0,
+    last_seen TIMESTAMP DEFAULT NOW(),
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
 -- ==============================
@@ -76,6 +82,8 @@ CREATE INDEX idx_trackers_client_id ON trackers(client_id);
 CREATE INDEX idx_trackers_slug ON trackers(slug);
 CREATE INDEX idx_trackers_last_seen ON trackers(last_seen);
 CREATE INDEX idx_repeaters_repeater_id ON repeaters(repeater_id);
+CREATE INDEX idx_repeaters_client_id ON repeaters(client_id);
+CREATE INDEX idx_repeaters_latitude_longitude ON repeaters(latitude, longitude);
 CREATE INDEX idx_locations_tracker_id ON locations(tracker_id);
 CREATE INDEX idx_locations_repeater_id ON locations(repeater_id);
 CREATE INDEX idx_locations_timestamp ON locations(timestamp);
