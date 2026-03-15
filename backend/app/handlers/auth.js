@@ -76,6 +76,78 @@ async function login(req, res) {
 }
 
 /**
+ * POST /api/auth/register
+ * Body: { name, email, password }
+ * New users get role 'viewer' and are assigned to default client (env SIGNUP_DEFAULT_CLIENT_SLUG or first client).
+ */
+async function register(req, res) {
+    try {
+        const { name, email, password } = req.body || {};
+        if (!name || typeof name !== 'string' || !email || typeof email !== 'string' || !password || typeof password !== 'string') {
+            return res.status(400).json({ error: 'Name, email and password are required' });
+        }
+        const nameTrim = name.trim();
+        const emailNorm = email.trim().toLowerCase();
+        if (nameTrim.length === 0) return res.status(400).json({ error: 'Name is required' });
+        if (emailNorm.length === 0) return res.status(400).json({ error: 'Email is required' });
+        if (password.length < 8) {
+            return res.status(400).json({ error: 'Password must be at least 8 characters' });
+        }
+        const existing = await db.query('SELECT id FROM users WHERE LOWER(email) = $1', [emailNorm]);
+        if (existing.rows.length > 0) {
+            return res.status(400).json({ error: 'An account with this email already exists' });
+        }
+        let clientId;
+        const defaultSlug = process.env.SIGNUP_DEFAULT_CLIENT_SLUG || 'custodia';
+        const clientResult = await db.query('SELECT id FROM clients WHERE slug = $1 LIMIT 1', [defaultSlug]);
+        if (clientResult.rows.length > 0) {
+            clientId = clientResult.rows[0].id;
+        } else {
+            const first = await db.query('SELECT id FROM clients ORDER BY id LIMIT 1');
+            if (first.rows.length === 0) return res.status(503).json({ error: 'No client configured for sign-up. Please contact support.' });
+            clientId = first.rows[0].id;
+        }
+        const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+        const insert = await db.query(
+            `INSERT INTO users (client_id, name, email, password_hash, role) VALUES ($1, $2, $3, $4, 'viewer') RETURNING id, client_id, name, email, role`,
+            [clientId, nameTrim, emailNorm, passwordHash]
+        );
+        const user = insert.rows[0];
+        const clientSlugResult = await db.query('SELECT slug FROM clients WHERE id = $1', [user.client_id]);
+        const clientSlug = clientSlugResult.rows[0]?.slug || 'custodia';
+        const payload = {
+            userId: user.id,
+            clientId: user.client_id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            clientSlug,
+        };
+        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+        res.cookie(COOKIE_NAME, token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            path: '/',
+        });
+        return res.status(201).json({
+            success: true,
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                role: user.role,
+                clientSlug,
+            },
+        });
+    } catch (err) {
+        console.error('❌ [AUTH] Register error:', err);
+        return res.status(500).json({ error: 'Registration failed' });
+    }
+}
+
+/**
  * POST /api/auth/logout
  */
 function logout(req, res) {
@@ -206,6 +278,7 @@ async function resetPassword(req, res) {
 
 module.exports = {
     login,
+    register,
     logout,
     me,
     forgotPassword,

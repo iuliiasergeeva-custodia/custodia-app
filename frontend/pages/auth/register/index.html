@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Log in – Custodia</title>
+    <title>Sign up – Custodia</title>
     <link rel="icon" type="image/x-icon" href="/frontend/assets/images/favicon.ico">
     <link rel="stylesheet" href="/static/styles/variables.css">
     <link rel="stylesheet" href="/static/styles/forms.css">
@@ -15,27 +15,33 @@
     <div class="auth-card">
         <div class="auth-header">
             <a href="/" class="auth-logo">Custodia</a>
-            <h1>Log in</h1>
-            <p>Sign in to access your tracking dashboard.</p>
+            <h1>Sign up</h1>
+            <p>Create an account to access the tracking dashboard.</p>
         </div>
-        <form id="loginForm" class="auth-form" novalidate>
+        <form id="registerForm" class="auth-form" novalidate>
+            <div class="form-group">
+                <label for="name">Name</label>
+                <input type="text" id="name" name="name" autocomplete="name" required placeholder="Your name">
+            </div>
             <div class="form-group">
                 <label for="email">Email</label>
                 <input type="email" id="email" name="email" autocomplete="email" required placeholder="you@company.com">
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" autocomplete="current-password" required placeholder="••••••••">
+                <input type="password" id="password" name="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters">
             </div>
-            <div id="loginError" class="auth-error" role="alert" hidden></div>
-            <button type="submit" class="auth-submit" id="submitBtn">Log in</button>
+            <div class="form-group">
+                <label for="confirmPassword">Confirm password</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" autocomplete="new-password" required placeholder="Repeat password">
+            </div>
+            <div id="registerError" class="auth-error" role="alert" hidden></div>
+            <button type="submit" class="auth-submit" id="submitBtn">Create account</button>
         </form>
         <p class="auth-footer">
-            <a href="/pages/auth/forgot-password">Forgot password?</a>
-            <br>
-            <a href="/pages/auth/register">Sign up</a>
+            <a href="/pages/auth/login">Already have an account? Log in</a>
         </p>
     </div>
-    <script src="/static/pages/auth/login.js"></script>
+    <script src="/static/pages/auth/register.js"></script>
 </body>
 </html>
