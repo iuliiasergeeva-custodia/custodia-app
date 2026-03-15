@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log in – Custodia</title>
+    <link rel="icon" type="image/x-icon" href="/frontend/assets/images/favicon.ico">
+    <link rel="stylesheet" href="/static/styles/variables.css">
+    <link rel="stylesheet" href="/static/styles/forms.css">
+    <link rel="stylesheet" href="/static/pages/auth/auth.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="auth-page">
+    <div class="auth-card">
+        <div class="auth-header">
+            <a href="/" class="auth-logo">Custodia</a>
+            <h1>Log in</h1>
+            <p>Sign in to access your tracking dashboard.</p>
+        </div>
+        <form id="loginForm" class="auth-form" novalidate>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" autocomplete="email" required placeholder="you@company.com">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" autocomplete="current-password" required placeholder="••••••••">
+            </div>
+            <div id="loginError" class="auth-error" role="alert" hidden></div>
+            <button type="submit" class="auth-submit" id="submitBtn">Log in</button>
+        </form>
+        <p class="auth-footer">
+            <a href="/pages/auth/forgot-password">Forgot password?</a>
+        </p>
+    </div>
+    <script src="/static/pages/auth/login.js"></script>
+</body>
+</html>

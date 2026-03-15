@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset password – Custodia</title>
+    <link rel="icon" type="image/x-icon" href="/frontend/assets/images/favicon.ico">
+    <link rel="stylesheet" href="/static/styles/variables.css">
+    <link rel="stylesheet" href="/static/styles/forms.css">
+    <link rel="stylesheet" href="/static/pages/auth/auth.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="auth-page">
+    <div class="auth-card">
+        <div class="auth-header">
+            <a href="/" class="auth-logo">Custodia</a>
+            <h1>Reset password</h1>
+            <p>Enter your new password below.</p>
+        </div>
+        <form id="resetForm" class="auth-form" novalidate>
+            <input type="hidden" id="token" name="token">
+            <div class="form-group">
+                <label for="newPassword">New password</label>
+                <input type="password" id="newPassword" name="newPassword" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters">
+            </div>
+            <div class="form-group">
+                <label for="confirmPassword">Confirm password</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" autocomplete="new-password" required placeholder="Repeat new password">
+            </div>
+            <div id="resetError" class="auth-error" role="alert" hidden></div>
+            <div id="resetSuccess" class="auth-success" role="status" hidden></div>
+            <button type="submit" class="auth-submit" id="submitBtn">Reset password</button>
+        </form>
+        <p class="auth-footer">
+            <a href="/pages/auth/login">Back to log in</a>
+        </p>
+    </div>
+    <script src="/static/pages/auth/reset-password.js"></script>
+</body>
+</html>

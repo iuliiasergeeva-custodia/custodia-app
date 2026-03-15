@@ -2,6 +2,71 @@
 
 This directory contains the database schema, seed data, and connection utilities for the Custodia project.
 
+## Quick start: test data on localhost (dashboard)
+
+To see the dashboard with data and use filters locally:
+
+1. **Start PostgreSQL** (if not already running):
+   ```bash
+   brew services start postgresql
+   ```
+
+2. **Create DB, schema, and seed data** (from project root):
+   ```bash
+   ./backend/app/database/setup.sh
+   ```
+   Or manually:
+   ```bash
+   createdb custodia_local
+   psql custodia_local < backend/app/database/schema.sql
+   psql custodia_local < backend/app/database/seed.sql
+   ```
+
+3. **Point the app at the DB** — in project root create or edit `.env`:
+   ```env
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=custodia_local
+   DB_USER=postgres
+   DB_PASSWORD=
+   ```
+   (Or set `DATABASE_URL=postgresql://postgres@localhost:5432/custodia_local`.)
+
+4. **Start the server** (from project root):
+   ```bash
+   npm start
+   ```
+   Or with a specific port (e.g. 1000):
+   ```bash
+   PORT=1000 npm start
+   ```
+
+5. **Open the dashboard** in the browser:
+   - `http://localhost:3000/pages/dashboard` (or `http://localhost:1000/pages/dashboard` if you used `PORT=1000`).
+
+The dashboard loads locations from `GET /api/locations`, which reads from PostgreSQL. If the DB is empty or not connected, you’ll see “No location data available” — run the seed (step 2) and ensure `.env` is set (step 3).
+
+**If you get "role postgres does not exist" (macOS):**  
+Leave `DB_USER` unset in `.env` so the app and seed use your system username. Or set `DB_USER` to the same user you use for `psql` (often your Mac username).
+
+**If your schema is in a bad state (e.g. re-ran schema.sql and see "already exists" / "column does not exist"):**  
+Recreate the database and run schema + seed once:
+```bash
+dropdb custodia_local
+createdb custodia_local
+psql custodia_local < backend/app/database/schema.sql
+npm run db:seed
+```
+
+**Re-seed only (DB already exists):**
+```bash
+npm run db:seed
+```
+This seeds **the same database the app uses** (from `.env`: `DATABASE_URL` or `DB_*`). If you had been running `psql custodia_local` manually, the app might be using a different DB (e.g. `DATABASE_URL` from Render) — then you wouldn’t see data. Use `npm run db:seed` so seed and app match.  
+Note: `seed.sql` truncates and repopulates `locations`, `repeaters`, `trackers`, `users`, and `clients`.
+
+---
+
 ## Files
 
 - `schema.sql` - Database schema (tables, indexes, constraints)

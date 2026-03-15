@@ -2,10 +2,10 @@
 -- CUSTODIA DATABASE SEED DATA
 -- ==============================
 -- This file contains mock data for testing
--- Based on mock_locations.csv
+-- 4 trackers, 5 locations each in Jeddah/Thuwal region; 2 repeaters
 
 -- Clear existing data (in reverse order of dependencies)
-TRUNCATE TABLE locations, trackers, users, clients RESTART IDENTITY CASCADE;
+TRUNCATE TABLE locations, repeaters, trackers, users, clients RESTART IDENTITY CASCADE;
 
 -- ==============================
 -- INSERT CLIENT
@@ -16,59 +16,59 @@ INSERT INTO clients (name, slug) VALUES
 -- ==============================
 -- INSERT USERS
 -- ==============================
--- Note: password_hash values are bcrypt hashes for 'admin123', 'manager123', 'viewer123'
--- In production, use proper password hashing
+-- Password hashes: bcrypt 12 rounds for 'admin123', 'manager123', 'viewer123'
 INSERT INTO users (client_id, name, email, password_hash, role) VALUES
-(1, 'Admin User', 'admin@custodia.world', '$2b$10$rOzJqZqZqZqZqZqZqZqZqO', 'admin'),
-(1, 'Manager User', 'manager@custodia.world', '$2b$10$rOzJqZqZqZqZqZqZqZqZqO', 'manager'),
-(1, 'Viewer User', 'viewer@custodia.world', '$2b$10$rOzJqZqZqZqZqZqZqZqZqO', 'viewer');
+(1, 'Admin User', 'admin@custodia.world', '$2b$12$5EPRgva7qJt/pUhLJUJWCOqK3RyY3zFSfCIL81Tm049KahoU.jblK', 'admin'),
+(1, 'Manager User', 'manager@custodia.world', '$2b$12$TMoja9L/5fXHOYP6GOy/Ve8qJIa4tFPMUG9ak1Hv0NUZ43bgk1oPS', 'manager'),
+(1, 'Viewer User', 'viewer@custodia.world', '$2b$12$nCKtsvANW9NbK/jS2WffUOeTOC.AUQjtzocv.CqxgpKTvwrx6keJe', 'viewer');
 
 -- ==============================
--- INSERT TRACKERS
+-- INSERT TRACKERS (4 test trackers)
 -- ==============================
 INSERT INTO trackers (client_id, slug, animal_type, animal_name, family, expected_battery_life, frequency_acquisition, frequency_sending, initial_battery_voltage) VALUES
 (1, 'trk_001', 'Leopard', 'Leopard Alpha', 'Big Cat', 365, 15, 60, 4.20),
 (1, 'trk_002', 'Oryx', 'Oryx Beta', 'Antelope', 365, 15, 60, 4.20),
 (1, 'trk_003', 'Leopard', 'Leopard Gamma', 'Big Cat', 365, 15, 60, 4.20),
-(1, 'trk_004', 'Leopard', 'Leopard Delta', 'Big Cat', 365, 15, 60, 4.20),
-(1, 'trk_005', 'Oryx', 'Oryx Epsilon', 'Antelope', 365, 15, 60, 4.20);
+(1, 'trk_004', 'Oryx', 'Oryx Delta', 'Antelope', 365, 15, 60, 4.20);
 
 -- ==============================
--- INSERT LOCATIONS
+-- INSERT REPEATERS (2 repeaters, Jeddah/Thuwal region)
 -- ==============================
--- Based on mock_locations.csv data
+-- Repeater 1: Thuwal north; Repeater 2: Thuwal south (lat/lon, height in meters, total_locations_collected)
+INSERT INTO repeaters (repeater_id, client_id, longitude, latitude, height, total_locations_collected, last_seen) VALUES
+('RPT-THUWAL-N', 1, 39.103600, 22.285000, 45.00, 10, '2025-11-01 14:00:00+00'),
+('RPT-THUWAL-S', 1, 39.098200, 22.251000, 32.50, 10, '2025-11-01 14:00:00+00');
+
+-- ==============================
+-- INSERT LOCATIONS (5 per tracker, Jeddah / Thuwal region)
+-- ==============================
+-- Coordinates in Thuwal (22.25–22.29°N, 39.09–39.12°E) and nearby Jeddah coast
+-- Some locations via repeater 1 (id=1), some via repeater 2 (id=2), some NULL
 INSERT INTO locations (tracker_id, repeater_id, latitude, longitude, timestamp, battery_voltage, fix_number) VALUES
--- TRK-001 (Leopard Alpha) - tracker_id = 1
-(1, NULL, 24.7136, 46.6753, '2025-11-01 10:00:00+00', 85.0, 1),
-(1, NULL, 24.7146, 46.6763, '2025-11-01 10:30:00+00', 84.0, 2),
-(1, NULL, 24.7156, 46.6773, '2025-11-01 11:15:00+00', 83.0, 3),
-(1, NULL, 24.7166, 46.6783, '2025-11-01 12:00:00+00', 82.0, 4),
-(1, NULL, 24.7176, 46.6793, '2025-11-01 13:00:00+00', 81.0, 5),
-(1, NULL, 24.7186, 46.6803, '2025-11-01 13:45:00+00', 80.0, 6),
-(1, NULL, 24.7196, 46.6813, '2025-11-01 14:45:00+00', 79.0, 7),
-
--- TRK-002 (Oryx Beta) - tracker_id = 2
-(2, NULL, 24.7236, 46.6853, '2025-11-01 10:15:00+00', 92.0, 1),
-(2, NULL, 24.7246, 46.6863, '2025-11-01 11:00:00+00', 91.0, 2),
-(2, NULL, 24.7256, 46.6873, '2025-11-01 11:45:00+00', 90.0, 3),
-(2, NULL, 24.7266, 46.6883, '2025-11-01 12:45:00+00', 89.0, 4),
-(2, NULL, 24.7276, 46.6893, '2025-11-01 13:30:00+00', 88.0, 5),
-(2, NULL, 24.7286, 46.6903, '2025-11-01 14:30:00+00', 87.0, 6),
-(2, NULL, 24.7296, 46.6913, '2025-11-01 15:15:00+00', 86.0, 7),
-
--- TRK-003 (Leopard Gamma) - tracker_id = 3
-(3, NULL, 24.7336, 46.6953, '2025-11-01 10:45:00+00', 78.0, 1),
-(3, NULL, 24.7346, 46.6963, '2025-11-01 12:30:00+00', 77.0, 2),
-(3, NULL, 24.7356, 46.6973, '2025-11-01 14:15:00+00', 76.0, 3),
-
--- TRK-004 (Leopard Delta) - tracker_id = 4
-(4, NULL, 24.7436, 46.7053, '2025-11-01 11:30:00+00', 76.0, 1),
-(4, NULL, 24.7446, 46.7063, '2025-11-01 13:15:00+00', 75.0, 2),
-(4, NULL, 24.7456, 46.7073, '2025-11-01 15:00:00+00', 74.0, 3),
-
--- TRK-005 (Oryx Epsilon) - tracker_id = 5
-(5, NULL, 24.7536, 46.7153, '2025-11-01 12:15:00+00', 88.0, 1),
-(5, NULL, 24.7546, 46.7163, '2025-11-01 14:00:00+00', 87.0, 2);
+-- TRK-001 (Leopard Alpha) - 5 locations
+(1, 1, 22.2820, 39.1010, '2025-11-01 08:00:00+00', 92.0, 1),
+(1, 1, 22.2785, 39.1045, '2025-11-01 09:30:00+00', 91.0, 2),
+(1, NULL, 22.2750, 39.1080, '2025-11-01 11:00:00+00', 90.0, 3),
+(1, 2, 22.2710, 39.1100, '2025-11-01 12:30:00+00', 89.0, 4),
+(1, 2, 22.2670, 39.1120, '2025-11-01 14:00:00+00', 88.0, 5),
+-- TRK-002 (Oryx Beta) - 5 locations
+(2, 1, 22.2840, 39.0990, '2025-11-01 08:15:00+00', 88.0, 1),
+(2, 1, 22.2800, 39.1020, '2025-11-01 09:45:00+00', 87.0, 2),
+(2, 2, 22.2760, 39.1055, '2025-11-01 11:15:00+00', 86.0, 3),
+(2, 2, 22.2720, 39.1090, '2025-11-01 12:45:00+00', 85.0, 4),
+(2, NULL, 22.2680, 39.1115, '2025-11-01 14:15:00+00', 84.0, 5),
+-- TRK-003 (Leopard Gamma) - 5 locations
+(3, NULL, 22.2790, 39.1000, '2025-11-01 08:30:00+00', 79.0, 1),
+(3, 1, 22.2755, 39.1030, '2025-11-01 10:00:00+00', 78.0, 2),
+(3, 1, 22.2720, 39.1060, '2025-11-01 11:30:00+00', 77.0, 3),
+(3, 2, 22.2685, 39.1095, '2025-11-01 13:00:00+00', 76.0, 4),
+(3, 2, 22.2650, 39.1130, '2025-11-01 14:30:00+00', 75.0, 5),
+-- TRK-004 (Oryx Delta) - 5 locations
+(4, 2, 22.2770, 39.0970, '2025-11-01 08:45:00+00', 85.0, 1),
+(4, 2, 22.2735, 39.1005, '2025-11-01 10:15:00+00', 84.0, 2),
+(4, NULL, 22.2700, 39.1040, '2025-11-01 11:45:00+00', 83.0, 3),
+(4, 1, 22.2665, 39.1075, '2025-11-01 13:15:00+00', 82.0, 4),
+(4, 1, 22.2630, 39.1110, '2025-11-01 14:45:00+00', 81.0, 5);
 
 -- ==============================
 -- VERIFY DATA
@@ -78,6 +78,8 @@ UNION ALL
 SELECT 'Users:', COUNT(*) FROM users
 UNION ALL
 SELECT 'Trackers:', COUNT(*) FROM trackers
+UNION ALL
+SELECT 'Repeaters:', COUNT(*) FROM repeaters
 UNION ALL
 SELECT 'Locations:', COUNT(*) FROM locations;
 

@@ -1,4 +1,5 @@
 const db = require('../db');
+const coverageAlert = require('../services/coverageAlert');
 
 const API_KEY = process.env.LOCATIONS_API_KEY || 'abs123qwe';
 
@@ -269,6 +270,7 @@ module.exports = async function ingestLocations(req, res) {
             let inserted = 0;
             const updatedTrackerIds = new Set();
             const fixCounters = new Map();
+            const insertedLocations = [];
 
             for (const packet of packets) {
                 const trackerInfo = await findOrCreateTracker(
@@ -311,6 +313,13 @@ module.exports = async function ingestLocations(req, res) {
                     ]
                 );
                 inserted += 1;
+                insertedLocations.push({
+                    lat: packet.latitude,
+                    lng: packet.longitude,
+                    tracker_slug: trackerInfo.slug,
+                    timestamp: packet.timestamp_utc,
+                    repeater_id: repeaterId,
+                });
 
                 await client.query(
                     `UPDATE trackers
@@ -324,6 +333,29 @@ module.exports = async function ingestLocations(req, res) {
             }
 
             await client.query('COMMIT');
+
+            // Check coverage for inserted locations; send email alert if any are in border zone (6.5–7 km) or out of coverage (> 7 km)
+            if (insertedLocations.length > 0) {
+                try {
+                    const repeaterRows = await client.query(
+                        `SELECT repeater_id, latitude, longitude FROM repeaters WHERE latitude IS NOT NULL AND longitude IS NOT NULL`
+                    );
+                    const repeaters = repeaterRows.rows.map((r) => ({
+                        repeater_id: r.repeater_id,
+                        latitude: parseFloat(r.latitude),
+                        longitude: parseFloat(r.longitude),
+                    }));
+                    const alertResults = coverageAlert.getLocationsInCoverageZone(insertedLocations, repeaters);
+                    const needsAlert = alertResults.borderZone.length > 0 || alertResults.outOfCoverage.length > 0;
+                    if (needsAlert) {
+                        coverageAlert.sendCoverageAlertEmail(alertResults).catch((err) => {
+                            console.error('❌ [COVERAGE ALERT] Email failed:', err.message || err);
+                        });
+                    }
+                } catch (err) {
+                    console.error('❌ [COVERAGE ALERT] Check failed:', err.message || err);
+                }
+            }
 
             return res.status(201).json({
                 success: true,

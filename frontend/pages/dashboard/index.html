@@ -41,21 +41,27 @@
                         <span class="logo-text">Custodia</span>
                     </a>
                 </div>
-                <div class="nav-actions">
-                    <div id="clientFilterIndicator" class="client-filter-indicator" style="display: none;">
-                        <i class="fas fa-filter"></i>
-                        <span id="clientFilterText">Client: --</span>
+                <div class="nav-center">
+                    <div class="nav-center-group">
+                        <div class="last-update">
+                            <i class="fas fa-clock"></i>
+                            <span id="lastUpdateTime">--</span>
+                        </div>
+                        <button class="btn btn-icon" id="downloadCsvBtn" title="Download CSV">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button class="btn btn-icon" id="refreshBtn" title="Refresh Data">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
                     </div>
-                    <div class="last-update">
-                        <i class="fas fa-clock"></i>
-                        <span id="lastUpdateTime">--</span>
+                </div>
+                <div class="nav-right">
+                    <div id="userMenu" class="user-menu">
+                        <span id="userEmail" class="user-email"></span>
+                        <button type="button" class="btn btn-icon" id="logoutBtn" title="Log out">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
                     </div>
-                    <button class="btn btn-icon" id="downloadCsvBtn" title="Download CSV">
-                        <i class="fas fa-download"></i>
-                    </button>
-                    <button class="btn btn-icon" id="refreshBtn" title="Refresh Data">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
                 </div>
                 <div class="hamburger">
                     <span class="bar"></span>
@@ -68,129 +74,93 @@
 
     <!-- Main Dashboard -->
     <main class="dashboard-main">
-        <!-- Sidebar -->
-        <aside class="dashboard-sidebar">
+        <!-- Sidebar (foldable) -->
+        <aside class="dashboard-sidebar" id="dashboardSidebar" aria-expanded="true">
             <div class="sidebar-header">
-                <h2>Tracked Animals</h2>
-                <div class="animal-count">
-                    <span id="animalCount">0</span> active
-                </div>
+                <span class="sidebar-header-title">
+                    <i class="fas fa-broadcast-tower sidebar-header-icon" aria-hidden="true"></i>
+                    <span class="sidebar-header-text">Trackers</span>
+                    <span class="sidebar-count-pill" id="animalCount">0</span>
+                </span>
+                <button type="button" class="sidebar-fold-btn" id="sidebarFoldBtn" title="Collapse sidebar" aria-label="Collapse sidebar">
+                    <i class="fas fa-chevron-left sidebar-fold-icon" aria-hidden="true"></i>
+                </button>
             </div>
-            
-            <!-- Filters -->
-            <div class="sidebar-filters-section">
-                <div class="filters-header" id="filtersHeader">
-                    <h3>Filters</h3>
-                    <button type="button" class="filters-toggle-btn" id="filtersToggleBtn" title="Toggle filters">
-                        <i class="fas fa-chevron-down" id="filtersToggleIcon"></i>
-                    </button>
-                </div>
-                <div class="sidebar-filters" id="sidebarFilters" style="display: none;">
-                    <div class="filter-group">
-                    <div class="filter-group-header">
-                        <label for="trackerFilter">Filter by Tracker</label>
-                        <button type="button" id="toggleAllTrackers" class="toggle-all-btn" title="Toggle all trackers">
-                            <span id="toggleAllText">Select All</span>
-                        </button>
-                    </div>
-                    <div id="trackerFilter" class="tracker-filter-list">
-                        <!-- Trackers will be populated by JavaScript -->
-                    </div>
-                </div>
-                <div class="filter-group">
-                    <label for="statusFilter">Filter by Status</label>
-                    <select id="statusFilter" class="filter-select">
-                        <option value="all">All Status</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="alert">Alert</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="typeFilter">Filter by Animal Type</label>
-                    <select id="typeFilter" class="filter-select">
-                        <option value="all">All Types</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="familyFilter">Filter by Family</label>
-                    <select id="familyFilter" class="filter-select">
-                        <option value="all">All Families</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="dateFrom">Date From</label>
-                    <input type="date" id="dateFrom" class="filter-select" />
-                </div>
-                <div class="filter-group">
-                    <label for="dateTo">Date To</label>
-                    <input type="date" id="dateTo" class="filter-select" />
-                </div>
-                <div class="filter-group">
-                    <label for="visualizationMode">Visualization Mode</label>
-                    <select id="visualizationMode" class="filter-select">
-                        <option value="markers">Only Markers</option>
-                        <option value="path">Show Path</option>
-                        <option value="pathWithDirections">Show Path with Directions</option>
-                    </select>
-                </div>
-                <div class="filter-group" id="showDistanceGroup" style="display: none;">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="showDistanceCheckbox" class="filter-checkbox">
-                        <span>Show distance between markers</span>
-                    </label>
-                </div>
-                </div>
-            </div>
-            
-            <!-- Animal List -->
-            <div class="animal-list" id="animalList">
-                <!-- Animal items will be inserted here by JavaScript -->
+
+            <!-- Tracker cards list -->
+            <div class="tracker-cards-list" id="animalList">
                 <div class="animal-list-loading">
                     <i class="fas fa-spinner fa-spin"></i>
-                    <p>Loading animals...</p>
+                    <p>Loading trackers...</p>
                 </div>
             </div>
         </aside>
 
         <!-- Main Content Area -->
         <div class="dashboard-content">
-            <!-- Stats Cards -->
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-map-marker-alt"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3 class="stat-value" id="totalLocations">0</h3>
-                        <p class="stat-label">Total Locations</p>
-                    </div>
+            <!-- Top bar: search, visualization mode, filters -->
+            <div class="content-top-bar">
+                <div class="search-trackers-wrap">
+                    <i class="fas fa-search search-trackers-icon" aria-hidden="true"></i>
+                    <input type="text" id="searchTrackersInput" class="search-trackers-input" placeholder="Search trackers..." autocomplete="off">
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3 class="stat-value" id="avgUpdateTime">--</h3>
-                        <p class="stat-label">Avg Update Time</p>
-                    </div>
+                <div class="viz-mode-tabs" role="tablist">
+                    <button type="button" class="viz-tab active" data-mode="markers" role="tab">Markers</button>
+                    <button type="button" class="viz-tab" data-mode="path" role="tab">Path</button>
+                    <button type="button" class="viz-tab" data-mode="pathWithDirections" role="tab">Movement (with arrows)</button>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-battery-full"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3 class="stat-value" id="avgBattery">--</h3>
-                        <p class="stat-label">Avg Battery</p>
-                    </div>
+                <!-- Hidden select for map logic -->
+                <select id="visualizationMode" class="visually-hidden" aria-hidden="true">
+                    <option value="markers">Markers</option>
+                    <option value="path">Path</option>
+                    <option value="pathWithDirections">Movement (with arrows)</option>
+                </select>
+                <div class="filters-dropdown-wrap">
+                    <button type="button" class="filters-dropdown-btn" id="filtersDropdownBtn" aria-expanded="false" aria-haspopup="true">
+                        <span>Filters</span>
+                        <i class="fas fa-chevron-down filters-dropdown-chevron" aria-hidden="true"></i>
+                    </button>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-exclamation-triangle"></i>
+            </div>
+
+            <!-- Filters horizontal bar (drops down below top bar when Filters is open) -->
+            <div id="filtersDropdownPanel" class="filters-horizontal-bar" hidden>
+                <div class="filters-horizontal-row">
+                    <div class="filter-field">
+                        <label for="statusFilterBar">STATUS</label>
+                        <select id="statusFilterBar" class="filter-select-bar">
+                            <option value="all">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="alert">Alert</option>
+                        </select>
                     </div>
-                    <div class="stat-info">
-                        <h3 class="stat-value" id="alertsCount">0</h3>
-                        <p class="stat-label">Active Alerts</p>
+                    <div class="filter-field">
+                        <label for="typeFilterBar">TYPE</label>
+                        <select id="typeFilterBar" class="filter-select-bar">
+                            <option value="all">All Types</option>
+                        </select>
+                    </div>
+                    <div class="filter-field">
+                        <label for="familyFilterBar">FAMILY</label>
+                        <select id="familyFilterBar" class="filter-select-bar">
+                            <option value="all">Any family</option>
+                        </select>
+                    </div>
+                    <div class="filter-field">
+                        <label for="dateFromBar">FROM</label>
+                        <input type="date" id="dateFromBar" class="filter-select-bar" placeholder="dd/mm/yyyy">
+                    </div>
+                    <div class="filter-field">
+                        <label for="dateToBar">TO</label>
+                        <input type="date" id="dateToBar" class="filter-select-bar" placeholder="dd/mm/yyyy">
+                    </div>
+                    <div class="filter-field filter-field-toggle">
+                        <label for="repeaterCoverageFilter">REPEATER COVERAGE</label>
+                        <label class="filter-toggle-wrap" for="repeaterCoverageFilter">
+                            <input type="checkbox" id="repeaterCoverageFilter" class="filter-toggle-input" aria-label="Show repeater coverage circles">
+                            <span class="filter-toggle-track"></span>
+                        </label>
                     </div>
                 </div>
             </div>
@@ -209,6 +179,33 @@
                         <i class="fas fa-crosshairs"></i>
                     </button>
                 </div>
+                <!-- Tracker detail card overlay (shown when a tracker is selected) -->
+                <div id="trackerDetailCard" class="tracker-detail-card" style="display: none;">
+                    <div class="tracker-detail-header">
+                        <div class="tracker-detail-title">
+                            <span class="tracker-detail-name" id="detailCardName">--</span>
+                            <span class="tracker-detail-sub" id="detailCardSub">--</span>
+                        </div>
+                        <div class="tracker-detail-actions">
+                            <button type="button" class="btn-edit-tracker-detail" id="detailCardEditBtn" title="Edit Tracker">Edit Tracker</button>
+                            <button type="button" class="tracker-detail-close" id="detailCardClose" aria-label="Close"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                    <div class="tracker-detail-grid">
+                        <div class="tracker-detail-col">
+                            <div class="tracker-detail-row"><span class="tracker-detail-label">TIME</span><span id="detailCardTime" class="tracker-detail-value">--</span></div>
+                            <div class="tracker-detail-row"><span class="tracker-detail-label">DIST FROM PREV</span><span id="detailCardDistPrev" class="tracker-detail-value">--</span></div>
+                            <div class="tracker-detail-row"><span class="tracker-detail-label">TOTAL DISTANCE</span><span id="detailCardTotalDist" class="tracker-detail-value">--</span></div>
+                            <div class="tracker-detail-row"><span class="tracker-detail-label">COORDINATES</span><span id="detailCardCoords" class="tracker-detail-value">--</span></div>
+                        </div>
+                        <div class="tracker-detail-col">
+                            <div class="tracker-detail-row"><span class="tracker-detail-label">BATTERY</span><span id="detailCardBattery" class="tracker-detail-value">--</span></div>
+                            <div class="tracker-detail-row"><span class="tracker-detail-label">LOCATION</span><span id="detailCardLocation" class="tracker-detail-value">--</span></div>
+                            <div class="tracker-detail-row"><span class="tracker-detail-label">AVG / DAY</span><span id="detailCardAvgDay" class="tracker-detail-value">--</span></div>
+                            <div class="tracker-detail-row"><span class="tracker-detail-label">STATUS</span><span id="detailCardStatus" class="tracker-detail-status"></span></div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -224,12 +221,13 @@
                 </button>
             </div>
             <form id="editTrackerForm">
+                <div class="modal-body">
                 <div class="form-group">
-                    <label for="editAnimalName">Animal Name</label>
+                    <label for="editAnimalName">NAME</label>
                     <input type="text" id="editAnimalName" name="animal_name" class="form-input" required>
                 </div>
                 <div class="form-group">
-                    <label for="editAnimalType">Animal Type</label>
+                    <label for="editAnimalType">TYPE</label>
                     <div class="dropdown-with-input">
                         <select id="editAnimalType" name="animal_type" class="form-select">
                             <option value="">Select or type new...</option>
@@ -245,7 +243,7 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="editFamily">Family</label>
+                    <label for="editFamily">FAMILY</label>
                     <div class="dropdown-with-input">
                         <select id="editFamily" name="family" class="form-select">
                             <option value="">Select or type new...</option>
@@ -259,6 +257,7 @@
                     <div id="familiesList" class="options-list" style="display: none;">
                         <!-- Families with edit/delete buttons will be inserted here -->
                     </div>
+                </div>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" id="cancelEditModal">Cancel</button>

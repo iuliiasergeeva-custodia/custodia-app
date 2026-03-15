@@ -3,18 +3,22 @@ const nodemailer = require('nodemailer');
 const cors = require('cors');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 require('dotenv').config();
 const ingestLocations = require('./backend/app/handlers/ingestLocations');
 const adminRouter = require('./backend/app/handlers/admin');
 const newsRouter = require('./backend/app/handlers/news');
+const authHandler = require('./backend/app/handlers/auth');
+const { requireAuth } = require('./backend/app/middleware/auth');
 
 const app = express();
 // Use PORT from environment, or default to 3000 for local development
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
+// Middleware: credentials for cookies (auth)
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 // Request logging middleware (for debugging)
 app.use((req, res, next) => {
@@ -76,6 +80,20 @@ if (process.env.EMAIL_TEST_MODE !== 'true') {
 } else {
     console.log('📧 Email service in TEST MODE - form submissions will be logged only');
 }
+
+// Auth rate limiting (login, forgot-password)
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: { error: 'Too many attempts. Try again later.' }
+});
+
+// Auth routes (login, logout, me, forgot-password, reset-password)
+app.post('/api/auth/login', authLimiter, (req, res) => authHandler.login(req, res));
+app.post('/api/auth/logout', (req, res) => authHandler.logout(req, res));
+app.get('/api/auth/me', requireAuth, (req, res) => authHandler.me(req, res));
+app.post('/api/auth/forgot-password', authLimiter, (req, res) => authHandler.forgotPassword(req, res, transporter));
+app.post('/api/auth/reset-password', authLimiter, (req, res) => authHandler.resetPassword(req, res));
 
 // Contact form endpoint
 app.post('/api/contact', contactLimiter, async (req, res) => {
@@ -221,99 +239,68 @@ app.use('/api/admin', adminRouter);
 app.use('/api/news', newsRouter);
 app.post('/api/locations', ingestLocations);
 
-// Tracker management endpoint (by slug for dashboard)
-app.get('/api/trackers/:slug', async (req, res) => {
+// Tracker management (requires auth; scoped to user's client)
+app.get('/api/trackers/:slug', requireAuth, async (req, res) => {
     try {
+        const clientSlug = req.user.clientSlug;
+        if (!clientSlug) return res.status(403).json({ success: false, error: 'Forbidden' });
         const { slug } = req.params;
         const result = await db.query(
-            'SELECT id, slug, animal_type, animal_name, family FROM trackers WHERE slug = $1',
-            [slug]
+            `SELECT id, slug, animal_type, animal_name, family FROM trackers
+             WHERE slug = $1 AND client_id = (SELECT id FROM clients WHERE slug = $2)`,
+            [slug, clientSlug]
         );
-        
         if (result.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                error: 'Tracker not found'
-            });
+            return res.status(404).json({ success: false, error: 'Tracker not found' });
         }
-        
-        res.json({
-            success: true,
-            tracker: result.rows[0]
-        });
+        res.json({ success: true, tracker: result.rows[0] });
     } catch (error) {
         console.error('❌ [TRACKER API] Error fetching tracker:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to fetch tracker',
-            message: error.message
-        });
+        res.status(500).json({ success: false, error: 'Failed to fetch tracker', message: error.message });
     }
 });
 
-app.put('/api/trackers/:slug', async (req, res) => {
+app.put('/api/trackers/:slug', requireAuth, async (req, res) => {
     try {
+        const clientSlug = req.user.clientSlug;
+        if (!clientSlug) return res.status(403).json({ success: false, error: 'Forbidden' });
         const { slug } = req.params;
         const { animal_type, animal_name, family } = req.body;
-        
-        // Validate required fields
         if (!animal_type || !animal_name) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing required fields: animal_type and animal_name are required'
-            });
+            return res.status(400).json({ success: false, error: 'Missing required fields: animal_type and animal_name are required' });
         }
-        
         const result = await db.query(
-            `UPDATE trackers 
-             SET animal_type = $1, animal_name = $2, family = $3
-             WHERE slug = $4
+            `UPDATE trackers SET animal_type = $1, animal_name = $2, family = $3
+             WHERE slug = $4 AND client_id = (SELECT id FROM clients WHERE slug = $5)
              RETURNING id, slug, animal_type, animal_name, family`,
-            [animal_type, animal_name, family || null, slug]
+            [animal_type, animal_name, family || null, slug, clientSlug]
         );
-        
         if (result.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                error: 'Tracker not found'
-            });
+            return res.status(404).json({ success: false, error: 'Tracker not found' });
         }
-        
-        res.json({
-            success: true,
-            tracker: result.rows[0]
-        });
+        res.json({ success: true, tracker: result.rows[0] });
     } catch (error) {
         console.error('❌ [TRACKER API] Error updating tracker:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to update tracker',
-            message: error.message
-        });
+        res.status(500).json({ success: false, error: 'Failed to update tracker', message: error.message });
     }
 });
 
-// Database endpoint - fetches locations from PostgreSQL
-app.get('/api/locations', async (req, res) => {
+// Database endpoint - fetches locations from PostgreSQL (requires auth; scoped to user's client)
+app.get('/api/locations', requireAuth, async (req, res) => {
     try {
-        console.log('📊 [DATABASE] Fetching locations from PostgreSQL...');
-        console.log('📊 [DATABASE] DATABASE_URL exists:', !!process.env.DATABASE_URL);
-        
-        // Get client filter from query parameter
-        const clientSlug = req.query.client;
-        if (clientSlug) {
-            console.log(`📊 [DATABASE] Filtering by client slug: ${clientSlug}`);
+        const clientSlug = req.user.clientSlug;
+        if (!clientSlug) {
+            return res.status(403).json({ error: 'Forbidden', message: 'No client associated with your account' });
         }
+        console.log('📊 [DATABASE] Fetching locations for client:', clientSlug);
         
-        // Test connection first
         const connectionTest = await db.testConnection();
         if (!connectionTest) {
             console.error('❌ [DATABASE] Connection test failed');
             throw new Error('Database connection failed. Please check DATABASE_URL and ensure database is accessible.');
         }
         
-        // Build query with optional client filter
-        let query = `
+        const query = `
             SELECT 
                 t.slug as tracker_id,
                 c.slug as client_slug,
@@ -329,18 +316,11 @@ app.get('/api/locations', async (req, res) => {
             FROM locations l
             JOIN trackers t ON l.tracker_id = t.id
             LEFT JOIN clients c ON t.client_id = c.id
+            WHERE c.slug = $1
+            ORDER BY l.timestamp ASC
         `;
-        
-        const queryParams = [];
-        if (clientSlug) {
-            query += ` WHERE c.slug = $1`;
-            queryParams.push(clientSlug);
-        }
-        
-        query += ` ORDER BY l.timestamp ASC`;
-        
-        const result = await db.query(query, queryParams);
-        console.log(`✅ [DATABASE] Fetched ${result.rows.length} locations from database${clientSlug ? ` (filtered by client: ${clientSlug})` : ''}`);
+        const result = await db.query(query, [clientSlug]);
+        console.log(`✅ [DATABASE] Fetched ${result.rows.length} locations for client: ${clientSlug}`);
         
         // If no data, return empty CSV with header
         if (result.rows.length === 0) {
@@ -405,6 +385,39 @@ app.get('/api/locations', async (req, res) => {
     }
 });
 
+// Repeaters with coordinates (requires auth; scoped to user's client)
+app.get('/api/repeaters', requireAuth, async (req, res) => {
+    try {
+        const clientSlug = req.user.clientSlug;
+        if (!clientSlug) {
+            return res.status(403).json({ success: false, error: 'No client associated with your account' });
+        }
+        const query = `
+            SELECT id, repeater_id, latitude, longitude, height, total_locations_collected, last_seen
+            FROM repeaters
+            WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+            AND client_id = (SELECT id FROM clients WHERE slug = $1)
+            ORDER BY repeater_id
+        `;
+        const result = await db.query(query, [clientSlug]);
+        res.json({
+            success: true,
+            repeaters: result.rows.map(r => ({
+                id: r.id,
+                repeater_id: r.repeater_id,
+                latitude: parseFloat(r.latitude),
+                longitude: parseFloat(r.longitude),
+                height: r.height != null ? parseFloat(r.height) : null,
+                total_locations_collected: r.total_locations_collected,
+                last_seen: r.last_seen
+            }))
+        });
+    } catch (error) {
+        console.error('❌ [API] Error fetching repeaters:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Fallback CSV endpoint (for when database is not available)
 app.get('/api/mock-locations', (req, res) => {
     console.log('📄 [CSV] Serving mock CSV file (fallback)');
@@ -451,8 +464,8 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// Serve the dashboard page (specific route)
-app.get('/pages/dashboard', (req, res) => {
+// Serve the dashboard page (requires auth; redirects to login if not authenticated)
+app.get('/pages/dashboard', requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend', 'pages', 'dashboard', 'index.html'));
 });
 

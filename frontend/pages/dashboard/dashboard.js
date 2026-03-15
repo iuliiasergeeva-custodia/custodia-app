@@ -11,11 +11,17 @@ let animals = [];
 let locations = [];
 let markers = {};
 let polylines = {}; // Store polylines for path visualization
+let repeaters = []; // Repeaters with lat/lng for map icons
+let repeaterMarkers = []; // Leaflet markers for repeaters (cleared on updateMap)
+let repeaterCircles = []; // 7km coverage circles (cleared on updateMap)
 let selectedAnimalId = null;
+/** When set, the selected location marker is emphasized and all others faded */
+let selectedLocation = null; // { lat, lng } or null
 let animalColors = {}; // Store color assignments for each animal
 let animalLabelsVisible = {}; // Track which animals have labels visible
 let detectedTimezone = 'UTC'; // Detected timezone based on location coordinates
 let totalDbLocationCount = null; // Total unfiltered location count from database
+let allSelectedTrackerIds = new Set(); // When sidebar tracker filter is removed, all trackers are selected
 
 // Edit Tracker Modal state
 let currentEditingTracker = null;
@@ -37,7 +43,7 @@ window.openEditTrackerModal = async function(trackerSlug) {
     
     // Fetch tracker data
     try {
-        const response = await fetch(`/api/trackers/${trackerSlug}`);
+        const response = await fetch(`/api/trackers/${trackerSlug}`, { credentials: 'include' });
         const data = await response.json();
         
         if (!data.success || !data.tracker) {
@@ -355,6 +361,7 @@ async function editType(oldType) {
                 fetch(`/api/trackers/${a.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({
                         animal_type: normalizedNew,
                         animal_name: a.name,
@@ -399,6 +406,7 @@ async function deleteType(type) {
                 fetch(`/api/trackers/${a.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({
                         animal_type: 'Unknown',
                         animal_name: a.name,
@@ -467,6 +475,7 @@ async function editFamily(oldFamily) {
                 fetch(`/api/trackers/${a.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({
                         family: normalizedNew,
                         animal_name: a.name,
@@ -511,6 +520,7 @@ async function deleteFamily(family) {
                 fetch(`/api/trackers/${a.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({
                         family: null,
                         animal_name: a.name,
@@ -537,15 +547,49 @@ async function deleteFamily(family) {
     }
 }
 
+// Current user (set after auth check)
+let currentUser = null;
+
+/**
+ * Check auth; redirect to login if not authenticated. Returns user or null after redirect.
+ */
+async function checkAuth() {
+    const res = await fetch('/api/auth/me', { credentials: 'include' });
+    if (res.status === 401) {
+        const redirect = encodeURIComponent(window.location.pathname + window.location.search || '/pages/dashboard');
+        window.location.replace('/pages/auth/login?redirect=' + redirect);
+        return null;
+    }
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => ({}));
+    currentUser = data.user || null;
+    return currentUser;
+}
+
+/**
+ * Log out and redirect to login
+ */
+async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    window.location.replace('/pages/auth/login?redirect=' + encodeURIComponent('/pages/dashboard'));
+}
+
 // Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing dashboard...');
-    try {
-        initDashboard();
-    } catch (error) {
-        console.error('Error initializing dashboard:', error);
-        console.error('Error details:', error.message, error.stack);
-    }
+    (async function() {
+        try {
+            const user = await checkAuth();
+            if (!user) return;
+            const emailEl = document.getElementById('userEmail');
+            if (emailEl) emailEl.textContent = user.email || '';
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) logoutBtn.addEventListener('click', logout);
+            initDashboard();
+        } catch (error) {
+            console.error('Error initializing dashboard:', error);
+        }
+    })();
 });
 
 /**
@@ -574,10 +618,19 @@ function initMap() {
         // Initialize Leaflet map centered on a default location (can be adjusted)
         map = L.map('map').setView([24.7136, 46.6753], 8); // Default: Riyadh area
         
-        // Add OpenStreetMap tiles
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 19
+        // Base map: higher-contrast style (adjustable – see MAP_TILE_OPTIONS below)
+        const MAP_TILE_OPTIONS = {
+            voyagerNoLabels: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png',
+            voyager: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+            positronNoLabels: 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
+            positron: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+            osm: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+        };
+        const mapTileUrl = MAP_TILE_OPTIONS.voyagerNoLabels; // clearer contrast than Positron
+        L.tileLayer(mapTileUrl, {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
         }).addTo(map);
         
         console.log('Map initialized successfully');
@@ -624,47 +677,12 @@ function getURLParameter(name) {
 async function loadMockData() {
     try {
         console.log('Loading location data...');
-        
-        // Get client filter from URL parameter
-        const clientSlug = getURLParameter('client');
-        if (clientSlug) {
-            console.log(`📊 [DASHBOARD] Filtering by client: ${clientSlug}`);
-            // Show client filter indicator
-            const indicator = document.getElementById('clientFilterIndicator');
-            const indicatorText = document.getElementById('clientFilterText');
-            if (indicator && indicatorText) {
-                indicator.style.display = 'flex';
-                indicatorText.textContent = `Client: ${clientSlug}`;
-            }
-        } else {
-            // Hide client filter indicator if no filter
-            const indicator = document.getElementById('clientFilterIndicator');
-            if (indicator) {
-                indicator.style.display = 'none';
-            }
+        // Auth-scoped API: backend uses logged-in user's client; no client param
+        let response = await fetch('/api/locations', { credentials: 'include' });
+        if (response.status === 401) {
+            window.location.replace('/pages/auth/login?redirect=' + encodeURIComponent('/pages/dashboard'));
+            return;
         }
-        
-        // Try database endpoint first, then fallback to CSV
-        let csvPath = '/api/locations';
-        if (clientSlug) {
-            csvPath += `?client=${encodeURIComponent(clientSlug)}`;
-        }
-        let response = await fetch(csvPath);
-        
-        if (!response.ok) {
-            console.log('Database endpoint failed, trying CSV fallback...');
-            // Fallback to CSV endpoint
-            csvPath = '/api/mock-locations';
-            response = await fetch(csvPath);
-        }
-        
-        if (!response.ok) {
-            // Final fallback to static file path
-            csvPath = '/frontend/pages/dashboard/assets/mock_locations.csv';
-            console.log('Trying static file fallback:', csvPath);
-            response = await fetch(csvPath);
-        }
-        
         if (!response.ok) {
             // Try to get error details from response
             let errorMessage = `HTTP error! status: ${response.status}`;
@@ -692,18 +710,14 @@ async function loadMockData() {
             console.warn('⚠️ Warning:', warning);
         }
         
-        console.log('📊 Data loaded from:', csvPath);
-        console.log('📦 Data source:', dataSource === 'database' ? '✅ DATABASE (PostgreSQL)' : dataSource === 'csv-file' ? '📄 CSV FILE (fallback)' : '❓ Unknown');
+        console.log('📊 Data loaded from: /api/locations (auth-scoped)');
+        console.log('📦 Data source:', dataSource === 'database' ? '✅ DATABASE (PostgreSQL)' : '❓ Unknown');
         if (dataSource === 'database') {
             console.log('✅ Location count from database:', locationCount);
-            // Store total DB location count for unfiltered display
             totalDbLocationCount = locationCount !== 'unknown' ? parseInt(locationCount, 10) : null;
-            // Show success message in UI
             showDataSourceIndicator('database', locationCount);
-        } else if (dataSource === 'csv-file') {
-            console.warn('⚠️ Using CSV fallback - database may not be available');
-            totalDbLocationCount = null; // No DB count available when using CSV
-            showDataSourceIndicator('csv', null);
+        } else {
+            totalDbLocationCount = null;
         }
         console.log('📏 CSV length:', csvText.length);
         console.log('📝 First 200 chars:', csvText.substring(0, 200));
@@ -723,6 +737,29 @@ async function loadMockData() {
         processLocations(locations);
         console.log('Processed animals:', animals.length);
         
+        // Fetch repeaters (auth-scoped; backend uses logged-in user's client)
+        try {
+            const repeaterRes = await fetch('/api/repeaters', { credentials: 'include' });
+            if (repeaterRes.ok) {
+                const data = await repeaterRes.json();
+                repeaters = (data.repeaters || []).filter(r => r.latitude != null && r.longitude != null);
+                console.log('Repeaters loaded:', repeaters.length);
+            } else {
+                repeaters = [];
+            }
+        } catch (e) {
+            console.warn('Could not load repeaters:', e);
+            repeaters = [];
+        }
+        // If API returned no repeaters but we have locations, show seed fallback so repeater markers always appear
+        if (repeaters.length === 0 && locations.length > 0) {
+            repeaters = [
+                { repeater_id: 'RPT-THUWAL-N', latitude: 22.285, longitude: 39.1036 },
+                { repeater_id: 'RPT-THUWAL-S', latitude: 22.251, longitude: 39.0982 }
+            ];
+            console.log('Using fallback repeater locations (2) for map');
+        }
+        
         // Set date filter defaults (earliest date to current date)
         setDateFilterDefaults(locations);
         
@@ -730,14 +767,10 @@ async function loadMockData() {
         populateTrackerFilter();
         populateAttributeFilters();
         
-        // Ensure trackerFilter.selectedTrackerIds is set before calling updateMap
+        // When sidebar tracker filter is removed, allSelectedTrackerIds is set in processLocations
         const trackerFilterEl = document.getElementById('trackerFilter');
-        if (!trackerFilterEl || !trackerFilterEl.selectedTrackerIds || trackerFilterEl.selectedTrackerIds.size === 0) {
-            console.warn('Tracker filter not properly initialized, re-initializing...');
-            // Re-initialize with all trackers
-            if (trackerFilterEl) {
-                trackerFilterEl.selectedTrackerIds = new Set(animals.map(a => a.id));
-            }
+        if (trackerFilterEl && (!trackerFilterEl.selectedTrackerIds || trackerFilterEl.selectedTrackerIds.size === 0)) {
+            trackerFilterEl.selectedTrackerIds = new Set(animals.map(a => a.id));
         }
         
         // Render animals list
@@ -749,6 +782,13 @@ async function loadMockData() {
         
         // Update statistics (this will use all selected trackers by default)
         updateStatistics();
+        
+        // Center map on average center of all locations
+        const center = getAverageCenterFromLocations(locations);
+        if (map && center) {
+            map.setView([center.lat, center.lng], 10, { animate: false });
+            console.log('[loadMockData] Map centered on average of all locations:', center);
+        }
         
         console.log('Dashboard loaded successfully');
         
@@ -828,6 +868,26 @@ function detectTimezoneFromCoordinates(lat, lng) {
     // Default to UTC if we can't determine
     // In the future, this could be expanded with more regions or use a timezone lookup library
     return 'UTC';
+}
+
+/**
+ * Compute average center of all locations (for initial map view)
+ * Returns { lat, lng } or null if no valid coordinates
+ */
+function getAverageCenterFromLocations(locations) {
+    if (!locations || locations.length === 0) return null;
+    let sumLat = 0, sumLng = 0, count = 0;
+    locations.forEach(loc => {
+        const lat = parseFloat(loc.latitude || loc.lat);
+        const lng = parseFloat(loc.longitude || loc.lng || loc.lon);
+        if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+            sumLat += lat;
+            sumLng += lng;
+            count++;
+        }
+    });
+    if (count === 0) return null;
+    return { lat: sumLat / count, lng: sumLng / count };
 }
 
 /**
@@ -1207,6 +1267,9 @@ function processLocations(locations) {
         getAnimalColor(animal.id);
     });
     
+    // When sidebar tracker filter is removed, treat all trackers as selected
+    allSelectedTrackerIds = new Set(animals.map(a => a.id));
+
     // Update animal count
     const animalCountEl = document.getElementById('animalCount');
     if (animalCountEl) {
@@ -1219,7 +1282,10 @@ function processLocations(locations) {
  */
 function populateTrackerFilter() {
     const trackerFilter = document.getElementById('trackerFilter');
-    if (!trackerFilter) return;
+    if (!trackerFilter) {
+        allSelectedTrackerIds = new Set(animals.map(a => a.id));
+        return;
+    }
     
     // Clear existing items
     trackerFilter.innerHTML = '';
@@ -1310,14 +1376,14 @@ function populateTrackerFilter() {
 }
 
 function populateAttributeFilters() {
-    const typeFilter = document.getElementById('typeFilter');
-    const familyFilter = document.getElementById('familyFilter');
-    if (!typeFilter || !familyFilter) {
+    const typeFilterBar = document.getElementById('typeFilterBar');
+    const familyFilterBar = document.getElementById('familyFilterBar');
+    if (!typeFilterBar || !familyFilterBar) {
         return;
     }
 
-    const previousType = typeFilter.value || 'all';
-    const previousFamily = familyFilter.value || 'all';
+    const previousType = typeFilterBar.value || 'all';
+    const previousFamily = familyFilterBar.value || 'all';
 
     const typeValues = new Set();
     const familyValues = new Set();
@@ -1330,8 +1396,8 @@ function populateAttributeFilters() {
     const sortedTypes = sortFilterValues(Array.from(typeValues));
     const sortedFamilies = sortFilterValues(Array.from(familyValues));
 
-    populateFilterSelect(typeFilter, sortedTypes, 'All Types', previousType);
-    populateFilterSelect(familyFilter, sortedFamilies, 'All Families', previousFamily);
+    populateFilterSelect(typeFilterBar, sortedTypes, 'All Types', previousType);
+    populateFilterSelect(familyFilterBar, sortedFamilies, 'Any family', previousFamily);
 }
 
 function sortFilterValues(values) {
@@ -1375,8 +1441,8 @@ function updateToggleAllButton() {
     const toggleAllBtn = document.getElementById('toggleAllTrackers');
     const toggleAllText = document.getElementById('toggleAllText');
     const trackerFilter = document.getElementById('trackerFilter');
-    
-    if (!toggleAllBtn || !toggleAllText || !trackerFilter) return;
+    if (!trackerFilter) return;
+    if (!toggleAllBtn || !toggleAllText) return;
     
     const selectedTrackerIds = trackerFilter.selectedTrackerIds || new Set();
     const allItems = trackerFilter.querySelectorAll('.tracker-filter-item');
@@ -1393,7 +1459,7 @@ function updateToggleAllButton() {
  */
 function toggleAllTrackers() {
     const trackerFilter = document.getElementById('trackerFilter');
-    if (!trackerFilter) return;
+    if (!trackerFilter) return; // Sidebar filter removed
     
     const selectedTrackerIds = trackerFilter.selectedTrackerIds || new Set();
     const allItems = trackerFilter.querySelectorAll('.tracker-filter-item');
@@ -1458,8 +1524,8 @@ function setDateFilterDefaults(locations) {
         }
     });
     
-    const dateFromInput = document.getElementById('dateFrom');
-    const dateToInput = document.getElementById('dateTo');
+    const dateFromInput = document.getElementById('dateFromBar');
+    const dateToInput = document.getElementById('dateToBar');
     const today = new Date();
     const tz = detectedTimezone || 'UTC';
     
@@ -1516,21 +1582,34 @@ function renderAnimalList() {
     
     const { status, type, family } = getFilterSelections();
     
-    // Get selected trackers from tracker filter
+    // Get selected trackers (sidebar filter removed: use all or fallback set)
     const trackerFilterList = document.getElementById('trackerFilter');
     let selectedTrackerIds = [];
     if (trackerFilterList && trackerFilterList.selectedTrackerIds && trackerFilterList.selectedTrackerIds.size > 0) {
         selectedTrackerIds = Array.from(trackerFilterList.selectedTrackerIds);
     } else {
-        selectedTrackerIds = animals.map(a => a.id);
+        selectedTrackerIds = allSelectedTrackerIds.size > 0 ? Array.from(allSelectedTrackerIds) : animals.map(a => a.id);
     }
     
-    // Filter animals based on status and selected trackers
+    // Search query (top bar)
+    const searchInput = document.getElementById('searchTrackersInput');
+    const searchQuery = (searchInput && searchInput.value) ? searchInput.value.trim().toLowerCase() : '';
+    const matchesSearch = (animal) => {
+        if (!searchQuery) return true;
+        const name = (animal.name || '').toLowerCase();
+        const id = (animal.id || '').toLowerCase();
+        const typeStr = (animal.type || '').toLowerCase();
+        const familyStr = (animal.family || '').toLowerCase();
+        return name.includes(searchQuery) || id.includes(searchQuery) || typeStr.includes(searchQuery) || familyStr.includes(searchQuery);
+    };
+
+    // Filter animals based on status, selected trackers, and search
     const filteredAnimals = animals.filter(animal => 
         selectedTrackerIds.includes(animal.id) &&
         (status === 'all' || animal.status === status) &&
         matchesFilter(animal.type, type) &&
-        matchesFilter(animal.family, family)
+        matchesFilter(animal.family, family) &&
+        matchesSearch(animal)
     ).sort((a, b) => {
         // Sort by most recent location update (most recent first)
         // Trackers without lastUpdate go to the bottom
@@ -1545,127 +1624,105 @@ function renderAnimalList() {
         return;
     }
     
+    const tz = detectedTimezone || 'UTC';
     animalList.innerHTML = filteredAnimals.map(animal => {
-        const lastUpdate = animal.lastUpdate 
-            ? formatTime(new Date(animal.lastUpdate))
+        const lastSeen = animal.lastUpdate
+            ? (() => {
+                const d = new Date(animal.lastUpdate);
+                return isNaN(d.getTime()) ? 'Never' : formatDateInTimezone(d, tz);
+            })()
             : 'Never';
-        
         const batteryText = formatBattery(animal.batteryVoltage, animal.batteryPercent);
-        
-        // Get status hint text
+        const subLine = [normalizeAttribute(animal.type), normalizeAttribute(animal.family)].filter(Boolean).join(' - ').replace(/\bUnknown\b/g, '').trim() || '—';
+        const statusLabel = animal.status === 'active' ? 'Active' : animal.status === 'alert' ? 'Alert' : 'Inactive';
         const statusHint = getStatusHint(animal);
-        
+
         return `
-            <div class="animal-item ${selectedAnimalId === animal.id ? 'active' : ''}" 
+            <div class="tracker-card ${selectedAnimalId === animal.id ? 'active' : ''}" 
                  data-animal-id="${animal.id}">
-                <div class="animal-item-header">
-                    <span class="animal-name">${escapeHtml(animal.name)}</span>
-                    <div class="animal-item-header-actions">
-                        <button class="btn-edit-tracker" data-tracker-id="${animal.id}" title="Edit Tracker">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                    <span class="animal-status ${animal.status}" title="${escapeHtml(statusHint)}">${animal.status}</span>
+                <div class="tracker-card-header">
+                    <span class="tracker-card-name">${escapeHtml(animal.name)}</span>
+                    <div class="tracker-card-status-wrap" title="${escapeHtml(statusHint)}">
+                        <span class="tracker-card-status-dot ${animal.status}"></span>
+                        <span class="tracker-card-status-text ${animal.status}">${escapeHtml(statusLabel)}</span>
                     </div>
                 </div>
-                <div class="animal-details">
-                    <div class="animal-details-row">
-                        <span class="animal-details-label">Type:</span>
-                        <span>${escapeHtml(normalizeAttribute(animal.type))}</span>
+                <div class="tracker-card-sub">${escapeHtml(subLine)}</div>
+                <div class="tracker-card-meta">
+                    <div class="tracker-card-meta-item">
+                        <span class="tracker-card-meta-label">Battery</span>
+                        <span class="tracker-card-meta-value">${escapeHtml(batteryText)}</span>
                     </div>
-                    <div class="animal-details-row">
-                        <span class="animal-details-label">Family:</span>
-                        <span>${escapeHtml(normalizeAttribute(animal.family))}</span>
-                    </div>
-                    <div class="animal-details-row">
-                        <span class="animal-details-label">Last Update:</span>
-                        <span>${lastUpdate}</span>
-                    </div>
-                    <div class="animal-details-row">
-                        <span class="animal-details-label">Battery:</span>
-                        <span>${batteryText}</span>
-                    </div>
-                    <div class="animal-details-row">
-                        <span class="animal-details-label">Total Distance:</span>
-                        <span>${animal.totalDistance !== undefined ? formatDistance(animal.totalDistance) : '--'}</span>
-                    </div>
-                    <div class="animal-details-row">
-                        <span class="animal-details-label">Avg Distance/Day:</span>
-                        <span>${animal.avgDistancePerDay !== undefined ? formatDistance(animal.avgDistancePerDay) : '--'}</span>
+                    <div class="tracker-card-meta-item">
+                        <span class="tracker-card-meta-label">Last seen</span>
+                        <span class="tracker-card-meta-value">${escapeHtml(lastSeen)}</span>
                     </div>
                 </div>
             </div>
         `;
     }).join('');
-    
-    // Add click listeners
-    animalList.querySelectorAll('.animal-item').forEach(item => {
+
+    // Add click listeners (support both .tracker-card and .animal-item for compatibility)
+    animalList.querySelectorAll('.tracker-card, .animal-item').forEach(item => {
         item.addEventListener('click', (e) => {
-            // Don't select animal if clicking the edit button
             if (e.target.closest('.btn-edit-tracker')) {
                 e.stopPropagation();
                 const editBtn = e.target.closest('.btn-edit-tracker');
-                const trackerId = editBtn.dataset.trackerId;
-                openEditTrackerModal(trackerId);
+                if (editBtn && editBtn.dataset.trackerId) {
+                    openEditTrackerModal(editBtn.dataset.trackerId);
+                }
                 return;
             }
             const animalId = item.dataset.animalId;
-            selectAnimal(animalId);
+            if (animalId) selectAnimal(animalId);
         });
     });
 }
 
+/** True if two lat/lng points are the same (for selected location highlight) */
+function isSameLocation(a, b) {
+    if (!a || !b) return false;
+    return Math.abs((a.lat || a[0]) - (b.lat || b[0])) < 1e-6 && Math.abs((a.lng || a[1]) - (b.lng || b[1])) < 1e-6;
+}
+
 /**
  * Select animal and focus on map
+ * @param {string|number} animalId
+ * @param {{ lat: number, lng: number }} [locationOptional] - when provided (e.g. from marker click), this location is highlighted; otherwise last location is used
  */
-function selectAnimal(animalId) {
-    const animal = animals.find(a => a.id === animalId);
+function selectAnimal(animalId, locationOptional) {
+    // Support both string (from dataset) and number ids
+    const animal = animals.find(a => a.id == animalId || String(a.id) === String(animalId));
     
     if (!animal) {
-        console.warn(`[selectAnimal] Animal ${animalId} not found`);
+        console.warn('[selectAnimal] Animal not found for id:', animalId, 'available:', animals.map(a => a.id));
         return;
     }
     
-    // Toggle label visibility for this animal
-    const currentlyVisible = animalLabelsVisible[animalId] || false;
-    animalLabelsVisible[animalId] = !currentlyVisible;
-    
-    // Show or hide all marker labels (popups) for this animal
-    const animalMarkers = markers[animalId];
-    if (animalMarkers) {
-        if (Array.isArray(animalMarkers)) {
-            // Multiple markers (path modes)
-            animalMarkers.forEach(marker => {
-                if (marker) {
-                    if (animalLabelsVisible[animalId]) {
-                        marker.openPopup();
-                    } else {
-                        marker.closePopup();
-                    }
-                }
-            });
-        } else {
-            // Single marker (markers only mode)
-            if (animalLabelsVisible[animalId]) {
-                animalMarkers.openPopup();
-            } else {
-                animalMarkers.closePopup();
-            }
-        }
+    const id = animal.id;
+    selectedAnimalId = id;
+    if (locationOptional && typeof locationOptional.lat === 'number' && typeof locationOptional.lng === 'number') {
+        selectedLocation = { lat: locationOptional.lat, lng: locationOptional.lng };
+    } else if (animal.locations && animal.locations.length > 0) {
+        const sorted = [...animal.locations].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        const last = sorted[sorted.length - 1];
+        selectedLocation = { lat: last.lat, lng: last.lng };
+    } else {
+        selectedLocation = null;
     }
     
-    // Update selected animal ID
-    selectedAnimalId = animalId;
+    // Show detail card immediately so it's visible even if later steps throw
+    updateTrackerDetailCard(animal);
     
     // Add animal to selected trackers in the filter
     const trackerFilter = document.getElementById('trackerFilter');
     if (trackerFilter && trackerFilter.selectedTrackerIds) {
         const selectedTrackerIds = trackerFilter.selectedTrackerIds;
-        if (!selectedTrackerIds.has(animalId)) {
-            selectedTrackerIds.add(animalId);
+        if (!selectedTrackerIds.has(id)) {
+            selectedTrackerIds.add(id);
             trackerFilter.selectedTrackerIds = selectedTrackerIds;
             
-            // Update the tracker filter UI to show it as selected
-            const trackerItem = trackerFilter.querySelector(`[data-tracker-id="${animalId}"]`);
+            const trackerItem = trackerFilter.querySelector(`[data-tracker-id="${id}"]`);
             if (trackerItem) {
                 trackerItem.classList.add('selected');
             }
@@ -1675,42 +1732,22 @@ function selectAnimal(animalId) {
         }
     }
     
-    // Update map and statistics first to ensure markers are created
     updateMap();
     updateStatistics();
     
-    // Zoom to animal's last location after map is updated
-    if (animal.locations.length > 0) {
-        // Get the last location (most recent)
+    // Only zoom/pan when selecting from the sidebar; keep current view when clicking a marker on the map
+    if (locationOptional == null && animal.locations && animal.locations.length > 0 && map) {
         const sortedLocations = [...animal.locations].sort((a, b) => {
             return new Date(a.timestamp) - new Date(b.timestamp);
         });
         const lastLocation = sortedLocations[sortedLocations.length - 1];
-        
-        // Center map on last location with appropriate zoom level
         map.setView([lastLocation.lat, lastLocation.lng], 13, {
             animate: true,
             duration: 0.5
         });
-        
-        // After zoom animation, open popup if labels should be visible
-        setTimeout(() => {
-            const animalMarkers = markers[animalId];
-            if (animalMarkers && animalLabelsVisible[animalId]) {
-                if (Array.isArray(animalMarkers) && animalMarkers.length > 0) {
-                    // Open the last marker's popup (most recent location)
-                    animalMarkers[animalMarkers.length - 1].openPopup();
-                } else if (animalMarkers) {
-                    animalMarkers.openPopup();
-                }
-            }
-        }, 600);
     }
     
-    // Re-render list to update active state
     renderAnimalList();
-    
-    console.log(`[selectAnimal] Toggled labels for ${animalId}: ${animalLabelsVisible[animalId] ? 'visible' : 'hidden'}`);
 }
 
 /**
@@ -1724,6 +1761,16 @@ function updateMap() {
         console.error('[updateMap] Map not initialized!');
         return;
     }
+    
+    // Clear existing repeater markers and coverage circles
+    repeaterMarkers.forEach(m => {
+        if (m && map.hasLayer(m)) map.removeLayer(m);
+    });
+    repeaterMarkers = [];
+    repeaterCircles.forEach(c => {
+        if (c && map.hasLayer(c)) map.removeLayer(c);
+    });
+    repeaterCircles = [];
     
     // Clear existing markers - need to handle both single markers and arrays
     Object.values(markers).forEach(marker => {
@@ -1771,8 +1818,8 @@ function updateMap() {
     });
     
     // Get filter values
-    const dateFromInput = document.getElementById('dateFrom');
-    const dateToInput = document.getElementById('dateTo');
+    const dateFromInput = document.getElementById('dateFromBar');
+    const dateToInput = document.getElementById('dateToBar');
     const trackerFilter = document.getElementById('trackerFilter');
     const { status: statusFilter, type: typeFilter, family: familyFilter } = getFilterSelections();
     const visualizationModeSelect = document.getElementById('visualizationMode');
@@ -1803,17 +1850,12 @@ function updateMap() {
     const trackerFilterList = document.getElementById('trackerFilter');
     let selectedTrackerIds;
     
-    if (trackerFilterList && trackerFilterList.selectedTrackerIds) {
-        // Use selected trackers from filter (even if empty - this means show nothing)
+    if (trackerFilterList && trackerFilterList.selectedTrackerIds && trackerFilterList.selectedTrackerIds.size > 0) {
         selectedTrackerIds = Array.from(trackerFilterList.selectedTrackerIds);
-        console.log('[updateMap] Using trackers from filter:', selectedTrackerIds);
-        console.log('[updateMap] Filter has been initialized, selected count:', selectedTrackerIds.length);
+        console.log('[updateMap] Using trackers from filter:', selectedTrackerIds.length);
     } else {
-        // Default to all trackers ONLY if filter hasn't been initialized yet
-        // This happens on initial page load before populateTrackerFilter() runs
-        selectedTrackerIds = animals.map(a => a.id);
-        console.log('[updateMap] Tracker filter not initialized yet, defaulting to ALL trackers:', selectedTrackerIds);
-        console.log('[updateMap] Available animals:', animals.map(a => a.id));
+        selectedTrackerIds = allSelectedTrackerIds.size > 0 ? Array.from(allSelectedTrackerIds) : animals.map(a => a.id);
+        console.log('[updateMap] Using all trackers (no sidebar filter):', selectedTrackerIds.length);
     }
     
     console.log('[updateMap] Total animals available:', animals.length);
@@ -1963,6 +2005,40 @@ function updateMap() {
             }
         }
     });
+    
+    // Add repeater coverage circles (7km radius, 10% opacity, no border) then markers (80px icon)
+    const REPEATER_RADIUS_M = 7000; // 7 km
+    const origin = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+    const repeaterImgUrl = origin + '/static/assets/icons/repeater.png';
+    const repeaterIcon = L.divIcon({
+        className: 'repeater-marker',
+        html: '<span class="repeater-icon-inner" style="background-image:url(\'' + repeaterImgUrl + '\')"></span>',
+        iconSize: [80, 80],
+        iconAnchor: [40, 40]
+    });
+    const { showRepeaterCoverage } = getFilterSelections();
+    repeaters.forEach(r => {
+        const lat = parseFloat(r.latitude);
+        const lng = parseFloat(r.longitude);
+        if (isNaN(lat) || isNaN(lng)) return;
+        if (showRepeaterCoverage) {
+            const circle = L.circle([lat, lng], {
+                radius: REPEATER_RADIUS_M,
+                fillColor: '#374151',
+                fillOpacity: 0.1,
+                color: 'transparent',
+                weight: 0
+            }).addTo(map);
+            repeaterCircles.push(circle);
+        }
+        const marker = L.marker([lat, lng], { icon: repeaterIcon, zIndexOffset: 500 })
+            .addTo(map)
+            .bindTooltip(r.repeater_id || 'Repeater', { permanent: false, direction: 'top' });
+        repeaterMarkers.push(marker);
+    });
+    if (repeaters.length > 0) {
+        console.log('[updateMap] Added', repeaters.length, 'repeater marker(s)');
+    }
 }
 
 /**
@@ -1987,8 +2063,8 @@ function centerMapOnAnimals() {
  * Update statistics (filtered by date range)
  */
 function updateStatistics() {
-    const dateFromInput = document.getElementById('dateFrom');
-    const dateToInput = document.getElementById('dateTo');
+    const dateFromInput = document.getElementById('dateFromBar');
+    const dateToInput = document.getElementById('dateToBar');
     const { status, type, family } = getFilterSelections();
     const dateFrom = dateFromInput ? dateFromInput.value : null;
     const dateTo = dateToInput ? dateToInput.value : null;
@@ -1997,9 +2073,9 @@ function updateStatistics() {
     const alertsEl = document.getElementById('alertsCount');
     
     const trackerFilterList = document.getElementById('trackerFilter');
-    const selectedTrackerIds = trackerFilterList && trackerFilterList.selectedTrackerIds ? 
-        Array.from(trackerFilterList.selectedTrackerIds) : 
-        animals.map(a => a.id);
+    const selectedTrackerIds = (trackerFilterList && trackerFilterList.selectedTrackerIds && trackerFilterList.selectedTrackerIds.size > 0)
+        ? Array.from(trackerFilterList.selectedTrackerIds)
+        : (allSelectedTrackerIds.size > 0 ? Array.from(allSelectedTrackerIds) : animals.map(a => a.id));
     
     // Count locations from animal.locations to match what's displayed
     // This ensures dashboard count matches what's actually shown on map and exported in CSV
@@ -2161,51 +2237,7 @@ function updateStatistics() {
  * Initialize filters toggle functionality
  */
 function initFiltersToggle() {
-    const filtersHeader = document.getElementById('filtersHeader');
-    const filtersToggleBtn = document.getElementById('filtersToggleBtn');
-    const filtersToggleIcon = document.getElementById('filtersToggleIcon');
-    const sidebarFilters = document.getElementById('sidebarFilters');
-    
-    if (!filtersHeader || !filtersToggleBtn || !filtersToggleIcon || !sidebarFilters) {
-        console.warn('Filters toggle elements not found');
-        return;
-    }
-    
-    // Start collapsed by default - ensure state is set
-    sidebarFilters.classList.add('collapsed');
-    sidebarFilters.classList.remove('expanded');
-    
-    // Toggle function
-    function toggleFilters(e) {
-        if (e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        
-        const isCollapsed = sidebarFilters.classList.contains('collapsed') || sidebarFilters.style.display === 'none';
-        
-        if (isCollapsed) {
-            // Expand
-            sidebarFilters.classList.remove('collapsed');
-            sidebarFilters.classList.add('expanded');
-            sidebarFilters.style.display = 'block';
-            filtersToggleBtn.classList.add('expanded');
-            filtersToggleIcon.classList.remove('fa-chevron-down');
-            filtersToggleIcon.classList.add('fa-chevron-up');
-        } else {
-            // Collapse
-            sidebarFilters.classList.remove('expanded');
-            sidebarFilters.classList.add('collapsed');
-            sidebarFilters.style.display = 'none';
-            filtersToggleBtn.classList.remove('expanded');
-            filtersToggleIcon.classList.remove('fa-chevron-up');
-            filtersToggleIcon.classList.add('fa-chevron-down');
-        }
-    }
-    
-    // Add click listeners
-    filtersHeader.addEventListener('click', toggleFilters);
-    filtersToggleBtn.addEventListener('click', toggleFilters);
+    // Sidebar filters removed; filters are in the top bar dropdown only
 }
 
 /**
@@ -2215,15 +2247,15 @@ function downloadCSV() {
     try {
         // Get current filter selections
         const { status: statusFilter, type: typeFilter, family: familyFilter } = getFilterSelections();
-        const dateFromInput = document.getElementById('dateFrom');
-        const dateToInput = document.getElementById('dateTo');
+        const dateFromInput = document.getElementById('dateFromBar');
+        const dateToInput = document.getElementById('dateToBar');
         const trackerFilter = document.getElementById('trackerFilter');
         
         const dateFrom = dateFromInput ? dateFromInput.value : null;
         const dateTo = dateToInput ? dateToInput.value : null;
-        const selectedTrackerIds = trackerFilter && trackerFilter.selectedTrackerIds 
-            ? Array.from(trackerFilter.selectedTrackerIds) 
-            : animals.map(a => a.id);
+        const selectedTrackerIds = (trackerFilter && trackerFilter.selectedTrackerIds && trackerFilter.selectedTrackerIds.size > 0)
+            ? Array.from(trackerFilter.selectedTrackerIds)
+            : (allSelectedTrackerIds.size > 0 ? Array.from(allSelectedTrackerIds) : animals.map(a => a.id));
         
         // Collect all locations from filtered animals
         const csvData = [];
@@ -2334,6 +2366,18 @@ function downloadCSV() {
 }
 
 function initEventListeners() {
+    // Sidebar fold/collapse
+    const sidebar = document.getElementById('dashboardSidebar');
+    const sidebarFoldBtn = document.getElementById('sidebarFoldBtn');
+    if (sidebar && sidebarFoldBtn) {
+        sidebarFoldBtn.addEventListener('click', () => {
+            const collapsed = sidebar.classList.toggle('sidebar-collapsed');
+            sidebar.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            sidebarFoldBtn.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+            sidebarFoldBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+        });
+    }
+
     // Download CSV button
     const downloadCsvBtn = document.getElementById('downloadCsvBtn');
     if (downloadCsvBtn) {
@@ -2367,22 +2411,71 @@ function initEventListeners() {
         }
     });
     
-    // Date filter listeners
-    const dateFrom = document.getElementById('dateFrom');
-    const dateTo = document.getElementById('dateTo');
-    
-    if (dateFrom) {
-        dateFrom.addEventListener('change', () => {
-            updateMap();
-            updateStatistics();
+    // Search trackers (top bar)
+    const searchTrackersInput = document.getElementById('searchTrackersInput');
+    if (searchTrackersInput) {
+        searchTrackersInput.addEventListener('input', () => {
+            renderAnimalList();
         });
     }
-    
-    if (dateTo) {
-        dateTo.addEventListener('change', () => {
-            updateMap();
-            updateStatistics();
+
+    // Visualization mode tabs (Live, Path, Heatmap, Timeline)
+    const vizTabs = document.querySelectorAll('.viz-tab');
+    const visualizationModeSelect = document.getElementById('visualizationMode');
+    if (vizTabs.length && visualizationModeSelect) {
+        vizTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const mode = tab.dataset.mode;
+                if (!mode) return;
+                vizTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                visualizationModeSelect.value = mode;
+                const showDistanceGroup = document.getElementById('showDistanceGroup');
+                if (showDistanceGroup) {
+                    showDistanceGroup.style.display = (mode === 'path' || mode === 'pathWithDirections') ? 'block' : 'none';
+                }
+                updateMap();
+            });
         });
+    }
+
+    // Filters dropdown (top bar): toggle panel; filters are only in the top bar now
+    const filtersDropdownBtn = document.getElementById('filtersDropdownBtn');
+    const filtersDropdownPanel = document.getElementById('filtersDropdownPanel');
+    const applyBarFilters = () => {
+        updateMap();
+        updateStatistics();
+        renderAnimalList();
+    };
+    if (filtersDropdownBtn && filtersDropdownPanel) {
+        filtersDropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = filtersDropdownPanel.getAttribute('hidden') === null;
+            if (isOpen) {
+                filtersDropdownPanel.setAttribute('hidden', '');
+                filtersDropdownBtn.setAttribute('aria-expanded', 'false');
+            } else {
+                filtersDropdownPanel.removeAttribute('hidden');
+                filtersDropdownBtn.setAttribute('aria-expanded', 'true');
+            }
+        });
+        ['statusFilterBar', 'typeFilterBar', 'familyFilterBar'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', applyBarFilters);
+        });
+        const dateFromBar = document.getElementById('dateFromBar');
+        const dateToBar = document.getElementById('dateToBar');
+        if (dateFromBar) dateFromBar.addEventListener('change', applyBarFilters);
+        if (dateToBar) dateToBar.addEventListener('change', applyBarFilters);
+        const repeaterCoverageFilter = document.getElementById('repeaterCoverageFilter');
+        if (repeaterCoverageFilter) repeaterCoverageFilter.addEventListener('change', applyBarFilters);
+        document.addEventListener('click', () => {
+            if (filtersDropdownPanel.getAttribute('hidden') === null) {
+                filtersDropdownPanel.setAttribute('hidden', '');
+                filtersDropdownBtn.setAttribute('aria-expanded', 'false');
+            }
+        });
+        filtersDropdownPanel.addEventListener('click', (e) => e.stopPropagation());
     }
     
     // Visualization mode listener
@@ -2455,6 +2548,25 @@ function initModalEventListeners() {
     // Cancel button
     if (cancelBtn) {
         cancelBtn.addEventListener('click', closeEditTrackerModal);
+    }
+
+    // Tracker detail card (overlay on map): Close and Edit
+    const detailCardClose = document.getElementById('detailCardClose');
+    const detailCardEditBtn = document.getElementById('detailCardEditBtn');
+    if (detailCardClose) {
+        detailCardClose.addEventListener('click', function() {
+            hideTrackerDetailCard();
+            selectedAnimalId = null;
+            selectedLocation = null;
+            updateMap();
+            renderAnimalList();
+        });
+    }
+    if (detailCardEditBtn) {
+        detailCardEditBtn.addEventListener('click', function() {
+            const trackerId = detailCardEditBtn.dataset.trackerId;
+            if (trackerId) openEditTrackerModal(trackerId);
+        });
     }
     
     // Toggle between dropdown and input for animal type
@@ -2654,6 +2766,7 @@ function initModalEventListeners() {
             try {
                 const response = await fetch(`/api/trackers/${currentEditingTracker}`, {
                     method: 'PUT',
+                    credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json'
                     },
@@ -2841,50 +2954,38 @@ function renderMarkersOnly(animal, sortedLocations, iconColor) {
     console.log(`[renderMarkersOnly] Rendering ${sortedLocations.length} markers for ${animal.id} (${animal.name})`);
     const animalMarkers = [];
     
-    // Create markers for all locations
     sortedLocations.forEach((location, index) => {
-        // Calculate distance from previous location
-        let distanceText = '';
-        if (index > 0) {
-            const prevLocation = sortedLocations[index - 1];
-            const distanceFromPrevious = calculateDistance(
-                prevLocation.lat, prevLocation.lng,
-                location.lat, location.lng
-            );
-            distanceText = `<br>Distance from previous: ${formatDistance(distanceFromPrevious)}`;
-        } else {
-            distanceText = '<br>Distance from previous: --';
-        }
+        const isSelected = selectedAnimalId != null && selectedLocation != null && isSameLocation(location, selectedLocation) && animal.id === selectedAnimalId;
+        const isFaded = selectedAnimalId != null && !isSelected;
+        const baseSize = index === sortedLocations.length - 1 ? 24 : 18;
+        const size = isSelected ? Math.max(baseSize + 10, 32) : baseSize;
+        const opacity = isFaded ? 0.35 : 1;
         
         const icon = L.divIcon({
-            className: 'custom-marker',
+            className: 'custom-marker' + (isSelected ? ' marker-selected' : '') + (isFaded ? ' marker-faded' : ''),
             html: `<div style="
-                width: ${index === sortedLocations.length - 1 ? '24px' : '18px'};
-                height: ${index === sortedLocations.length - 1 ? '24px' : '18px'};
+                width: ${size}px;
+                height: ${size}px;
                 background: ${iconColor};
                 border: 2px solid white;
                 border-radius: 50%;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                opacity: ${opacity};
             "></div>`,
-            iconSize: [index === sortedLocations.length - 1 ? 24 : 18, index === sortedLocations.length - 1 ? 24 : 18],
-            iconAnchor: [index === sortedLocations.length - 1 ? 12 : 9, index === sortedLocations.length - 1 ? 12 : 9]
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2]
         });
         
-        const marker = L.marker([location.lat, location.lng], { icon })
+        const marker = L.marker([location.lat, location.lng], {
+            icon,
+            zIndexOffset: isSelected ? 1000 : 0
+        })
             .addTo(map)
-            .bindPopup(`
-                <strong>${escapeHtml(animal.name)}</strong><br>
-                Type: ${escapeHtml(normalizeAttribute(animal.type))}<br>
-                Family: ${escapeHtml(normalizeAttribute(animal.family))}<br>
-                Time: ${formatTime(new Date(location.timestamp))}<br>
-                Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}${distanceText}<br>
-                Location ${index + 1} of ${sortedLocations.length}
-            `);
+            .on('click', () => { selectAnimal(animal.id, location); });
         
         animalMarkers.push(marker);
     });
     
-    // Store all markers as an array so they can all be cleared
     markers[animal.id] = animalMarkers;
 }
 
@@ -2900,52 +3001,43 @@ function renderPath(animal, sortedLocations, iconColor) {
     const showDistanceCheckbox = document.getElementById('showDistanceCheckbox');
     const showDistances = showDistanceCheckbox && showDistanceCheckbox.checked;
     
-    // Create markers for all locations
     sortedLocations.forEach((location, index) => {
-        // Calculate distance from previous location (for popup and label)
         let distanceFromPrevious = null;
-        let distanceText = '';
         if (index > 0) {
             const prevLocation = sortedLocations[index - 1];
-            distanceFromPrevious = calculateDistance(
-                prevLocation.lat, prevLocation.lng,
-                location.lat, location.lng
-            );
-            // Always show distance in popup
-            distanceText = `<br>Distance from previous: ${formatDistance(distanceFromPrevious)}`;
-        } else {
-            distanceText = '<br>Distance from previous: --';
+            distanceFromPrevious = calculateDistance(prevLocation.lat, prevLocation.lng, location.lat, location.lng);
         }
+        const isSelected = selectedAnimalId != null && selectedLocation != null && isSameLocation(location, selectedLocation) && animal.id === selectedAnimalId;
+        const isFaded = selectedAnimalId != null && !isSelected;
+        const baseSize = index === sortedLocations.length - 1 ? 24 : 16;
+        const size = isSelected ? Math.max(baseSize + 10, 32) : baseSize;
+        const opacity = isFaded ? 0.35 : 1;
         
         const icon = L.divIcon({
-            className: 'custom-marker',
+            className: 'custom-marker' + (isSelected ? ' marker-selected' : '') + (isFaded ? ' marker-faded' : ''),
             html: `<div style="
-                width: ${index === sortedLocations.length - 1 ? '24px' : '16px'};
-                height: ${index === sortedLocations.length - 1 ? '24px' : '16px'};
+                width: ${size}px;
+                height: ${size}px;
                 background: ${iconColor};
                 border: 2px solid white;
                 border-radius: 50%;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                opacity: ${opacity};
             "></div>`,
-            iconSize: [index === sortedLocations.length - 1 ? 24 : 16, index === sortedLocations.length - 1 ? 24 : 16],
-            iconAnchor: [index === sortedLocations.length - 1 ? 12 : 8, index === sortedLocations.length - 1 ? 12 : 8]
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2]
         });
         
-        const marker = L.marker([location.lat, location.lng], { icon })
+        const marker = L.marker([location.lat, location.lng], {
+            icon,
+            zIndexOffset: isSelected ? 1000 : 0
+        })
             .addTo(map)
-            .bindPopup(`
-                <strong>${escapeHtml(animal.name)}</strong><br>
-                Type: ${escapeHtml(normalizeAttribute(animal.type))}<br>
-                Family: ${escapeHtml(normalizeAttribute(animal.family))}<br>
-                Time: ${formatTime(new Date(location.timestamp))}<br>
-                Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}${distanceText}<br>
-                Location ${index + 1} of ${sortedLocations.length}
-            `);
+            .on('click', () => { selectAnimal(animal.id, location); });
         
         animalMarkers.push(marker);
         pathCoordinates.push([location.lat, location.lng]);
         
-        // Add distance label at midpoint between locations (only if checkbox is checked)
         if (index > 0 && distanceFromPrevious !== null && showDistances) {
             const prevLocation = sortedLocations[index - 1];
             const midLat = (prevLocation.lat + location.lat) / 2;
@@ -2992,16 +3084,14 @@ function renderPath(animal, sortedLocations, iconColor) {
     // Store all markers as an array so they can all be cleared
     markers[animal.id] = animalMarkers;
     
-    // Create polyline connecting all locations
     if (pathCoordinates.length > 1) {
+        const lineOpacity = selectedAnimalId != null && animal.id !== selectedAnimalId ? 0.3 : 0.7;
         const polyline = L.polyline(pathCoordinates, {
             color: iconColor,
             weight: 3,
-            opacity: 0.7,
+            opacity: lineOpacity,
             smoothFactor: 1
         }).addTo(map);
-        
-        // Store both polyline and distance labels
         polylines[animal.id] = [polyline, ...distanceLabels];
     }
 }
@@ -3019,74 +3109,56 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
     const showDistanceCheckbox = document.getElementById('showDistanceCheckbox');
     const showDistances = showDistanceCheckbox && showDistanceCheckbox.checked;
     
-    // Create markers for all locations
     sortedLocations.forEach((location, index) => {
-        // Calculate distance from previous location (for popup and label)
-        let distanceFromPrevious = null;
-        let distanceText = '';
-        if (index > 0) {
-            const prevLocation = sortedLocations[index - 1];
-            distanceFromPrevious = calculateDistance(
-                prevLocation.lat, prevLocation.lng,
-                location.lat, location.lng
-            );
-            // Always show distance in popup
-            distanceText = `<br>Distance from previous: ${formatDistance(distanceFromPrevious)}`;
-        } else {
-            distanceText = '<br>Distance from previous: --';
-        }
+        const isSelected = selectedAnimalId != null && selectedLocation != null && isSameLocation(location, selectedLocation) && animal.id === selectedAnimalId;
+        const isFaded = selectedAnimalId != null && !isSelected;
+        const baseSize = index === sortedLocations.length - 1 ? 24 : 16;
+        const size = isSelected ? Math.max(baseSize + 10, 32) : baseSize;
+        const opacity = isFaded ? 0.35 : 1;
         
         const icon = L.divIcon({
-            className: 'custom-marker',
+            className: 'custom-marker' + (isSelected ? ' marker-selected' : '') + (isFaded ? ' marker-faded' : ''),
             html: `<div style="
-                width: ${index === sortedLocations.length - 1 ? '24px' : '16px'};
-                height: ${index === sortedLocations.length - 1 ? '24px' : '16px'};
+                width: ${size}px;
+                height: ${size}px;
                 background: ${iconColor};
                 border: 2px solid white;
                 border-radius: 50%;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                opacity: ${opacity};
             "></div>`,
-            iconSize: [index === sortedLocations.length - 1 ? 24 : 16, index === sortedLocations.length - 1 ? 24 : 16],
-            iconAnchor: [index === sortedLocations.length - 1 ? 12 : 8, index === sortedLocations.length - 1 ? 12 : 8]
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2]
         });
         
-        const marker = L.marker([location.lat, location.lng], { icon })
+        const marker = L.marker([location.lat, location.lng], {
+            icon,
+            zIndexOffset: isSelected ? 1000 : 0
+        })
             .addTo(map)
-            .bindPopup(`
-                <strong>${escapeHtml(animal.name)}</strong><br>
-                Type: ${escapeHtml(normalizeAttribute(animal.type))}<br>
-                Family: ${escapeHtml(normalizeAttribute(animal.family))}<br>
-                Time: ${formatTime(new Date(location.timestamp))}<br>
-                Battery: ${location.batteryVoltage !== null ? formatBattery(location.batteryVoltage, calculateBatteryPercentage(location.batteryVoltage, animal.initialBatteryVoltage)) : 'N/A'}${distanceText}<br>
-                Location ${index + 1} of ${sortedLocations.length}
-            `);
+            .on('click', () => { selectAnimal(animal.id, location); });
         
         animalMarkers.push(marker);
         pathCoordinates.push([location.lat, location.lng]);
     });
     
+    const arrowOpacity = selectedAnimalId != null && animal.id !== selectedAnimalId ? 0.35 : 1;
     // Add directional arrows and distance labels after all markers are created
     sortedLocations.forEach((location, index) => {
-        // Add directional arrow between consecutive locations (except for the last location)
         if (index < sortedLocations.length - 1) {
             const nextLocation = sortedLocations[index + 1];
             const midLat = (location.lat + nextLocation.lat) / 2;
             const midLng = (location.lng + nextLocation.lng) / 2;
             
-            // Calculate distance between locations
             const distance = calculateDistance(
                 location.lat, location.lng,
                 nextLocation.lat, nextLocation.lng
             );
             
-            // Calculate bearing for arrow direction
             const bearing = calculateBearing(location.lat, location.lng, nextLocation.lat, nextLocation.lng);
             console.log(`[renderPathWithDirections] Adding arrow at index ${index}, bearing: ${bearing.toFixed(1)}°`);
             
-            // Create arrow icon with distance label rotated to show direction using SVG
-            // Arrow points from current location to next location
-            // Use a flat, solid color design for better visibility
-            const arrowSize = 28; // Larger size for better visibility
+            const arrowSize = 28;
             const arrowIcon = L.divIcon({
                 className: 'direction-arrow',
                 html: `<div style="
@@ -3094,6 +3166,7 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
                     height: ${arrowSize}px;
                     transform: rotate(${bearing}deg);
                     transform-origin: center;
+                    opacity: ${arrowOpacity};
                 ">
                     <svg width="${arrowSize}" height="${arrowSize}" viewBox="0 0 ${arrowSize} ${arrowSize}" style="display: block;">
                         <path d="M ${arrowSize/2} 2 L ${arrowSize/2} ${arrowSize-6} L ${arrowSize/2-6} ${arrowSize-8} Z" 
@@ -3170,16 +3243,14 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
     // Store all markers as an array so they can all be cleared
     markers[animal.id] = animalMarkers;
     
-    // Create polyline connecting all locations
     if (pathCoordinates.length > 1) {
+        const lineOpacity = selectedAnimalId != null && animal.id !== selectedAnimalId ? 0.3 : 0.7;
         const polyline = L.polyline(pathCoordinates, {
             color: iconColor,
             weight: 3,
-            opacity: 0.7,
+            opacity: lineOpacity,
             smoothFactor: 1
         }).addTo(map);
-        
-        // Store both polyline and arrow markers
         polylines[animal.id] = [polyline, ...arrowMarkers];
         console.log(`[renderPathWithDirections] Polyline created with ${pathCoordinates.length} points`);
     }
@@ -3315,10 +3386,11 @@ function matchesFilter(value, filterValue) {
 }
 
 function getFilterSelections() {
-    const status = document.getElementById('statusFilter')?.value || 'all';
-    const type = document.getElementById('typeFilter')?.value || 'all';
-    const family = document.getElementById('familyFilter')?.value || 'all';
-    return { status, type, family };
+    const status = document.getElementById('statusFilterBar')?.value || 'all';
+    const type = document.getElementById('typeFilterBar')?.value || 'all';
+    const family = document.getElementById('familyFilterBar')?.value || 'all';
+    const showRepeaterCoverage = document.getElementById('repeaterCoverageFilter')?.checked === true;
+    return { status, type, family, showRepeaterCoverage };
 }
 
 /**
@@ -3400,5 +3472,130 @@ function getStatusHint(animal) {
         }
         return 'Active: Tracker is functioning normally';
     }
+}
+
+/**
+ * Distance from previous fix (last two locations) in km
+ */
+function getDistanceFromPrevious(animal) {
+    if (!animal || !animal.locations || animal.locations.length < 2) return 0;
+    const sorted = [...animal.locations].sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
+    const prev = sorted[sorted.length - 2];
+    const last = sorted[sorted.length - 1];
+    const prevLat = prev.lat ?? prev.latitude;
+    const prevLng = prev.lng ?? prev.longitude;
+    const lastLat = last.lat ?? last.latitude;
+    const lastLng = last.lng ?? last.longitude;
+    if (prevLat == null || prevLng == null || lastLat == null || lastLng == null) return 0;
+    return calculateDistance(prevLat, prevLng, lastLat, lastLng);
+}
+
+/**
+ * Get distance from the previous location to the given location (in sorted order). Returns 0 if first or not found.
+ */
+function getDistanceFromPreviousToLocation(animal, targetLocation) {
+    if (!animal || !animal.locations || animal.locations.length < 2 || !targetLocation) return 0;
+    const sorted = [...animal.locations].sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
+    const idx = sorted.findIndex(loc => isSameLocation(loc, targetLocation));
+    if (idx <= 0) return 0;
+    const prev = sorted[idx - 1];
+    const last = sorted[idx];
+    const prevLat = prev.lat ?? prev.latitude;
+    const prevLng = prev.lng ?? prev.longitude;
+    const lastLat = last.lat ?? last.latitude;
+    const lastLng = last.lng ?? last.longitude;
+    if (prevLat == null || prevLng == null || lastLat == null || lastLng == null) return 0;
+    return calculateDistance(prevLat, prevLng, lastLat, lastLng);
+}
+
+/**
+ * Show and populate the tracker detail card overlay, or hide it
+ * When selectedLocation is set for this animal, shows that location's info; otherwise shows last location.
+ */
+function updateTrackerDetailCard(animal) {
+    const card = document.getElementById('trackerDetailCard');
+    if (!card) {
+        console.warn('[updateTrackerDetailCard] Element #trackerDetailCard not found');
+        return;
+    }
+    if (!animal) {
+        card.style.display = 'none';
+        return;
+    }
+    card.style.display = 'block';
+
+    const tz = detectedTimezone || 'UTC';
+    const locations = Array.isArray(animal.locations) ? animal.locations : [];
+    const sorted = locations.length > 0 ? [...locations].sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0)) : [];
+    const lastLoc = sorted.length > 0 ? sorted[sorted.length - 1] : null;
+    const selectedLoc = (selectedLocation && animal.id === selectedAnimalId)
+        ? sorted.find(loc => isSameLocation(loc, selectedLocation))
+        : null;
+    const displayLoc = selectedLoc || lastLoc;
+    const lat = displayLoc != null ? (displayLoc.lat ?? displayLoc.latitude) : null;
+    const lng = displayLoc != null ? (displayLoc.lng ?? displayLoc.longitude) : null;
+
+    let timeStr = '--';
+    if (displayLoc && displayLoc.timestamp) {
+        try {
+            timeStr = formatDateInTimezone(new Date(displayLoc.timestamp), tz, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true });
+        } catch (_) { /* keep -- */ }
+    }
+    let distPrev = 0;
+    try {
+        distPrev = displayLoc ? getDistanceFromPreviousToLocation(animal, displayLoc) : getDistanceFromPrevious(animal);
+    } catch (_) { /* use 0 */ }
+    const totalDist = (animal.totalDistance !== undefined && animal.totalDistance !== null)
+        ? (typeof animal.totalDistance === 'number' ? formatDistance(animal.totalDistance) : String(animal.totalDistance))
+        : '--';
+    const coords = (lat != null && lng != null && !isNaN(lat) && !isNaN(lng))
+        ? `${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}` : '--';
+    const batteryAtLoc = displayLoc && (displayLoc.batteryVoltage != null || displayLoc.battery_voltage != null)
+        ? (displayLoc.batteryVoltage != null ? displayLoc.batteryVoltage : displayLoc.battery_voltage)
+        : null;
+    const batteryText = formatBattery(
+        batteryAtLoc != null ? Number(batteryAtLoc) : (animal.batteryVoltage != null ? Number(animal.batteryVoltage) : null),
+        animal.batteryPercent != null ? Number(animal.batteryPercent) : null
+    );
+    const locIndex = displayLoc ? sorted.findIndex(loc => isSameLocation(loc, displayLoc)) + 1 : sorted.length;
+    const locLabel = `${locIndex} of ${sorted.length}`;
+    const avgDay = (animal.avgDistancePerDay !== undefined && animal.avgDistancePerDay !== null)
+        ? (typeof animal.avgDistancePerDay === 'number' ? formatDistance(animal.avgDistancePerDay) : String(animal.avgDistancePerDay))
+        : '--';
+    const statusLabel = animal.status === 'active' ? 'Active' : animal.status === 'alert' ? 'Alert' : 'Inactive';
+
+    const setText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text != null ? String(text) : '--';
+    };
+    setText('detailCardName', animal.name || '--');
+    setText('detailCardSub', [normalizeAttribute(animal.type), normalizeAttribute(animal.family)].filter(Boolean).join(' - ').replace(/\bUnknown\b/g, '').trim() || '--');
+    setText('detailCardTime', timeStr);
+    setText('detailCardDistPrev', distPrev === 0 ? '0 m' : (typeof distPrev === 'number' ? formatDistance(distPrev) : String(distPrev)));
+    setText('detailCardTotalDist', totalDist);
+    setText('detailCardCoords', coords);
+    setText('detailCardBattery', batteryText);
+    setText('detailCardLocation', locLabel);
+    setText('detailCardAvgDay', avgDay);
+
+    const statusEl = document.getElementById('detailCardStatus');
+    if (statusEl) {
+        statusEl.textContent = '';
+        statusEl.className = 'tracker-detail-status';
+        const dot = document.createElement('span');
+        dot.className = `status-dot ${animal.status || ''}`;
+        statusEl.appendChild(dot);
+        statusEl.appendChild(document.createTextNode(statusLabel));
+    }
+
+    const editBtn = document.getElementById('detailCardEditBtn');
+    if (editBtn) {
+        editBtn.dataset.trackerId = animal.id;
+    }
+}
+
+function hideTrackerDetailCard() {
+    const card = document.getElementById('trackerDetailCard');
+    if (card) card.style.display = 'none';
 }
 
