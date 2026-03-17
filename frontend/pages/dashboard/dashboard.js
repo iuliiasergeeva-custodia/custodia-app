@@ -599,7 +599,21 @@ function initDashboard() {
     initMap();
     initEventListeners();
     initFiltersToggle();
+    initMobileSidebarToggle();
     loadMockData();
+}
+
+function initMobileSidebarToggle() {
+    const hamburger = document.getElementById('dashboardHamburger');
+    const sidebar = document.getElementById('dashboardSidebar');
+    if (!hamburger || !sidebar) return;
+    
+    hamburger.addEventListener('click', () => {
+        // Only treat as overlay on small screens
+        if (window.innerWidth <= 768) {
+            sidebar.classList.toggle('is-open');
+        }
+    });
 }
 
 /**
