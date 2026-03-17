@@ -64,6 +64,7 @@ Add or update:
 | `EMAIL_TEST_MODE` | `false` | Set to `true` only if you want reset links in logs instead of email. |
 | `DATABASE_URL` | *(from Render PostgreSQL)* | Already set if you use Render DB. |
 | `NODE_ENV` | `production` | Usually already set. |
+| `SIGNUP_DEFAULT_CLIENT_SLUG` | `custodia` (or your client slug) | Optional: which client new sign‑ups belong to. |
 
 Do **not** commit `.env` or put real secrets in the repo.
 
@@ -100,6 +101,32 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_password_reset_tokens_token_hash ON passwo
 CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires_at ON password_reset_tokens(expires_at);
 ```
+
+### 2.2b Run database migration: locations source/temperature (safe)
+
+Add the two new columns to `locations`:
+
+```sql
+ALTER TABLE locations
+    ADD COLUMN IF NOT EXISTS source VARCHAR(20);
+
+ALTER TABLE locations
+    ADD COLUMN IF NOT EXISTS temperature_c DECIMAL(4,1);
+```
+
+This migration is **non‑destructive**:
+
+- Existing rows keep their data; `source` and `temperature_c` start as `NULL`.
+- Code that doesn’t use these columns keeps working.
+
+**From your machine (recommended):**
+
+```bash
+cd /path/to/custodia
+psql "YOUR_EXTERNAL_DATABASE_URL" -f backend/app/database/migrations/20250603_add_locations_source_temperature.sql
+```
+
+Or paste the SQL above into `psql $DATABASE_URL` in Render’s DB shell.
 
 ### 2.3 (Optional) Reseed production users
 

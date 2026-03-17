@@ -31,6 +31,7 @@ CREATE TABLE users (
 CREATE TABLE trackers (
     id SERIAL PRIMARY KEY,
     client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+    device_id INTEGER UNIQUE,
     slug VARCHAR(50) UNIQUE NOT NULL,
     animal_type VARCHAR(50),
     animal_name VARCHAR(100),
@@ -39,6 +40,7 @@ CREATE TABLE trackers (
     frequency_acquisition INTEGER,
     frequency_sending INTEGER,
     last_seen TIMESTAMP,
+    updated_at TIMESTAMP,
     last_battery_voltage DECIMAL(5,2),
     initial_battery_voltage DECIMAL(5,2),
     created_at TIMESTAMP DEFAULT NOW()
@@ -71,6 +73,8 @@ CREATE TABLE locations (
     timestamp TIMESTAMP NOT NULL,
     battery_voltage DECIMAL(5,2),
     fix_number INTEGER,
+    source VARCHAR(20),
+    temperature_c DECIMAL(4,1),
     created_at TIMESTAMP DEFAULT NOW()
 );
 

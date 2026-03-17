@@ -300,8 +300,8 @@ module.exports = async function ingestLocations(req, res) {
 
                 await client.query(
                     `INSERT INTO locations
-                        (tracker_id, repeater_id, longitude, latitude, timestamp, battery_voltage, fix_number)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                        (tracker_id, repeater_id, longitude, latitude, timestamp, battery_voltage, fix_number, source, temperature_c)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
                     [
                         trackerInfo.id,
                         repeaterDbId,
@@ -310,6 +310,8 @@ module.exports = async function ingestLocations(req, res) {
                         packet.timestamp_utc,
                         packet.battery_voltage,
                         fixNumber,
+                        'lora',
+                        null,
                     ]
                 );
                 inserted += 1;

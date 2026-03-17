@@ -10,6 +10,7 @@ const adminRouter = require('./backend/app/handlers/admin');
 const newsRouter = require('./backend/app/handlers/news');
 const authHandler = require('./backend/app/handlers/auth');
 const { requireAuth } = require('./backend/app/middleware/auth');
+const myriotaWebhook = require('./backend/app/handlers/myriotaWebhook');
 
 const app = express();
 // Use PORT from environment, or default to 3000 for local development
@@ -95,6 +96,9 @@ app.post('/api/auth/logout', (req, res) => authHandler.logout(req, res));
 app.get('/api/auth/me', requireAuth, (req, res) => authHandler.me(req, res));
 app.post('/api/auth/forgot-password', authLimiter, (req, res) => authHandler.forgotPassword(req, res, transporter));
 app.post('/api/auth/reset-password', authLimiter, (req, res) => authHandler.resetPassword(req, res));
+
+// Myriota webhook endpoint - receives satellite packets and stores locations
+app.post('/api/myriota/webhook', myriotaWebhook);
 
 // Contact form endpoint
 app.post('/api/contact', contactLimiter, async (req, res) => {
