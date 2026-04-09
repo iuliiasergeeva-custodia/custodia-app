@@ -1,10 +1,23 @@
 const express = require('express');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
+
+// Validate required environment variables at startup
+const REQUIRED_ENV_VARS = ['JWT_SECRET', 'ADMIN_API_KEY', 'LOCATIONS_API_KEY'];
+const missingVars = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
+if (missingVars.length > 0) {
+    const msg = `Missing required environment variables: ${missingVars.join(', ')}`;
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error(msg);
+    } else {
+        console.warn(`⚠️  [STARTUP] ${msg} — using insecure defaults for development`);
+    }
+}
 const ingestLocations = require('./backend/app/handlers/ingestLocations');
 const adminRouter = require('./backend/app/handlers/admin');
 const newsRouter = require('./backend/app/handlers/news');
@@ -16,8 +29,22 @@ const app = express();
 // Use PORT from environment, or default to 3000 for local development
 const PORT = process.env.PORT || 3000;
 
-// Middleware: credentials for cookies (auth)
-app.use(cors({ origin: true, credentials: true }));
+// Security headers
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// CORS: whitelist specific origins (set ALLOWED_ORIGINS env var in production)
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+    : null;
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin) return callback(null, true); // server-to-server / curl
+        if (!allowedOrigins) return callback(null, true); // dev: no whitelist configured
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+}));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -40,6 +67,15 @@ app.use('/frontend', express.static(path.join(__dirname, 'frontend')));
 
 // Serve static files from /static path for dashboard assets
 app.use('/static', express.static(path.join(__dirname, 'frontend')));
+
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
 // Rate limiting for contact form
 const contactLimiter = rateLimit({
@@ -141,15 +177,15 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
                     <h2 style="color: #1a365d;">New Contact Form Submission</h2>
                     <div style="background: #f7fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
                         <h3 style="color: #2d3748; margin-top: 0;">Contact Information</h3>
-                        <p><strong>Name:</strong> ${firstName} ${lastName}</p>
-                        <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
-                        <p><strong>Phone:</strong> <a href="tel:${phone}">${phone}</a></p>
-                        <p><strong>Submitted:</strong> ${new Date(timestamp).toLocaleString()}</p>
+                        <p><strong>Name:</strong> ${escapeHtml(firstName)} ${escapeHtml(lastName)}</p>
+                        <p><strong>Email:</strong> <a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></p>
+                        <p><strong>Phone:</strong> <a href="tel:${escapeHtml(phone)}">${escapeHtml(phone)}</a></p>
+                        <p><strong>Submitted:</strong> ${escapeHtml(new Date(timestamp).toLocaleString())}</p>
                     </div>
                     ${message ? `
                     <div style="background: #e6fffa; padding: 20px; border-radius: 8px; margin: 20px 0;">
                         <h3 style="color: #2d3748; margin-top: 0;">Message</h3>
-                        <p style="white-space: pre-wrap;">${message}</p>
+                        <p style="white-space: pre-wrap;">${escapeHtml(message)}</p>
                     </div>
                     ` : ''}
                     <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">

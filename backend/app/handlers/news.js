@@ -29,7 +29,16 @@ if (useCloudinary) {
 }
 
 // Admin key check middleware
+const crypto = require('crypto');
+if (!process.env.ADMIN_KEY && !process.env.ADMIN_API_KEY && process.env.NODE_ENV === 'production') {
+    throw new Error('ADMIN_KEY environment variable is required');
+}
 const ADMIN_KEY = process.env.ADMIN_KEY || process.env.ADMIN_API_KEY;
+
+function safeCompare(a, b) {
+    if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
 
 // Debug: Log if admin key is loaded (remove after testing)
 if (process.env.NODE_ENV === 'development') {
@@ -56,7 +65,7 @@ function checkAdminKey(req, res, next) {
         });
     }
     
-    if (providedKey !== ADMIN_KEY) {
+    if (!safeCompare(providedKey, ADMIN_KEY)) {
         console.warn('⚠️ [NEWS] Invalid admin key provided');
         return res.status(401).json({
             success: false,

@@ -8,7 +8,7 @@ const nodemailer = require('nodemailer');
 
 const COVERAGE_RADIUS_KM = 7;
 const BORDER_INNER_KM = 6.5; // Alert when distance is between BORDER_INNER_KM and COVERAGE_RADIUS_KM (border) or > COVERAGE_RADIUS_KM (out of coverage)
-const ALERT_EMAIL_TO = 'julia@custodia.world';
+const ALERT_EMAIL_TO = process.env.COVERAGE_ALERT_EMAIL || 'julia@custodia.world';
 
 /**
  * Haversine distance between two points in km.

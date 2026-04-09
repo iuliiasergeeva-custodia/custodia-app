@@ -1,7 +1,16 @@
+const crypto = require('crypto');
 const db = require('../db');
 const coverageAlert = require('../services/coverageAlert');
 
+if (!process.env.LOCATIONS_API_KEY && process.env.NODE_ENV === 'production') {
+    throw new Error('LOCATIONS_API_KEY environment variable is required');
+}
 const API_KEY = process.env.LOCATIONS_API_KEY || 'abs123qwe';
+
+function safeCompare(a, b) {
+    if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
 
 function extractApiKey(req) {
     const headerKey = req.header('x-api-key');
@@ -228,7 +237,7 @@ function normalizePayload(payload) {
 module.exports = async function ingestLocations(req, res) {
     try {
         const providedKey = extractApiKey(req);
-        if (providedKey !== API_KEY) {
+        if (!safeCompare(providedKey, API_KEY)) {
             return res.status(401).json({
                 success: false,
                 error: 'Unauthorized',

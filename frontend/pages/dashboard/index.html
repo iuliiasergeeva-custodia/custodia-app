@@ -56,6 +56,21 @@
                     </div>
                 </div>
                 <div class="nav-right">
+                    <button type="button" class="theme-toggle-btn" id="themeToggleBtn" title="Toggle light/dark mode">
+                        <i class="fas fa-sun" id="themeToggleIcon"></i>
+                    </button>
+                    <div class="nav-status-pills" id="navStatusPills">
+                        <div class="nav-status-pill nav-status-pill--active">
+                            <span class="nav-status-dot nav-status-dot--active"></span>
+                            <span id="headerActiveCount">0</span>
+                            <span>active</span>
+                        </div>
+                        <div class="nav-status-pill nav-status-pill--alert">
+                            <span class="nav-status-dot nav-status-dot--alert"></span>
+                            <span id="headerAlertCount">0</span>
+                            <span>alert</span>
+                        </div>
+                    </div>
                     <div id="userMenu" class="user-menu">
                         <span id="userEmail" class="user-email"></span>
                         <button type="button" class="btn btn-icon" id="logoutBtn" title="Log out">
@@ -87,7 +102,30 @@
                 </button>
             </div>
 
-            <!-- Tracker cards list -->
+            <div class="sidebar-tracker-tools">
+                <div class="search-trackers-wrap sidebar-search-wrap">
+                    <i class="fas fa-search search-trackers-icon" aria-hidden="true"></i>
+                    <input type="text" id="searchTrackersInput" class="search-trackers-input" placeholder="Search trackers..." autocomplete="off" aria-label="Search trackers">
+                </div>
+
+                <div class="tracker-multiselect" id="trackerMultiselect">
+                    <button type="button" class="tracker-multiselect-trigger" id="trackerMultiselectBtn" aria-expanded="false" aria-haspopup="listbox" aria-controls="trackerMultiselectPanel">
+                        <span id="trackerMultiselectLabel">Filter by tracker...</span>
+                        <i class="fas fa-chevron-down tracker-multiselect-chevron" aria-hidden="true"></i>
+                    </button>
+                    <div class="tracker-multiselect-panel" id="trackerMultiselectPanel" role="listbox" hidden>
+                        <label class="tracker-multiselect-all">
+                            <input type="checkbox" id="trackerFilterSelectAll" checked aria-label="Select all trackers">
+                            <span class="tracker-multiselect-all-check" aria-hidden="true"></span>
+                            <span>All trackers</span>
+                        </label>
+                        <div id="trackerFilter" class="tracker-filter-list tracker-filter-list--dropdown"></div>
+                    </div>
+                </div>
+
+                <div class="sidebar-quick-filters" id="sidebarQuickFilters" role="group" aria-label="Quick filters"></div>
+            </div>
+
             <div class="tracker-cards-list" id="animalList">
                 <div class="animal-list-loading">
                     <i class="fas fa-spinner fa-spin"></i>
@@ -100,10 +138,6 @@
         <div class="dashboard-content">
             <!-- Top bar: search, visualization mode, filters -->
             <div class="content-top-bar">
-                <div class="search-trackers-wrap">
-                    <i class="fas fa-search search-trackers-icon" aria-hidden="true"></i>
-                    <input type="text" id="searchTrackersInput" class="search-trackers-input" placeholder="Search trackers..." autocomplete="off">
-                </div>
                 <div class="viz-mode-tabs" role="tablist">
                     <button type="button" class="viz-tab active" data-mode="markers" role="tab">Markers</button>
                     <button type="button" class="viz-tab" data-mode="path" role="tab">Path</button>
@@ -181,30 +215,85 @@
                 </div>
                 <!-- Tracker detail card overlay (shown when a tracker is selected) -->
                 <div id="trackerDetailCard" class="tracker-detail-card" style="display: none;">
-                    <div class="tracker-detail-header">
-                        <div class="tracker-detail-title">
-                            <span class="tracker-detail-name" id="detailCardName">--</span>
-                            <span class="tracker-detail-sub" id="detailCardSub">--</span>
+                    <!-- Tab bar -->
+                    <div class="tdc-tabs">
+                        <button class="tdc-tab is-active" data-tab="detail">Detail</button>
+                        <button class="tdc-tab" data-tab="locations">Locations</button>
+                        <button type="button" class="tracker-detail-close" id="detailCardClose" aria-label="Close"><i class="fas fa-times"></i></button>
+                    </div>
+
+                    <!-- Detail panel -->
+                    <div class="tdc-panel" id="tdcPanelDetail">
+                        <div class="tdc-hero">
+                            <div class="tdc-avatar" id="tdcAvatar">📍</div>
+                            <div class="tdc-hero-info">
+                                <div class="tdc-hero-name" id="tdcName">--</div>
+                                <div class="tdc-hero-sub" id="tdcSub">--</div>
+                                <div class="tdc-hero-status-row">
+                                    <span class="tdc-status-badge" id="tdcStatusBadge">--</span>
+                                    <span class="tdc-hero-time" id="tdcLastSeen">--</span>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-edit-tracker-detail" id="detailCardEditBtn">Edit</button>
                         </div>
-                        <div class="tracker-detail-actions">
-                            <button type="button" class="btn-edit-tracker-detail" id="detailCardEditBtn" title="Edit Tracker">Edit Tracker</button>
-                            <button type="button" class="tracker-detail-close" id="detailCardClose" aria-label="Close"><i class="fas fa-times"></i></button>
+                        <div class="tdc-divider"></div>
+                        <div class="tdc-stats-grid">
+                            <div class="tdc-stat-tile">
+                                <div class="tdc-stat-label">BATTERY</div>
+                                <div class="tdc-stat-value" id="tdcBatteryPct">--</div>
+                                <div class="tdc-battery-bar"><div class="tdc-battery-fill" id="tdcBatteryFill" style="width:0%"></div></div>
+                            </div>
+                            <div class="tdc-stat-tile">
+                                <div class="tdc-stat-label">VOLTAGE</div>
+                                <div class="tdc-stat-value" id="tdcVoltage">--</div>
+                            </div>
+                            <div class="tdc-stat-tile">
+                                <div class="tdc-stat-label">TOTAL DISTANCE</div>
+                                <div class="tdc-stat-value" id="tdcTotalDist">--</div>
+                            </div>
+                            <div class="tdc-stat-tile">
+                                <div class="tdc-stat-label">AVG / DAY</div>
+                                <div class="tdc-stat-value" id="tdcAvgDay">--</div>
+                            </div>
+                            <div class="tdc-stat-tile">
+                                <div class="tdc-stat-label">LOCATIONS</div>
+                                <div class="tdc-stat-value" id="tdcLocCount">--</div>
+                            </div>
+                            <div class="tdc-stat-tile">
+                                <div class="tdc-stat-label">CONNECTIVITY</div>
+                                <div class="tdc-stat-value" id="tdcConnectivity">--</div>
+                            </div>
+                        </div>
+                        <div class="tdc-activity-section">
+                            <div class="tdc-activity-title">ACTIVITY — LAST 24 HRS</div>
+                            <canvas id="tdcActivityChart" class="tdc-activity-canvas" height="60"></canvas>
+                            <div class="tdc-activity-times">
+                                <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="tracker-detail-grid">
-                        <div class="tracker-detail-col">
-                            <div class="tracker-detail-row"><span class="tracker-detail-label">TIME</span><span id="detailCardTime" class="tracker-detail-value">--</span></div>
-                            <div class="tracker-detail-row"><span class="tracker-detail-label">DIST FROM PREV</span><span id="detailCardDistPrev" class="tracker-detail-value">--</span></div>
-                            <div class="tracker-detail-row"><span class="tracker-detail-label">TOTAL DISTANCE</span><span id="detailCardTotalDist" class="tracker-detail-value">--</span></div>
-                            <div class="tracker-detail-row"><span class="tracker-detail-label">COORDINATES</span><span id="detailCardCoords" class="tracker-detail-value">--</span></div>
+
+                    <!-- Locations panel -->
+                    <div class="tdc-panel" id="tdcPanelLocations" hidden>
+                        <div class="tdc-loc-header">
+                            <div class="tdc-loc-title-row">
+                                <span class="tdc-loc-emoji" id="tdcLocEmoji"></span>
+                                <span class="tdc-loc-name" id="tdcLocName">--</span>
+                            </div>
+                            <div class="tdc-loc-subtitle" id="tdcLocSubtitle">0 locations recorded</div>
                         </div>
-                        <div class="tracker-detail-col">
-                            <div class="tracker-detail-row"><span class="tracker-detail-label">BATTERY</span><span id="detailCardBattery" class="tracker-detail-value">--</span></div>
-                            <div class="tracker-detail-row"><span class="tracker-detail-label">LOCATION</span><span id="detailCardLocation" class="tracker-detail-value">--</span></div>
-                            <div class="tracker-detail-row"><span class="tracker-detail-label">AVG / DAY</span><span id="detailCardAvgDay" class="tracker-detail-value">--</span></div>
-                            <div class="tracker-detail-row"><span class="tracker-detail-label">STATUS</span><span id="detailCardStatus" class="tracker-detail-status"></span></div>
+                        <div class="tdc-loc-nav-bar">
+                            <span class="tdc-loc-nav-label">LOCATION LOG</span>
+                            <div class="tdc-loc-nav-controls">
+                                <button class="tdc-nav-btn" id="tdcLocPrev">← Prev</button>
+                                <input type="number" class="tdc-nav-input" id="tdcLocJumpInput" placeholder="#" min="1">
+                                <button class="tdc-nav-btn" id="tdcLocNext">Next →</button>
+                            </div>
                         </div>
+                        <div class="tdc-loc-list" id="tdcLocList"></div>
+                        <div class="tdc-loc-footer" id="tdcLocFooter">Showing 0 of 0 · Type a number + Enter to jump</div>
                     </div>
+
                 </div>
             </div>
 

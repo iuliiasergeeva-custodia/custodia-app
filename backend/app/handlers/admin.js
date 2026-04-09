@@ -1,9 +1,18 @@
 const express = require('express');
+const crypto = require('crypto');
 const db = require('../db');
 
 const router = express.Router();
 
+if (!process.env.ADMIN_API_KEY && process.env.NODE_ENV === 'production') {
+    throw new Error('ADMIN_API_KEY environment variable is required');
+}
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY || 'abs123qwe';
+
+function safeCompare(a, b) {
+    if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
 
 const TABLE_CONFIG = {
     clients: {
@@ -104,7 +113,7 @@ router.use((req, res, next) => {
     }
 
     const providedKey = extractApiKey(req);
-    if (providedKey !== ADMIN_API_KEY) {
+    if (!safeCompare(providedKey, ADMIN_API_KEY)) {
         return res.status(401).json({
             success: false,
             error: 'Unauthorized',

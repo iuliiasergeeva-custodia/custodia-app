@@ -24,15 +24,19 @@ services:
           name: custodia-db
           property: connectionString
       - key: LOCATIONS_API_KEY
-        value: abs123qwe
+        sync: false  # Set manually in Render dashboard
       - key: ADMIN_API_KEY
-        value: abs123qwe
+        sync: false  # Set manually in Render dashboard
       - key: JWT_SECRET
         sync: false  # Set manually: long random string (e.g. openssl rand -hex 32)
       - key: APP_BASE_URL
         sync: false  # Set manually: https://your-domain.com (for password reset links)
       - key: ADMIN_KEY
         sync: false  # Set manually in Render dashboard (use your secure password)
+      - key: ALLOWED_ORIGINS
+        sync: false  # Set manually: comma-separated list, e.g. https://custodia.world,https://www.custodia.world
+      - key: COVERAGE_ALERT_EMAIL
+        sync: false  # Set manually: email to receive coverage alerts (default: julia@custodia.world)
       - key: CLOUDINARY_CLOUD_NAME
         sync: false  # Set manually in Render dashboard (from Cloudinary account)
       - key: CLOUDINARY_API_KEY
@@ -55,7 +59,7 @@ services:
           name: custodia-db
           property: connectionString
       - key: LOCATIONS_API_KEY
-        value: abs123qwe
+        sync: false  # Must match the web service LOCATIONS_API_KEY
       - key: RENDER_SERVICE_URL
         fromService:
           type: web

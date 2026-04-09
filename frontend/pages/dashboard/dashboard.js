@@ -23,8 +23,18 @@ let detectedTimezone = 'UTC'; // Detected timezone based on location coordinates
 let totalDbLocationCount = null; // Total unfiltered location count from database
 let allSelectedTrackerIds = new Set(); // When sidebar tracker filter is removed, all trackers are selected
 
+/** Sidebar quick chips: narrow list + map via getFilterSelections() */
+let sidebarQuickFilter = { mode: 'all', typeValue: null };
+
 // Edit Tracker Modal state
 let currentEditingTracker = null;
+
+// Detail card tab/nav state
+let detailCardCurrentTab = 'detail';
+let detailCardAnimalId = null;
+let _detailCardInited = false;
+let _detailLocSorted = [];   // locations newest-first for current animal
+let _detailLocCurrentIdx = 0;
 
 // Edit Tracker Modal Functions (defined early so they're available)
 window.openEditTrackerModal = async function(trackerSlug) {
@@ -596,10 +606,19 @@ document.addEventListener('DOMContentLoaded', function() {
  * Initialize dashboard
  */
 function initDashboard() {
+    // Sync header height so the main area fills exactly the remaining viewport
+    const header = document.querySelector('.dashboard-header');
+    if (header) {
+        const setHeaderH = () => document.documentElement.style.setProperty('--header-h', header.offsetHeight + 'px');
+        setHeaderH();
+        new ResizeObserver(setHeaderH).observe(header);
+    }
     initMap();
     initEventListeners();
     initFiltersToggle();
     initMobileSidebarToggle();
+    initTrackerMultiselect();
+    initSidebarQuickFilters();
     loadMockData();
 }
 
@@ -630,7 +649,7 @@ function initMap() {
         console.log('Initializing map...');
         
         // Initialize Leaflet map centered on a default location (can be adjusted)
-        map = L.map('map').setView([24.7136, 46.6753], 8); // Default: Riyadh area
+        map = L.map('map', { zoomControl: false }).setView([24.7136, 46.6753], 8); // Default: Riyadh area
         
         // Base map: higher-contrast style (adjustable – see MAP_TILE_OPTIONS below)
         const MAP_TILE_OPTIONS = {
@@ -784,7 +803,7 @@ async function loadMockData() {
         // When sidebar tracker filter is removed, allSelectedTrackerIds is set in processLocations
         const trackerFilterEl = document.getElementById('trackerFilter');
         if (trackerFilterEl && (!trackerFilterEl.selectedTrackerIds || trackerFilterEl.selectedTrackerIds.size === 0)) {
-            trackerFilterEl.selectedTrackerIds = new Set(animals.map(a => a.id));
+            trackerFilterEl.selectedTrackerIds = new Set(animals.map(a => String(a.id)));
         }
         
         // Render animals list
@@ -1282,13 +1301,156 @@ function processLocations(locations) {
     });
     
     // When sidebar tracker filter is removed, treat all trackers as selected
-    allSelectedTrackerIds = new Set(animals.map(a => a.id));
+    allSelectedTrackerIds = new Set(animals.map(a => String(a.id)));
 
     // Update animal count
     const animalCountEl = document.getElementById('animalCount');
     if (animalCountEl) {
         animalCountEl.textContent = animals.length;
     }
+
+    // Update header status pills
+    updateHeaderStatusCounts();
+
+    renderSidebarQuickFilterChips();
+}
+
+/**
+ * Update the header active / alert count pills from the current animals array.
+ */
+function updateHeaderStatusCounts() {
+    const activeCount = animals.filter(a => a.status === 'active').length;
+    const alertCount = animals.filter(a => a.status === 'alert').length;
+    const activeEl = document.getElementById('headerActiveCount');
+    const alertEl = document.getElementById('headerAlertCount');
+    if (activeEl) activeEl.textContent = activeCount;
+    if (alertEl) alertEl.textContent = alertCount;
+}
+
+/**
+ * Emoji/icon hint from animal type (sidebar cards + multiselect dots use status colors).
+ */
+function getTrackerTypeEmoji(type) {
+    const t = (type || '').toLowerCase();
+    if (t.includes('gazelle')) return '🦌';
+    if (t.includes('camel')) return '🐪';
+    if (t.includes('reem')) return '🦌';
+    if (t.includes('oryx')) return '🦌';
+    if (t.includes('myriota') || t.includes('satellite')) return '📡';
+    if (t.includes('lora')) return '📶';
+    return '📍';
+}
+
+function updateTrackerMultiselectLabel() {
+    const label = document.getElementById('trackerMultiselectLabel');
+    const trackerFilter = document.getElementById('trackerFilter');
+    if (!label || !trackerFilter) return;
+    const sel = trackerFilter.selectedTrackerIds || new Set();
+    const total = trackerFilter.querySelectorAll('.tracker-filter-item').length;
+    if (total === 0) {
+        label.textContent = 'Filter by tracker...';
+        return;
+    }
+    if (sel.size === total) {
+        label.textContent = 'All trackers';
+    } else if (sel.size === 0) {
+        label.textContent = 'No trackers selected';
+    } else {
+        label.textContent = `${sel.size} tracker${sel.size === 1 ? '' : 's'} selected`;
+    }
+}
+
+function syncTrackerFilterSelectAllCheckbox() {
+    const trackerFilter = document.getElementById('trackerFilter');
+    const selectAllCb = document.getElementById('trackerFilterSelectAll');
+    if (!trackerFilter || !selectAllCb) return;
+    const selectedTrackerIds = trackerFilter.selectedTrackerIds || new Set();
+    const allItems = trackerFilter.querySelectorAll('.tracker-filter-item');
+    const n = allItems.length;
+    selectAllCb.checked = n > 0 && selectedTrackerIds.size === n;
+    selectAllCb.indeterminate = selectedTrackerIds.size > 0 && selectedTrackerIds.size < n;
+}
+
+/**
+ * Build quick filter chips: All + animal types (up to 5)
+ */
+function renderSidebarQuickFilterChips() {
+    const container = document.getElementById('sidebarQuickFilters');
+    if (!container) return;
+
+    const types = new Set();
+    animals.forEach(a => {
+        const t = normalizeAttribute(a.type);
+        if (t && t !== 'Unknown') types.add(t);
+    });
+    const sortedTypes = sortFilterValues(Array.from(types)).slice(0, 5);
+    const chips = [
+        { mode: 'all', typeValue: '', label: 'All' },
+        ...sortedTypes.map(t => ({ mode: 'type', typeValue: t, label: t })),
+    ];
+
+    container.innerHTML = chips
+        .map(
+            c => `<button type="button" class="sidebar-quick-filter-chip" data-mode="${escapeHtml(c.mode)}" data-type-value="${escapeHtml(c.typeValue)}">${escapeHtml(c.label)}</button>`
+        )
+        .join('');
+
+    container.querySelectorAll('.sidebar-quick-filter-chip').forEach(btn => {
+        const m = btn.dataset.mode;
+        const tv = btn.dataset.typeValue || '';
+        const active =
+            (sidebarQuickFilter.mode === 'all' && m === 'all') ||
+            (sidebarQuickFilter.mode === 'alerts' && m === 'alerts') ||
+            (sidebarQuickFilter.mode === 'type' && m === 'type' && tv === (sidebarQuickFilter.typeValue || ''));
+        if (active) btn.classList.add('is-active');
+    });
+}
+
+function initTrackerMultiselect() {
+    const root = document.getElementById('trackerMultiselect');
+    const btn = document.getElementById('trackerMultiselectBtn');
+    const panel = document.getElementById('trackerMultiselectPanel');
+    if (!root || !btn || !panel || root.dataset.bound) return;
+    root.dataset.bound = '1';
+    btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const open = panel.hasAttribute('hidden');
+        if (open) {
+            panel.removeAttribute('hidden');
+            btn.setAttribute('aria-expanded', 'true');
+            btn.classList.add('is-open');
+        } else {
+            panel.setAttribute('hidden', '');
+            btn.setAttribute('aria-expanded', 'false');
+            btn.classList.remove('is-open');
+        }
+    });
+    document.addEventListener('click', () => {
+        if (!panel.hasAttribute('hidden')) {
+            panel.setAttribute('hidden', '');
+            btn.setAttribute('aria-expanded', 'false');
+            btn.classList.remove('is-open');
+        }
+    });
+    root.addEventListener('click', e => e.stopPropagation());
+}
+
+function initSidebarQuickFilters() {
+    const container = document.getElementById('sidebarQuickFilters');
+    if (!container || container.dataset.bound) return;
+    container.dataset.bound = '1';
+    container.addEventListener('click', e => {
+        const chip = e.target.closest('.sidebar-quick-filter-chip');
+        if (!chip) return;
+        const mode = chip.dataset.mode;
+        const typeValue = mode === 'type' ? chip.dataset.typeValue || null : null;
+        sidebarQuickFilter = { mode, typeValue };
+        container.querySelectorAll('.sidebar-quick-filter-chip').forEach(c => c.classList.remove('is-active'));
+        chip.classList.add('is-active');
+        updateMap();
+        updateStatistics();
+        renderAnimalList();
+    });
 }
 
 /**
@@ -1307,8 +1469,8 @@ function populateTrackerFilter() {
     // Sort animals by name for better UX
     const sortedAnimals = [...animals].sort((a, b) => a.name.localeCompare(b.name));
     
-    // Track selected trackers (all selected by default)
-    let selectedTrackerIds = new Set(sortedAnimals.map(a => a.id));
+    // Track selected trackers (all selected by default); IDs as strings for consistent matching
+    let selectedTrackerIds = new Set(sortedAnimals.map(a => String(a.id)));
     
     // Store selected trackers in the element BEFORE creating items
     // This ensures it's available when updateMap() and updateStatistics() are called
@@ -1316,74 +1478,41 @@ function populateTrackerFilter() {
     
     console.log(`[populateTrackerFilter] Stored ${selectedTrackerIds.size} selected trackers:`, Array.from(selectedTrackerIds));
     
-    // Add all trackers as items
+    // Add all trackers as items (checkbox + status dot + name)
     sortedAnimals.forEach(animal => {
         const item = document.createElement('div');
         item.className = 'tracker-filter-item selected';
-        item.dataset.trackerId = animal.id;
-        
+        item.dataset.trackerId = String(animal.id);
+        const st = ['active', 'alert', 'inactive'].includes(animal.status) ? animal.status : 'inactive';
         item.innerHTML = `
-            <div class="tracker-filter-item-info">
-                <div class="tracker-filter-item-name">${escapeHtml(animal.name)}</div>
-                <div class="tracker-filter-item-id">${escapeHtml(animal.id)}</div>
-            </div>
-            <div class="tracker-filter-item-remove" title="Remove tracker">
-                <i class="fas fa-times"></i>
-            </div>
+            <span class="tracker-filter-checkbox" aria-hidden="true"></span>
+            <span class="tracker-filter-dot ${st}" aria-hidden="true"></span>
+            <span class="tracker-filter-item-name">${escapeHtml(animal.name)}</span>
         `;
-        
-        // Toggle selection on item click
-        item.addEventListener('click', (e) => {
-            // Don't toggle if clicking the remove button (handled separately)
-            if (e.target.closest('.tracker-filter-item-remove')) {
-                return;
-            }
-            
-            // Get the current selected tracker IDs from the element
+
+        item.addEventListener('click', () => {
             const currentSelected = trackerFilter.selectedTrackerIds || new Set();
-            const isSelected = currentSelected.has(animal.id);
-            
+            const idKey = String(animal.id);
+            const isSelected = currentSelected.has(idKey);
             if (isSelected) {
-                currentSelected.delete(animal.id);
+                currentSelected.delete(idKey);
                 item.classList.remove('selected');
             } else {
-                currentSelected.add(animal.id);
+                currentSelected.add(idKey);
                 item.classList.add('selected');
             }
-            
-            // Update the stored Set on the element
             trackerFilter.selectedTrackerIds = currentSelected;
-            
             updateMap();
             updateStatistics();
             renderAnimalList();
             updateToggleAllButton();
         });
-        
-        // Remove button click handler
-        const removeBtn = item.querySelector('.tracker-filter-item-remove');
-        removeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            
-            // Get the current selected tracker IDs from the element
-            const currentSelected = trackerFilter.selectedTrackerIds || new Set();
-            currentSelected.delete(animal.id);
-            item.classList.remove('selected');
-            
-            // Update the stored Set on the element
-            trackerFilter.selectedTrackerIds = currentSelected;
-            
-            updateMap();
-            updateStatistics();
-            renderAnimalList();
-            updateToggleAllButton();
-        });
-        
+
         trackerFilter.appendChild(item);
     });
-    
-    // Update toggle all button text
+
     updateToggleAllButton();
+    updateTrackerMultiselectLabel();
     
     console.log(`Tracker filter populated with ${sortedAnimals.length} trackers, all selected by default`);
     console.log('Selected tracker IDs:', Array.from(selectedTrackerIds));
@@ -1452,15 +1581,17 @@ function populateFilterSelect(selectEl, values, allLabel, previousValue) {
  * Update toggle all button text based on current selection
  */
 function updateToggleAllButton() {
-    const toggleAllBtn = document.getElementById('toggleAllTrackers');
-    const toggleAllText = document.getElementById('toggleAllText');
     const trackerFilter = document.getElementById('trackerFilter');
     if (!trackerFilter) return;
+    syncTrackerFilterSelectAllCheckbox();
+    updateTrackerMultiselectLabel();
+
+    const toggleAllBtn = document.getElementById('toggleAllTrackers');
+    const toggleAllText = document.getElementById('toggleAllText');
     if (!toggleAllBtn || !toggleAllText) return;
-    
+
     const selectedTrackerIds = trackerFilter.selectedTrackerIds || new Set();
     const allItems = trackerFilter.querySelectorAll('.tracker-filter-item');
-    
     if (selectedTrackerIds.size === allItems.length && allItems.length > 0) {
         toggleAllText.textContent = 'Deselect All';
     } else {
@@ -1484,13 +1615,10 @@ function toggleAllTrackers() {
     // Select or deselect all
     allItems.forEach(item => {
         const trackerId = item.dataset.trackerId;
-        
         if (allSelected) {
-            // Deselect all
             selectedTrackerIds.delete(trackerId);
             item.classList.remove('selected');
         } else {
-            // Select all
             selectedTrackerIds.add(trackerId);
             item.classList.add('selected');
         }
@@ -1600,9 +1728,9 @@ function renderAnimalList() {
     const trackerFilterList = document.getElementById('trackerFilter');
     let selectedTrackerIds = [];
     if (trackerFilterList && trackerFilterList.selectedTrackerIds && trackerFilterList.selectedTrackerIds.size > 0) {
-        selectedTrackerIds = Array.from(trackerFilterList.selectedTrackerIds);
+        selectedTrackerIds = Array.from(trackerFilterList.selectedTrackerIds).map(String);
     } else {
-        selectedTrackerIds = allSelectedTrackerIds.size > 0 ? Array.from(allSelectedTrackerIds) : animals.map(a => a.id);
+        selectedTrackerIds = (allSelectedTrackerIds.size > 0 ? Array.from(allSelectedTrackerIds) : animals.map(a => a.id)).map(String);
     }
     
     // Search query (top bar)
@@ -1618,8 +1746,8 @@ function renderAnimalList() {
     };
 
     // Filter animals based on status, selected trackers, and search
-    const filteredAnimals = animals.filter(animal => 
-        selectedTrackerIds.includes(animal.id) &&
+    const filteredAnimals = animals.filter(animal =>
+        selectedTrackerIds.includes(String(animal.id)) &&
         (status === 'all' || animal.status === status) &&
         matchesFilter(animal.type, type) &&
         matchesFilter(animal.family, family) &&
@@ -1647,19 +1775,25 @@ function renderAnimalList() {
             })()
             : 'Never';
         const batteryText = formatBattery(animal.batteryVoltage, animal.batteryPercent);
-        const subLine = [normalizeAttribute(animal.type), normalizeAttribute(animal.family)].filter(Boolean).join(' - ').replace(/\bUnknown\b/g, '').trim() || '—';
-        const statusLabel = animal.status === 'active' ? 'Active' : animal.status === 'alert' ? 'Alert' : 'Inactive';
+        const typePart = normalizeAttribute(animal.type).replace(/\bUnknown\b/g, '').trim();
+        const familyPart = normalizeAttribute(animal.family).replace(/\bUnknown\b/g, '').trim();
+        const subLine = [typePart, familyPart].filter(Boolean).join(' · ') || '—';
+        const statusLabel = animal.status === 'active' ? 'active' : animal.status === 'alert' ? 'alert' : 'inactive';
         const statusHint = getStatusHint(animal);
+        const stClass = ['active', 'alert', 'inactive'].includes(animal.status) ? animal.status : 'inactive';
+        const pctRaw = animal.batteryPercent != null && !Number.isNaN(animal.batteryPercent) ? animal.batteryPercent : 0;
+        const pct = Math.min(100, Math.max(0, pctRaw));
+        const emoji = getTrackerTypeEmoji(animal.type);
 
         return `
-            <div class="tracker-card ${selectedAnimalId === animal.id ? 'active' : ''}" 
+            <div class="tracker-card ${String(selectedAnimalId) === String(animal.id) ? 'active' : ''}" 
                  data-animal-id="${animal.id}">
                 <div class="tracker-card-header">
-                    <span class="tracker-card-name">${escapeHtml(animal.name)}</span>
-                    <div class="tracker-card-status-wrap" title="${escapeHtml(statusHint)}">
-                        <span class="tracker-card-status-dot ${animal.status}"></span>
-                        <span class="tracker-card-status-text ${animal.status}">${escapeHtml(statusLabel)}</span>
+                    <div class="tracker-card-title-row">
+                        <span class="tracker-card-emoji" aria-hidden="true">${emoji}</span>
+                        <span class="tracker-card-name">${escapeHtml(animal.name)}</span>
                     </div>
+                    <span class="tracker-card-badge tracker-card-badge--${stClass}" title="${escapeHtml(statusHint)}">${escapeHtml(statusLabel)}</span>
                 </div>
                 <div class="tracker-card-sub">${escapeHtml(subLine)}</div>
                 <div class="tracker-card-meta">
@@ -1671,6 +1805,9 @@ function renderAnimalList() {
                         <span class="tracker-card-meta-label">Last seen</span>
                         <span class="tracker-card-meta-value">${escapeHtml(lastSeen)}</span>
                     </div>
+                </div>
+                <div class="tracker-card-battery-bar" aria-hidden="true">
+                    <div class="tracker-card-battery-fill" style="width: ${pct}%;"></div>
                 </div>
             </div>
         `;
@@ -1732,11 +1869,14 @@ function selectAnimal(animalId, locationOptional) {
     const trackerFilter = document.getElementById('trackerFilter');
     if (trackerFilter && trackerFilter.selectedTrackerIds) {
         const selectedTrackerIds = trackerFilter.selectedTrackerIds;
-        if (!selectedTrackerIds.has(id)) {
-            selectedTrackerIds.add(id);
+        const idStr = String(id);
+        if (!selectedTrackerIds.has(idStr)) {
+            selectedTrackerIds.add(idStr);
             trackerFilter.selectedTrackerIds = selectedTrackerIds;
-            
-            const trackerItem = trackerFilter.querySelector(`[data-tracker-id="${id}"]`);
+
+            const trackerItem = Array.from(trackerFilter.querySelectorAll('.tracker-filter-item')).find(
+                el => el.dataset.trackerId === idStr
+            );
             if (trackerItem) {
                 trackerItem.classList.add('selected');
             }
@@ -1865,10 +2005,10 @@ function updateMap() {
     let selectedTrackerIds;
     
     if (trackerFilterList && trackerFilterList.selectedTrackerIds && trackerFilterList.selectedTrackerIds.size > 0) {
-        selectedTrackerIds = Array.from(trackerFilterList.selectedTrackerIds);
+        selectedTrackerIds = Array.from(trackerFilterList.selectedTrackerIds).map(String);
         console.log('[updateMap] Using trackers from filter:', selectedTrackerIds.length);
     } else {
-        selectedTrackerIds = allSelectedTrackerIds.size > 0 ? Array.from(allSelectedTrackerIds) : animals.map(a => a.id);
+        selectedTrackerIds = (allSelectedTrackerIds.size > 0 ? Array.from(allSelectedTrackerIds) : animals.map(a => a.id)).map(String);
         console.log('[updateMap] Using all trackers (no sidebar filter):', selectedTrackerIds.length);
     }
     
@@ -1892,7 +2032,7 @@ function updateMap() {
     
     animals.forEach(animal => {
         // Filter by tracker selection - STRICT CHECK
-        if (!selectedTrackerIds.includes(animal.id)) {
+        if (!selectedTrackerIds.includes(String(animal.id))) {
             skippedCount++;
             console.log(`[updateMap] SKIPPING ${animal.id} (${animal.name}) - NOT in selected list`);
             return; // Skip this animal if not selected
@@ -2087,10 +2227,12 @@ function updateStatistics() {
     const alertsEl = document.getElementById('alertsCount');
     
     const trackerFilterList = document.getElementById('trackerFilter');
-    const selectedTrackerIds = (trackerFilterList && trackerFilterList.selectedTrackerIds && trackerFilterList.selectedTrackerIds.size > 0)
-        ? Array.from(trackerFilterList.selectedTrackerIds)
-        : (allSelectedTrackerIds.size > 0 ? Array.from(allSelectedTrackerIds) : animals.map(a => a.id));
-    
+    const selectedTrackerIds = (
+        trackerFilterList && trackerFilterList.selectedTrackerIds && trackerFilterList.selectedTrackerIds.size > 0
+            ? Array.from(trackerFilterList.selectedTrackerIds)
+            : allSelectedTrackerIds.size > 0 ? Array.from(allSelectedTrackerIds) : animals.map(a => a.id)
+    ).map(String);
+
     // Count locations from animal.locations to match what's displayed
     // This ensures dashboard count matches what's actually shown on map and exported in CSV
     let filteredLocationCount = 0;
@@ -2098,25 +2240,25 @@ function updateStatistics() {
     
     animals.forEach(animal => {
         // Apply tracker filter
-        if (!selectedTrackerIds.includes(animal.id)) {
+        if (!selectedTrackerIds.includes(String(animal.id))) {
             return;
         }
-        
+
         // Apply status filter
         if (status !== 'all' && animal.status !== status) {
             return;
         }
-        
+
         // Apply type filter
         if (type !== 'all' && !matchesFilter(animal.type, type)) {
             return;
         }
-        
+
         // Apply family filter
         if (family !== 'all' && !matchesFilter(animal.family, family)) {
             return;
         }
-        
+
         // Count locations from animal.locations (already filtered for outliers)
         // Apply date filter to these locations (using timezone-aware logic)
         animal.locations.forEach(location => {
@@ -2166,7 +2308,7 @@ function updateStatistics() {
     }
     
     const filteredAnimals = animals.filter(animal =>
-        selectedTrackerIds.includes(animal.id) &&
+        selectedTrackerIds.includes(String(animal.id)) &&
         (status === 'all' || animal.status === status) &&
         matchesFilter(animal.type, type) &&
         matchesFilter(animal.family, family)
@@ -2267,16 +2409,18 @@ function downloadCSV() {
         
         const dateFrom = dateFromInput ? dateFromInput.value : null;
         const dateTo = dateToInput ? dateToInput.value : null;
-        const selectedTrackerIds = (trackerFilter && trackerFilter.selectedTrackerIds && trackerFilter.selectedTrackerIds.size > 0)
-            ? Array.from(trackerFilter.selectedTrackerIds)
-            : (allSelectedTrackerIds.size > 0 ? Array.from(allSelectedTrackerIds) : animals.map(a => a.id));
-        
+        const selectedTrackerIds = (
+            trackerFilter && trackerFilter.selectedTrackerIds && trackerFilter.selectedTrackerIds.size > 0
+                ? Array.from(trackerFilter.selectedTrackerIds)
+                : allSelectedTrackerIds.size > 0 ? Array.from(allSelectedTrackerIds) : animals.map(a => a.id)
+        ).map(String);
+
         // Collect all locations from filtered animals
         const csvData = [];
-        
+
         animals.forEach(animal => {
             // Apply tracker filter
-            if (!selectedTrackerIds.includes(animal.id)) {
+            if (!selectedTrackerIds.includes(String(animal.id))) {
                 return;
             }
             
@@ -2407,10 +2551,37 @@ function initEventListeners() {
         });
     });
     
-    // Toggle all trackers button
+    // Toggle all trackers button (legacy; sidebar uses #trackerFilterSelectAll)
     const toggleAllBtn = document.getElementById('toggleAllTrackers');
     if (toggleAllBtn) {
         toggleAllBtn.addEventListener('click', toggleAllTrackers);
+    }
+
+    const trackerFilterSelectAll = document.getElementById('trackerFilterSelectAll');
+    if (trackerFilterSelectAll) {
+        trackerFilterSelectAll.addEventListener('change', () => {
+            const trackerFilter = document.getElementById('trackerFilter');
+            if (!trackerFilter) return;
+            const allItems = trackerFilter.querySelectorAll('.tracker-filter-item');
+            const selected = trackerFilter.selectedTrackerIds || new Set();
+            if (trackerFilterSelectAll.checked) {
+                allItems.forEach(item => {
+                    selected.add(item.dataset.trackerId);
+                    item.classList.add('selected');
+                });
+            } else {
+                allItems.forEach(item => {
+                    selected.delete(item.dataset.trackerId);
+                    item.classList.remove('selected');
+                });
+            }
+            trackerFilter.selectedTrackerIds = selected;
+            trackerFilterSelectAll.indeterminate = false;
+            updateMap();
+            updateStatistics();
+            renderAnimalList();
+            updateTrackerMultiselectLabel();
+        });
     }
     
     ['statusFilter', 'typeFilter', 'familyFilter'].forEach(filterId => {
@@ -3404,7 +3575,16 @@ function getFilterSelections() {
     const type = document.getElementById('typeFilterBar')?.value || 'all';
     const family = document.getElementById('familyFilterBar')?.value || 'all';
     const showRepeaterCoverage = document.getElementById('repeaterCoverageFilter')?.checked === true;
-    return { status, type, family, showRepeaterCoverage };
+
+    let effectiveStatus = status;
+    let effectiveType = type;
+    if (sidebarQuickFilter.mode === 'alerts') {
+        effectiveStatus = 'alert';
+    } else if (sidebarQuickFilter.mode === 'type' && sidebarQuickFilter.typeValue) {
+        effectiveType = sidebarQuickFilter.typeValue;
+    }
+
+    return { status: effectiveStatus, type: effectiveType, family, showRepeaterCoverage };
 }
 
 /**
@@ -3526,86 +3706,238 @@ function getDistanceFromPreviousToLocation(animal, targetLocation) {
  * Show and populate the tracker detail card overlay, or hide it
  * When selectedLocation is set for this animal, shows that location's info; otherwise shows last location.
  */
+// ── Tab map ────────────────────────────────────────────────────────────────
+const TDC_TAB_PANELS = { detail: 'tdcPanelDetail', locations: 'tdcPanelLocations' };
+
+function switchDetailTab(tabName) {
+    detailCardCurrentTab = tabName;
+    const card = document.getElementById('trackerDetailCard');
+    if (!card) return;
+    card.querySelectorAll('.tdc-tab').forEach(t => t.classList.toggle('is-active', t.dataset.tab === tabName));
+    card.querySelectorAll('.tdc-panel').forEach(p => { p.hidden = p.id !== TDC_TAB_PANELS[tabName]; });
+}
+
+function initDetailCardTabs() {
+    if (_detailCardInited) return;
+    _detailCardInited = true;
+    const card = document.getElementById('trackerDetailCard');
+    if (!card) return;
+
+    // Tab clicks
+    card.addEventListener('click', e => {
+        const tab = e.target.closest('.tdc-tab[data-tab]');
+        if (tab) switchDetailTab(tab.dataset.tab);
+    });
+
+    // Prev / Next
+    document.getElementById('tdcLocPrev')?.addEventListener('click', () => navigateDetailLoc(-1));
+    document.getElementById('tdcLocNext')?.addEventListener('click', () => navigateDetailLoc(1));
+
+    // Jump input
+    document.getElementById('tdcLocJumpInput')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            const n = parseInt(e.target.value, 10);
+            if (!isNaN(n) && n >= 1 && n <= _detailLocSorted.length) {
+                const loc = _detailLocSorted[n - 1];
+                _detailLocCurrentIdx = n - 1;
+                const a = animals.find(x => String(x.id) === String(detailCardAnimalId));
+                if (a && loc) selectAnimal(a.id, loc);
+            }
+            e.target.value = '';
+        }
+    });
+}
+
+function navigateDetailLoc(delta) {
+    const newIdx = Math.max(0, Math.min(_detailLocSorted.length - 1, _detailLocCurrentIdx + delta));
+    if (newIdx === _detailLocCurrentIdx) return;
+    const loc = _detailLocSorted[newIdx];
+    const a = animals.find(x => String(x.id) === String(detailCardAnimalId));
+    if (a && loc) { _detailLocCurrentIdx = newIdx; selectAnimal(a.id, loc); }
+}
+
+// ── Activity bar chart ──────────────────────────────────────────────────────
+function drawDetailActivityChart(sortedAsc) {
+    const canvas = document.getElementById('tdcActivityChart');
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const parent = canvas.parentElement;
+    const cssW = parent ? parent.clientWidth - 32 : 340;
+    const cssH = 56;
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const now = Date.now();
+    const hourCounts = new Array(24).fill(0);
+    sortedAsc.forEach(loc => {
+        const ms = new Date(loc.timestamp).getTime();
+        if (!isNaN(ms) && now - ms < 86400000) {
+            hourCounts[new Date(loc.timestamp).getHours()]++;
+        }
+    });
+
+    const maxCount = Math.max(1, ...hourCounts);
+    const barSlot = cssW / 24;
+    const gap = 2;
+    const barW = Math.max(barSlot - gap, 2);
+
+    ctx.clearRect(0, 0, cssW, cssH);
+    hourCounts.forEach((count, i) => {
+        const barH = count === 0 ? 3 : Math.max(6, (count / maxCount) * (cssH - 4));
+        const x = i * barSlot + gap / 2;
+        const y = cssH - barH;
+        ctx.fillStyle = count === 0 ? 'rgba(196,165,116,0.14)' : `rgba(196,165,116,${0.45 + (count / maxCount) * 0.55})`;
+        ctx.fillRect(x, y, barW, barH);
+    });
+}
+
+// ── Render locations list ───────────────────────────────────────────────────
+function renderDetailLocationsTab(animal, sortedDesc, currentIdx) {
+    const tz = detectedTimezone || 'UTC';
+    const n = sortedDesc.length;
+    const sortedAsc = [...sortedDesc].reverse();
+
+    const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    setEl('tdcLocEmoji', getTrackerTypeEmoji(animal.type));
+    setEl('tdcLocName', animal.name || '--');
+    setEl('tdcLocSubtitle', `${n} location${n !== 1 ? 's' : ''} recorded`);
+    setEl('tdcLocFooter', `Showing ${n} of ${n} · Type a number + Enter to jump`);
+
+    const prevBtn = document.getElementById('tdcLocPrev');
+    const nextBtn = document.getElementById('tdcLocNext');
+    if (prevBtn) prevBtn.disabled = currentIdx <= 0;
+    if (nextBtn) nextBtn.disabled = currentIdx >= n - 1;
+
+    const listEl = document.getElementById('tdcLocList');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+
+    sortedDesc.forEach((loc, idx) => {
+        // Distance to previous (chronologically earlier = one index up in ascending array)
+        const ascIdx = n - 1 - idx;
+        let dist = '0 m';
+        if (ascIdx > 0) {
+            const prev = sortedAsc[ascIdx - 1];
+            dist = formatDistance(calculateDistance(prev.lat, prev.lng, loc.lat, loc.lng));
+        }
+
+        const lat = Number(loc.lat).toFixed(4);
+        const lng = Number(loc.lng).toFixed(4);
+        let timeStr = '--';
+        try {
+            const d = new Date(loc.timestamp);
+            timeStr = formatDateInTimezone(d, tz, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+        } catch (_) {}
+
+        const row = document.createElement('div');
+        row.className = `tdc-loc-row${idx === currentIdx ? ' is-selected' : ''}`;
+        row.dataset.locIdx = String(idx);
+        row.innerHTML = `
+            <span class="tdc-loc-index">#${idx + 1}</span>
+            <div class="tdc-loc-body">
+                <div class="tdc-loc-coords">${idx === currentIdx ? '' : escapeHtml(`${lat}, ${lng}`)}</div>
+                <div class="tdc-loc-time">${escapeHtml(timeStr)}</div>
+            </div>
+            <span class="tdc-loc-dist">${escapeHtml(dist)}</span>`;
+
+        row.addEventListener('click', () => {
+            _detailLocCurrentIdx = idx;
+            const a = animals.find(x => String(x.id) === String(detailCardAnimalId));
+            if (a) selectAnimal(a.id, loc);
+        });
+
+        listEl.appendChild(row);
+    });
+
+    // Scroll selected into view
+    listEl.querySelector('.is-selected')?.scrollIntoView({ block: 'nearest' });
+}
+
+// ── Main update function ────────────────────────────────────────────────────
 function updateTrackerDetailCard(animal) {
     const card = document.getElementById('trackerDetailCard');
-    if (!card) {
-        console.warn('[updateTrackerDetailCard] Element #trackerDetailCard not found');
-        return;
+    if (!card) return;
+    if (!animal) { card.style.display = 'none'; return; }
+
+    initDetailCardTabs();
+    card.style.display = 'flex';
+
+    // Reset to Detail tab only when switching to a different animal
+    const isNewAnimal = String(animal.id) !== String(detailCardAnimalId);
+    if (isNewAnimal) {
+        detailCardAnimalId = String(animal.id);
+        switchDetailTab('detail');
     }
-    if (!animal) {
-        card.style.display = 'none';
-        return;
-    }
-    card.style.display = 'block';
 
     const tz = detectedTimezone || 'UTC';
-    const locations = Array.isArray(animal.locations) ? animal.locations : [];
-    const sorted = locations.length > 0 ? [...locations].sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0)) : [];
-    const lastLoc = sorted.length > 0 ? sorted[sorted.length - 1] : null;
-    const selectedLoc = (selectedLocation && animal.id === selectedAnimalId)
-        ? sorted.find(loc => isSameLocation(loc, selectedLocation))
-        : null;
+    const locs = Array.isArray(animal.locations) ? animal.locations : [];
+    const sortedAsc = locs.length > 0 ? [...locs].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)) : [];
+    const lastLoc = sortedAsc.length > 0 ? sortedAsc[sortedAsc.length - 1] : null;
+    const selectedLoc = (selectedLocation && String(animal.id) === String(selectedAnimalId))
+        ? sortedAsc.find(l => isSameLocation(l, selectedLocation)) : null;
     const displayLoc = selectedLoc || lastLoc;
-    const lat = displayLoc != null ? (displayLoc.lat ?? displayLoc.latitude) : null;
-    const lng = displayLoc != null ? (displayLoc.lng ?? displayLoc.longitude) : null;
 
-    let timeStr = '--';
-    if (displayLoc && displayLoc.timestamp) {
-        try {
-            timeStr = formatDateInTimezone(new Date(displayLoc.timestamp), tz, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true });
-        } catch (_) { /* keep -- */ }
+    // ── Detail tab fields ──────────────────────────────────────────────────
+    const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v ?? '--'; };
+
+    setEl('tdcAvatar', getTrackerTypeEmoji(animal.type));
+    setEl('tdcName', animal.name || '--');
+    const typePart  = normalizeAttribute(animal.type).replace(/\bUnknown\b/g, '').trim();
+    const famPart   = normalizeAttribute(animal.family).replace(/\bUnknown\b/g, '').trim();
+    setEl('tdcSub', [typePart, famPart].filter(Boolean).join(' · ') || '—');
+
+    const statusBadge = document.getElementById('tdcStatusBadge');
+    if (statusBadge) {
+        const st = animal.status || 'inactive';
+        statusBadge.className = `tdc-status-badge ${st}`;
+        statusBadge.textContent = st;
     }
-    let distPrev = 0;
-    try {
-        distPrev = displayLoc ? getDistanceFromPreviousToLocation(animal, displayLoc) : getDistanceFromPrevious(animal);
-    } catch (_) { /* use 0 */ }
-    const totalDist = (animal.totalDistance !== undefined && animal.totalDistance !== null)
-        ? (typeof animal.totalDistance === 'number' ? formatDistance(animal.totalDistance) : String(animal.totalDistance))
-        : '--';
-    const coords = (lat != null && lng != null && !isNaN(lat) && !isNaN(lng))
-        ? `${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}` : '--';
-    const batteryAtLoc = displayLoc && (displayLoc.batteryVoltage != null || displayLoc.battery_voltage != null)
-        ? (displayLoc.batteryVoltage != null ? displayLoc.batteryVoltage : displayLoc.battery_voltage)
-        : null;
-    const batteryText = formatBattery(
-        batteryAtLoc != null ? Number(batteryAtLoc) : (animal.batteryVoltage != null ? Number(animal.batteryVoltage) : null),
-        animal.batteryPercent != null ? Number(animal.batteryPercent) : null
-    );
-    const locIndex = displayLoc ? sorted.findIndex(loc => isSameLocation(loc, displayLoc)) + 1 : sorted.length;
-    const locLabel = `${locIndex} of ${sorted.length}`;
-    const avgDay = (animal.avgDistancePerDay !== undefined && animal.avgDistancePerDay !== null)
-        ? (typeof animal.avgDistancePerDay === 'number' ? formatDistance(animal.avgDistancePerDay) : String(animal.avgDistancePerDay))
-        : '--';
-    const statusLabel = animal.status === 'active' ? 'Active' : animal.status === 'alert' ? 'Alert' : 'Inactive';
 
-    const setText = (id, text) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = text != null ? String(text) : '--';
-    };
-    setText('detailCardName', animal.name || '--');
-    setText('detailCardSub', [normalizeAttribute(animal.type), normalizeAttribute(animal.family)].filter(Boolean).join(' - ').replace(/\bUnknown\b/g, '').trim() || '--');
-    setText('detailCardTime', timeStr);
-    setText('detailCardDistPrev', distPrev === 0 ? '0 m' : (typeof distPrev === 'number' ? formatDistance(distPrev) : String(distPrev)));
-    setText('detailCardTotalDist', totalDist);
-    setText('detailCardCoords', coords);
-    setText('detailCardBattery', batteryText);
-    setText('detailCardLocation', locLabel);
-    setText('detailCardAvgDay', avgDay);
-
-    const statusEl = document.getElementById('detailCardStatus');
-    if (statusEl) {
-        statusEl.textContent = '';
-        statusEl.className = 'tracker-detail-status';
-        const dot = document.createElement('span');
-        dot.className = `status-dot ${animal.status || ''}`;
-        statusEl.appendChild(dot);
-        statusEl.appendChild(document.createTextNode(statusLabel));
+    let lastSeenStr = '--';
+    if (displayLoc?.timestamp) {
+        try { lastSeenStr = formatDateInTimezone(new Date(displayLoc.timestamp), tz, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }); } catch (_) {}
     }
+    setEl('tdcLastSeen', lastSeenStr);
 
     const editBtn = document.getElementById('detailCardEditBtn');
-    if (editBtn) {
-        editBtn.dataset.trackerId = animal.id;
+    if (editBtn) editBtn.dataset.trackerId = animal.id;
+
+    // Battery
+    const pct = animal.batteryPercent != null ? Math.min(100, Math.max(0, Number(animal.batteryPercent))) : null;
+    setEl('tdcBatteryPct', pct != null ? `${Math.round(pct)}%` : '--');
+    const fillEl = document.getElementById('tdcBatteryFill');
+    if (fillEl) fillEl.style.width = `${pct ?? 0}%`;
+
+    setEl('tdcVoltage', animal.batteryVoltage != null ? `${Number(animal.batteryVoltage).toFixed(2)}V` : '--');
+    setEl('tdcTotalDist', animal.totalDistance != null ? formatDistance(animal.totalDistance) : '--');
+    setEl('tdcAvgDay', animal.avgDistancePerDay != null ? formatDistance(animal.avgDistancePerDay) : '--');
+    setEl('tdcLocCount', sortedAsc.length);
+
+    // Connectivity: Satellite (Myriota) or LoRa
+    const nl = (animal.name || '').toLowerCase();
+    const tl = (animal.type || '').toLowerCase();
+    const isSatellite = nl.includes('myriota') || tl.includes('myriota') || nl.includes('satellite') || tl.includes('satellite');
+    setEl('tdcConnectivity', isSatellite ? '🛰️ Satellite' : '📶 LoRa');
+
+    // Activity chart
+    requestAnimationFrame(() => drawDetailActivityChart(sortedAsc));
+
+    // ── Locations tab ──────────────────────────────────────────────────────
+    const sortedDesc = [...sortedAsc].reverse();
+    _detailLocSorted = sortedDesc;
+
+    let curIdx = 0;
+    if (displayLoc) {
+        const fi = sortedDesc.findIndex(l => isSameLocation(l, displayLoc));
+        if (fi >= 0) curIdx = fi;
     }
+    _detailLocCurrentIdx = curIdx;
+
+    renderDetailLocationsTab(animal, sortedDesc, curIdx);
 }
 
 function hideTrackerDetailCard() {
@@ -3613,3 +3945,31 @@ function hideTrackerDetailCard() {
     if (card) card.style.display = 'none';
 }
 
+
+// ── Theme toggle ────────────────────────────────────────────────────────────
+(function initTheme() {
+    const saved = localStorage.getItem('custodia-theme') || 'dark';
+    applyTheme(saved);
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('themeToggleBtn');
+        if (btn) btn.addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme') || 'dark';
+            applyTheme(current === 'dark' ? 'light' : 'dark');
+        });
+    });
+})();
+
+function applyTheme(theme) {
+    if (theme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+    }
+    localStorage.setItem('custodia-theme', theme);
+
+    const icon = document.getElementById('themeToggleIcon');
+    if (icon) {
+        icon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+    }
+}

@@ -6,6 +6,9 @@
 
 const jwt = require('jsonwebtoken');
 
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable is required');
+}
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
 const COOKIE_NAME = 'custodia_token';
 
