@@ -3,68 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Custodia Admin Console</title>
-    
-    <!-- Favicon - Custodia Logo -->
-    <link rel="icon" type="image/x-icon" href="/frontend/assets/images/favicon.ico">
-    <link rel="shortcut icon" type="image/x-icon" href="/frontend/assets/images/favicon.ico">
+    <title>Custodia Admin</title>
     <link rel="icon" type="image/svg+xml" href="/frontend/assets/images/logo_tab.svg">
-    <link rel="apple-touch-icon" sizes="180x180" href="/frontend/assets/images/favicon.ico">
-    
+    <link rel="icon" type="image/x-icon" href="/frontend/assets/images/favicon.ico">
     <link rel="stylesheet" href="/frontend/pages/admin/admin.css">
 </head>
 <body>
-    <div class="admin-app">
-        <header class="admin-header">
-            <h1>Custodia Admin Console</h1>
-            <p class="subtitle">Manage database tables directly from your browser.</p>
-        </header>
 
-        <section class="admin-section">
-            <h2>API Access</h2>
-            <div class="api-key-form">
-                <label for="apiKeyInput">Admin API Key</label>
-                <div class="api-key-input-group">
-                    <input type="password" id="apiKeyInput" placeholder="Enter admin API key">
-                    <button id="toggleApiKey" type="button" aria-label="Show or hide API key">Show</button>
-                </div>
-                <div class="api-key-actions">
-                    <button id="setApiKey" type="button" class="btn primary">Save Key</button>
-                    <span id="apiKeyStatus" class="status-badge">Not set</span>
-                </div>
-            </div>
-        </section>
+<div class="adm-layout">
 
-        <section class="admin-section">
-            <div class="toolbar">
-                <div class="table-selector">
-                    <label for="tableSelect">Table</label>
-                    <select id="tableSelect" disabled>
-                        <option value="">Select a table...</option>
-                    </select>
-                </div>
-                <div class="table-actions">
-                    <button id="refreshTable" type="button" class="btn">Refresh</button>
-                    <button id="createRow" type="button" class="btn primary">New Record</button>
-                </div>
+    <!-- Sidebar -->
+    <aside class="adm-sidebar">
+        <div class="adm-brand">
+            <div class="adm-brand-icon">⚙</div>
+            <span class="adm-brand-name">Admin</span>
+            <span class="adm-brand-badge">root</span>
+        </div>
+
+        <div class="adm-sidebar-label">TABLES</div>
+        <nav class="adm-table-nav" id="tableNav"></nav>
+
+        <div class="adm-sidebar-footer">
+            <div class="adm-api-key-row">
+                <span class="adm-sidebar-label" style="margin:0">API KEY</span>
             </div>
-            <div id="tableMeta" class="table-meta"></div>
-            <div id="feedback" class="feedback" role="status"></div>
-            <div class="table-wrapper">
-                <table id="dataTable">
-                    <thead></thead>
-                    <tbody></tbody>
-                </table>
+            <div class="adm-api-key-display">
+                <span class="adm-api-dots" id="apiKeyDots">••••••••••</span>
+                <button class="adm-show-btn" id="showApiKeyBtn">Show</button>
             </div>
-        </section>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="adm-main">
+        <div class="adm-topbar">
+            <div class="adm-topbar-left">
+                <h1 class="adm-topbar-title" id="topbarTitle">—</h1>
+                <span class="adm-topbar-meta" id="topbarMeta"></span>
+            </div>
+            <div class="adm-topbar-actions">
+                <button class="adm-btn" id="refreshBtn">Refresh</button>
+                <button class="adm-btn adm-btn-primary" id="newRecordBtn">+ New record</button>
+            </div>
+        </div>
+
+        <div class="adm-content" id="admContent">
+            <div class="adm-placeholder">
+                <p>Select a table from the sidebar</p>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Edit / New Record Modal -->
+<div class="adm-modal" id="editModal" hidden>
+    <div class="adm-modal-backdrop" id="modalBackdrop"></div>
+    <div class="adm-modal-box">
+        <div class="adm-modal-header">
+            <h2 class="adm-modal-title" id="modalTitle">Edit record</h2>
+            <button class="adm-modal-close" id="modalClose" aria-label="Close">✕</button>
+        </div>
+        <div class="adm-modal-body" id="modalBody"></div>
+        <div class="adm-modal-footer">
+            <button class="adm-btn" id="modalCancel">Cancel</button>
+            <button class="adm-btn adm-btn-primary" id="modalSave">Save</button>
+        </div>
     </div>
+</div>
 
-    <template id="rowActionsTemplate">
-        <button class="btn-link edit-row" data-action="edit">Edit</button>
-        <button class="btn-link delete-row" data-action="delete">Delete</button>
-    </template>
-
-    <script src="/frontend/pages/admin/admin.js" type="module"></script>
+<script src="/frontend/pages/admin/admin.js" type="module"></script>
 </body>
 </html>
-

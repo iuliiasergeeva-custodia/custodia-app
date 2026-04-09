@@ -1228,6 +1228,7 @@ function processLocations(locations) {
         // Filter out invalid coordinates: NaN, null, or 0.0 (invalid GPS data)
         if (!isNaN(lat) && !isNaN(lng) && lat !== 0.0 && lng !== 0.0) {
             animal.locations.push({
+                id: location.location_id ? parseInt(location.location_id) : null,
                 lat,
                 lng,
                 timestamp,
@@ -3833,6 +3834,7 @@ function renderDetailLocationsTab(animal, sortedDesc, currentIdx) {
             timeStr = formatDateInTimezone(d, tz, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
         } catch (_) {}
 
+        const isAdmin = currentUser?.role === 'admin';
         const row = document.createElement('div');
         row.className = `tdc-loc-row${idx === currentIdx ? ' is-selected' : ''}`;
         row.dataset.locIdx = String(idx);
@@ -3842,19 +3844,51 @@ function renderDetailLocationsTab(animal, sortedDesc, currentIdx) {
                 <div class="tdc-loc-coords">${idx === currentIdx ? '' : escapeHtml(`${lat}, ${lng}`)}</div>
                 <div class="tdc-loc-time">${escapeHtml(timeStr)}</div>
             </div>
-            <span class="tdc-loc-dist">${escapeHtml(dist)}</span>`;
+            <span class="tdc-loc-dist">${escapeHtml(dist)}</span>
+            ${isAdmin && loc.id ? `<button class="tdc-loc-delete-btn" title="Delete location" data-loc-id="${loc.id}">✕</button>` : ''}`;
 
-        row.addEventListener('click', () => {
+        row.addEventListener('click', e => {
+            if (e.target.closest('.tdc-loc-delete-btn')) return;
             _detailLocCurrentIdx = idx;
             const a = animals.find(x => String(x.id) === String(detailCardAnimalId));
             if (a) selectAnimal(a.id, loc);
         });
+
+        if (isAdmin && loc.id) {
+            row.querySelector('.tdc-loc-delete-btn').addEventListener('click', e => {
+                e.stopPropagation();
+                deleteLocation(loc.id, animal.name, timeStr);
+            });
+        }
 
         listEl.appendChild(row);
     });
 
     // Scroll selected into view
     listEl.querySelector('.is-selected')?.scrollIntoView({ block: 'nearest' });
+}
+
+async function deleteLocation(locId, trackerName, timeStr) {
+    const confirmed = window.confirm(
+        `Delete location #${locId} from "${trackerName}"?\n\nTimestamp: ${timeStr}\n\nThis action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+        const res = await fetch(`/api/locations/${locId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            showError(data.error || 'Failed to delete location');
+            return;
+        }
+        // Reload data to reflect the deletion
+        await loadMockData();
+    } catch (err) {
+        showError('Failed to delete location: ' + err.message);
+    }
 }
 
 // ── Main update function ────────────────────────────────────────────────────

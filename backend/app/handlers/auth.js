@@ -157,22 +157,41 @@ function logout(req, res) {
 
 /**
  * GET /api/auth/me
- * Requires auth. Returns current user (no password).
+ * Requires auth. Returns current user with live role from DB (no password).
  */
 async function me(req, res) {
     if (!req.user) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
-    return res.json({
-        success: true,
-        user: {
-            id: req.user.userId,
-            email: req.user.email,
-            name: req.user.name,
-            role: req.user.role,
-            clientSlug: req.user.clientSlug,
-        },
-    });
+    try {
+        const result = await db.query(
+            'SELECT role FROM users WHERE id = $1',
+            [req.user.userId]
+        );
+        const liveRole = result.rows[0]?.role ?? req.user.role;
+        return res.json({
+            success: true,
+            user: {
+                id: req.user.userId,
+                email: req.user.email,
+                name: req.user.name,
+                role: liveRole,
+                clientSlug: req.user.clientSlug,
+            },
+        });
+    } catch (err) {
+        console.error('❌ [AUTH] me error:', err);
+        return res.json({
+            success: true,
+            user: {
+                id: req.user.userId,
+                email: req.user.email,
+                name: req.user.name,
+                role: req.user.role,
+                clientSlug: req.user.clientSlug,
+            },
+        });
+    }
 }
 
 /**

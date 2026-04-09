@@ -61,6 +61,15 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend', 'pages', 'landing', 'index.html'));
 });
 
+// Admin page — must be registered BEFORE express.static to prevent static bypass
+// express.static would otherwise redirect /pages/admin → /pages/admin/ and serve HTML without auth
+app.get(['/pages/admin', '/pages/admin/'], requireAuth, async (req, res) => {
+    const roleResult = await db.query('SELECT role FROM users WHERE id = $1', [req.user.userId]).catch(() => ({ rows: [] }));
+    const role = roleResult.rows[0]?.role ?? req.user.role;
+    if (role !== 'admin') return res.redirect(302, '/pages/dashboard');
+    res.sendFile(path.join(__dirname, 'frontend', 'pages', 'admin', 'index.html'));
+});
+
 // Serve static files from frontend
 app.use(express.static(path.join(__dirname, 'frontend')));
 app.use('/frontend', express.static(path.join(__dirname, 'frontend')));
@@ -272,7 +281,8 @@ app.use('/api/admin/news', (req, res, next) => {
 app.use('/api/admin/news', newsRouter.admin);  // Must come before /api/admin
 
 app.use('/api/admin', (req, res, next) => {
-    console.log('📍 [ROUTE] Request to /api/admin/* - using admin router');
+    const cookieKeys = Object.keys(req.cookies || {}).join(',') || '(none)';
+    console.log(`📍 [ROUTE] /api/admin${req.path} | cookies: ${cookieKeys} | rawCookie: ${req.headers.cookie || '(none)'}`);
     next();
 });
 app.use('/api/admin', adminRouter);
@@ -341,52 +351,79 @@ app.get('/api/locations', requireAuth, async (req, res) => {
             throw new Error('Database connection failed. Please check DATABASE_URL and ensure database is accessible.');
         }
         
-        const query = `
-            SELECT 
-                t.slug as tracker_id,
-                c.slug as client_slug,
-                t.animal_type,
-                t.animal_name,
-                t.family,
-                t.initial_battery_voltage,
-                l.latitude,
-                l.longitude,
-                l.timestamp,
-                l.battery_voltage,
-                l.fix_number
-            FROM locations l
-            JOIN trackers t ON l.tracker_id = t.id
-            LEFT JOIN clients c ON t.client_id = c.id
-            WHERE c.slug = $1
-            ORDER BY l.timestamp ASC
-        `;
-        const result = await db.query(query, [clientSlug]);
-        console.log(`✅ [DATABASE] Fetched ${result.rows.length} locations for client: ${clientSlug}`);
-        
+        const roleResult = await db.query('SELECT role FROM users WHERE id = $1', [req.user.userId]).catch(() => ({ rows: [] }));
+        const isAdmin = (roleResult.rows[0]?.role ?? req.user.role) === 'admin';
+        let query, queryParams;
+        if (isAdmin) {
+            query = `
+                SELECT
+                    l.id as location_id,
+                    t.slug as tracker_id,
+                    c.slug as client_slug,
+                    t.animal_type,
+                    t.animal_name,
+                    t.family,
+                    t.initial_battery_voltage,
+                    l.latitude,
+                    l.longitude,
+                    l.timestamp,
+                    l.battery_voltage,
+                    l.fix_number
+                FROM locations l
+                JOIN trackers t ON l.tracker_id = t.id
+                LEFT JOIN clients c ON t.client_id = c.id
+                ORDER BY l.timestamp ASC
+            `;
+            queryParams = [];
+        } else {
+            query = `
+                SELECT
+                    l.id as location_id,
+                    t.slug as tracker_id,
+                    c.slug as client_slug,
+                    t.animal_type,
+                    t.animal_name,
+                    t.family,
+                    t.initial_battery_voltage,
+                    l.latitude,
+                    l.longitude,
+                    l.timestamp,
+                    l.battery_voltage,
+                    l.fix_number
+                FROM locations l
+                JOIN trackers t ON l.tracker_id = t.id
+                LEFT JOIN clients c ON t.client_id = c.id
+                WHERE c.slug = $1
+                ORDER BY l.timestamp ASC
+            `;
+            queryParams = [clientSlug];
+        }
+        const result = await db.query(query, queryParams);
+        console.log(`✅ [DATABASE] Fetched ${result.rows.length} locations${isAdmin ? ' (admin: all clients)' : ` for client: ${clientSlug}`}`);
+
         // If no data, return empty CSV with header
         if (result.rows.length === 0) {
             console.warn('⚠️  [DATABASE] No locations found in database. Database may need to be seeded.');
-            const csvHeader = 'tracker_id,client_slug,animal_type,animal_name,family,initial_battery_voltage,latitude,longitude,timestamp,battery_voltage,fix_number\n';
+            const csvHeader = 'location_id,tracker_id,client_slug,animal_type,animal_name,family,initial_battery_voltage,latitude,longitude,timestamp,battery_voltage,fix_number\n';
             res.setHeader('Content-Type', 'text/csv');
             res.setHeader('X-Data-Source', 'database');
             res.setHeader('X-Location-Count', '0');
             res.setHeader('X-Warning', 'Database is empty. Please seed the database.');
             return res.send(csvHeader);
         }
-        
-        // Convert to CSV format (same as mock_locations.csv)
-        const csvHeader = 'tracker_id,client_slug,animal_type,animal_name,family,initial_battery_voltage,latitude,longitude,timestamp,battery_voltage,fix_number\n';
+
+        // Convert to CSV format
+        const csvHeader = 'location_id,tracker_id,client_slug,animal_type,animal_name,family,initial_battery_voltage,latitude,longitude,timestamp,battery_voltage,fix_number\n';
         const csvRows = result.rows.map(row => {
-            // Format timestamp to ISO string
             const timestamp = new Date(row.timestamp).toISOString();
-            const clientSlug = row.client_slug || 'unknown';
+            const rowClientSlug = row.client_slug || 'unknown';
             const animalType = row.animal_type || '';
             const animalName = row.animal_name || '';
             const family = row.family || '';
             const initialBatteryVoltage = row.initial_battery_voltage || '';
-            return `${row.tracker_id},${clientSlug},${animalType},${animalName},${family},${initialBatteryVoltage},${row.latitude},${row.longitude},${timestamp},${row.battery_voltage || ''},${row.fix_number || ''}`;
+            return `${row.location_id},${row.tracker_id},${rowClientSlug},${animalType},${animalName},${family},${initialBatteryVoltage},${row.latitude},${row.longitude},${timestamp},${row.battery_voltage || ''},${row.fix_number || ''}`;
         }).join('\n');
-        
+
         // Add header to response to identify data source
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('X-Data-Source', 'database');
@@ -423,6 +460,32 @@ app.get('/api/locations', requireAuth, async (req, res) => {
                 details: errorMessage 
             });
         }
+    }
+});
+
+// Delete a single location (admin only)
+app.delete('/api/locations/:id', requireAuth, async (req, res) => {
+    const roleResult = await db.query('SELECT role FROM users WHERE id = $1', [req.user.userId]).catch(() => ({ rows: [] }));
+    const liveRole = roleResult.rows[0]?.role ?? req.user.role;
+    if (liveRole !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Forbidden: admin only' });
+    }
+    const locId = parseInt(req.params.id, 10);
+    if (!locId || isNaN(locId)) {
+        return res.status(400).json({ success: false, error: 'Invalid location id' });
+    }
+    try {
+        // Verify the location exists before deleting
+        const check = await db.query('SELECT id FROM locations WHERE id = $1', [locId]);
+        if (check.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Location not found' });
+        }
+        await db.query('DELETE FROM locations WHERE id = $1', [locId]);
+        console.log(`🗑️  [ADMIN] Location ${locId} deleted by user ${req.user.userId} (${req.user.email})`);
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('❌ [ADMIN] Error deleting location:', err);
+        return res.status(500).json({ success: false, error: 'Failed to delete location' });
     }
 });
 
@@ -504,6 +567,7 @@ app.get('/api/health', async (req, res) => {
         });
     }
 });
+
 
 // Serve the dashboard page (requires auth; redirects to login if not authenticated)
 app.get('/pages/dashboard', requireAuth, (req, res) => {
