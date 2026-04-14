@@ -43,5 +43,24 @@
             <a href="/pages/auth/login">Back to log in</a>
         </p>
     </div>
+    <script>
+        (function () {
+            const POLL_INTERVAL = 5000; // check every 5 seconds
+            async function checkAccess() {
+                try {
+                    const res = await fetch('/api/auth/me', { credentials: 'include' });
+                    if (res.status === 401) return; // not logged in, stay put
+                    if (!res.ok) return;
+                    const data = await res.json().catch(() => ({}));
+                    if (data.user && data.user.clientSlug) {
+                        window.location.replace('/pages/dashboard');
+                    }
+                } catch (e) {
+                    // network error — just wait for next poll
+                }
+            }
+            setInterval(checkAccess, POLL_INTERVAL);
+        })();
+    </script>
 </body>
 </html>
