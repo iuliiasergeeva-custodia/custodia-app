@@ -29,54 +29,7 @@ if (useCloudinary) {
     console.log('ℹ️ [NEWS] Cloudinary not configured - using filesystem storage (files may be lost on deployment)');
 }
 
-// Admin key check middleware
-const crypto = require('crypto');
-if (!process.env.ADMIN_KEY && !process.env.ADMIN_API_KEY && process.env.NODE_ENV === 'production') {
-    throw new Error('ADMIN_KEY environment variable is required');
-}
-const ADMIN_KEY = process.env.ADMIN_KEY || process.env.ADMIN_API_KEY;
 
-function safeCompare(a, b) {
-    if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
-    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
-}
-
-// Debug: Log if admin key is loaded (remove after testing)
-if (process.env.NODE_ENV === 'development') {
-    console.log('🔑 [NEWS] Admin key loaded:', ADMIN_KEY ? 'YES (length: ' + ADMIN_KEY.length + ')' : 'NO');
-}
-
-function requireAuth(req, res, next) {
-    const providedKey = req.header('X-ADMIN-KEY');
-    
-    if (!ADMIN_KEY) {
-        console.error('❌ [NEWS] Admin key not configured in environment');
-        return res.status(500).json({
-            success: false,
-            error: 'Admin key is not configured'
-        });
-    }
-    
-    // Debug logging (remove in production)
-    if (process.env.NODE_ENV === 'development') {
-        console.log('🔐 [NEWS] Auth check:', {
-            provided: providedKey ? `"${providedKey}" (length: ${providedKey.length})` : 'NOT PROVIDED',
-            expected: `"${ADMIN_KEY}" (length: ${ADMIN_KEY.length})`,
-            match: providedKey === ADMIN_KEY
-        });
-    }
-    
-    if (!safeCompare(providedKey, ADMIN_KEY)) {
-        console.warn('⚠️ [NEWS] Invalid admin key provided');
-        return res.status(401).json({
-            success: false,
-            error: 'Unauthorized',
-            message: 'Invalid admin key'
-        });
-    }
-    
-    next();
-}
 
 // Configure multer for file uploads
 const newsAssetsDir = path.join(__dirname, '../../../frontend/assets/news');
