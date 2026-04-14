@@ -195,13 +195,32 @@ async function me(req, res) {
     }
     try {
         const result = await db.query(
-            `SELECT u.role, c.slug AS client_slug
+            `SELECT u.role, u.client_id, c.slug AS client_slug
              FROM users u LEFT JOIN clients c ON c.id = u.client_id
              WHERE u.id = $1`,
             [req.user.userId]
         );
         const liveRole = result.rows[0]?.role ?? req.user.role;
         const liveClientSlug = result.rows[0]?.client_slug ?? req.user.clientSlug ?? null;
+        // If role or clientSlug changed since JWT was issued, re-issue the cookie
+        if (liveRole !== req.user.role || liveClientSlug !== (req.user.clientSlug ?? null)) {
+            const newPayload = {
+                userId: req.user.userId,
+                clientId: result.rows[0]?.client_id ?? req.user.clientId ?? null,
+                email: req.user.email,
+                name: req.user.name,
+                role: liveRole,
+                clientSlug: liveClientSlug,
+            };
+            const newToken = jwt.sign(newPayload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+            res.cookie(COOKIE_NAME, newToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 7 * 24 * 60 * 60 * 1000,
+                path: '/',
+            });
+        }
         return res.json({
             success: true,
             user: {
