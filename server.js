@@ -63,10 +63,8 @@ app.get('/', (req, res) => {
 
 // Admin page — must be registered BEFORE express.static to prevent static bypass
 // express.static would otherwise redirect /pages/admin → /pages/admin/ and serve HTML without auth
-app.get(['/pages/admin', '/pages/admin/'], requireAuth, async (req, res) => {
-    const roleResult = await db.query('SELECT role FROM users WHERE id = $1', [req.user.userId]).catch(() => ({ rows: [] }));
-    const role = roleResult.rows[0]?.role ?? req.user.role;
-    if (role !== 'admin') return res.redirect(302, '/pages/dashboard');
+app.get(['/pages/admin', '/pages/admin/'], requireAuth, (req, res) => {
+    if (req.user.role !== 'admin') return res.redirect(302, '/pages/dashboard');
     res.sendFile(path.join(__dirname, 'frontend', 'pages', 'admin', 'index.html'));
 });
 
@@ -351,8 +349,7 @@ app.get('/api/locations', requireAuth, async (req, res) => {
             throw new Error('Database connection failed. Please check DATABASE_URL and ensure database is accessible.');
         }
         
-        const roleResult = await db.query('SELECT role FROM users WHERE id = $1', [req.user.userId]).catch(() => ({ rows: [] }));
-        const isAdmin = (roleResult.rows[0]?.role ?? req.user.role) === 'admin';
+        const isAdmin = req.user.role === 'admin';
         let query, queryParams;
         if (isAdmin) {
             query = `
@@ -465,9 +462,7 @@ app.get('/api/locations', requireAuth, async (req, res) => {
 
 // Delete a single location (admin only)
 app.delete('/api/locations/:id', requireAuth, async (req, res) => {
-    const roleResult = await db.query('SELECT role FROM users WHERE id = $1', [req.user.userId]).catch(() => ({ rows: [] }));
-    const liveRole = roleResult.rows[0]?.role ?? req.user.role;
-    if (liveRole !== 'admin') {
+    if (req.user.role !== 'admin') {
         return res.status(403).json({ success: false, error: 'Forbidden: admin only' });
     }
     const locId = parseInt(req.params.id, 10);
