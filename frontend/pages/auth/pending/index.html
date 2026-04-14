@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request sent – Custodia</title>
+    <link rel="icon" type="image/x-icon" href="/frontend/assets/images/favicon.ico">
+    <link rel="stylesheet" href="/static/styles/variables.css">
+    <link rel="stylesheet" href="/static/styles/forms.css">
+    <link rel="stylesheet" href="/static/pages/auth/auth.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .pending-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .pending-message {
+            color: var(--color-text-secondary, #6b7280);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+        .auth-card {
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="auth-page">
+    <div class="auth-card">
+        <div class="auth-header">
+            <a href="/" class="auth-logo">Custodia</a>
+            <div class="pending-icon">&#10003;</div>
+            <h1>Request sent</h1>
+        </div>
+        <p class="pending-message">
+            Your account has been created. We're setting up your access — an admin will review your request and assign your account shortly.
+        </p>
+        <p class="pending-message">
+            If you have any questions, contact <a href="mailto:julia@custodia.world">julia@custodia.world</a>.
+        </p>
+        <p class="auth-footer">
+            <a href="/pages/auth/login">Back to log in</a>
+        </p>
+    </div>
+</body>
+</html>

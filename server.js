@@ -136,7 +136,7 @@ const authLimiter = rateLimit({
 
 // Auth routes (login, register, logout, me, forgot-password, reset-password)
 app.post('/api/auth/login', authLimiter, (req, res) => authHandler.login(req, res));
-app.post('/api/auth/register', authLimiter, (req, res) => authHandler.register(req, res));
+app.post('/api/auth/register', authLimiter, (req, res) => authHandler.register(req, res, transporter));
 app.post('/api/auth/logout', (req, res) => authHandler.logout(req, res));
 app.get('/api/auth/me', requireAuth, (req, res) => authHandler.me(req, res));
 app.post('/api/auth/forgot-password', authLimiter, (req, res) => authHandler.forgotPassword(req, res, transporter));

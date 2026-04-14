@@ -52,7 +52,7 @@
                 showError(data.error || data.message || 'Registration failed. Please try again.');
                 return;
             }
-            window.location.replace('/pages/dashboard');
+            window.location.replace('/pages/auth/pending');
         } catch (err) {
             showError('Unable to connect. Please try again.');
         } finally {

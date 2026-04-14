@@ -9,6 +9,15 @@ const crypto = require('crypto');
 const db = require('../db');
 const { COOKIE_NAME, JWT_SECRET } = require('../middleware/auth');
 
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 const SALT_ROUNDS = 12;
 const JWT_EXPIRY = '7d';
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
@@ -31,7 +40,7 @@ async function login(req, res) {
         const result = await db.query(
             `SELECT u.id, u.client_id, u.name, u.email, u.password_hash, u.role, c.slug AS client_slug
              FROM users u
-             JOIN clients c ON c.id = u.client_id
+             LEFT JOIN clients c ON c.id = u.client_id
              WHERE LOWER(u.email) = $1`,
             [emailNorm]
         );
@@ -45,11 +54,11 @@ async function login(req, res) {
         }
         const payload = {
             userId: user.id,
-            clientId: user.client_id,
+            clientId: user.client_id || null,
             email: user.email,
             name: user.name,
             role: user.role,
-            clientSlug: user.client_slug,
+            clientSlug: user.client_slug || null,
         };
         const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
         res.cookie(COOKIE_NAME, token, {
@@ -78,9 +87,10 @@ async function login(req, res) {
 /**
  * POST /api/auth/register
  * Body: { name, email, password }
- * New users get role 'viewer' and are assigned to default client (env SIGNUP_DEFAULT_CLIENT_SLUG or first client).
+ * New users get role 'viewer' with no client assigned (pending approval).
+ * Admin receives an email notification to assign client and role.
  */
-async function register(req, res) {
+async function register(req, res, transporter) {
     try {
         const { name, email, password } = req.body || {};
         if (!name || typeof name !== 'string' || !email || typeof email !== 'string' || !password || typeof password !== 'string') {
@@ -97,31 +107,20 @@ async function register(req, res) {
         if (existing.rows.length > 0) {
             return res.status(400).json({ error: 'An account with this email already exists' });
         }
-        let clientId;
-        const defaultSlug = process.env.SIGNUP_DEFAULT_CLIENT_SLUG || 'custodia';
-        const clientResult = await db.query('SELECT id FROM clients WHERE slug = $1 LIMIT 1', [defaultSlug]);
-        if (clientResult.rows.length > 0) {
-            clientId = clientResult.rows[0].id;
-        } else {
-            const first = await db.query('SELECT id FROM clients ORDER BY id LIMIT 1');
-            if (first.rows.length === 0) return res.status(503).json({ error: 'No client configured for sign-up. Please contact support.' });
-            clientId = first.rows[0].id;
-        }
         const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+        // No client assigned — user is pending until admin approves
         const insert = await db.query(
-            `INSERT INTO users (client_id, name, email, password_hash, role) VALUES ($1, $2, $3, $4, 'viewer') RETURNING id, client_id, name, email, role`,
-            [clientId, nameTrim, emailNorm, passwordHash]
+            `INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, 'viewer') RETURNING id, name, email, role`,
+            [nameTrim, emailNorm, passwordHash]
         );
         const user = insert.rows[0];
-        const clientSlugResult = await db.query('SELECT slug FROM clients WHERE id = $1', [user.client_id]);
-        const clientSlug = clientSlugResult.rows[0]?.slug || 'custodia';
         const payload = {
             userId: user.id,
-            clientId: user.client_id,
+            clientId: null,
             email: user.email,
             name: user.name,
             role: user.role,
-            clientSlug,
+            clientSlug: null,
         };
         const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
         res.cookie(COOKIE_NAME, token, {
@@ -131,14 +130,45 @@ async function register(req, res) {
             maxAge: 7 * 24 * 60 * 60 * 1000,
             path: '/',
         });
+        // Notify admin about new sign-up
+        const adminEmail = 'julia@custodia.world';
+        const baseUrl = process.env.APP_BASE_URL || (req.protocol + '://' + req.get('host'));
+        const adminUrl = `${baseUrl}/pages/admin`;
+        const notifyMail = {
+            from: process.env.EMAIL_USER,
+            to: adminEmail,
+            subject: `[Custodia] New sign-up request — ${nameTrim}`,
+            html: `
+                <div style="font-family: Arial, sans-serif;">
+                    <h2>New sign-up request</h2>
+                    <p>A new user has signed up and is waiting for access:</p>
+                    <ul>
+                        <li><strong>Name:</strong> ${escapeHtml(nameTrim)}</li>
+                        <li><strong>Email:</strong> ${escapeHtml(emailNorm)}</li>
+                    </ul>
+                    <p>Please assign them a client and role in the admin panel:</p>
+                    <p><a href="${adminUrl}">${adminUrl}</a></p>
+                    <p>— Custodia</p>
+                </div>
+            `,
+            text: `New sign-up: ${nameTrim} (${emailNorm}). Assign client and role at ${adminUrl}`,
+        };
+        if (process.env.EMAIL_TEST_MODE === 'true') {
+            console.log(`📧 [TEST] New sign-up notification: ${nameTrim} <${emailNorm}>`);
+        } else if (transporter) {
+            transporter.sendMail(notifyMail).catch(err =>
+                console.error('❌ [AUTH] Failed to send sign-up notification:', err.message)
+            );
+        }
         return res.status(201).json({
             success: true,
+            pending: true,
             user: {
                 id: user.id,
                 email: user.email,
                 name: user.name,
                 role: user.role,
-                clientSlug,
+                clientSlug: null,
             },
         });
     } catch (err) {
@@ -165,10 +195,13 @@ async function me(req, res) {
     }
     try {
         const result = await db.query(
-            'SELECT role FROM users WHERE id = $1',
+            `SELECT u.role, c.slug AS client_slug
+             FROM users u LEFT JOIN clients c ON c.id = u.client_id
+             WHERE u.id = $1`,
             [req.user.userId]
         );
         const liveRole = result.rows[0]?.role ?? req.user.role;
+        const liveClientSlug = result.rows[0]?.client_slug ?? req.user.clientSlug ?? null;
         return res.json({
             success: true,
             user: {
@@ -176,7 +209,7 @@ async function me(req, res) {
                 email: req.user.email,
                 name: req.user.name,
                 role: liveRole,
-                clientSlug: req.user.clientSlug,
+                clientSlug: liveClientSlug,
             },
         });
     } catch (err) {
@@ -188,7 +221,7 @@ async function me(req, res) {
                 email: req.user.email,
                 name: req.user.name,
                 role: req.user.role,
-                clientSlug: req.user.clientSlug,
+                clientSlug: req.user.clientSlug ?? null,
             },
         });
     }

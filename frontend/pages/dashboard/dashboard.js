@@ -591,6 +591,10 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const user = await checkAuth();
             if (!user) return;
+            if (!user.clientSlug) {
+                window.location.replace('/pages/auth/pending');
+                return;
+            }
             const emailEl = document.getElementById('userEmail');
             if (emailEl) emailEl.textContent = user.email || '';
             const logoutBtn = document.getElementById('logoutBtn');

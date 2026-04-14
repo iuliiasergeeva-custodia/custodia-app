@@ -40,7 +40,7 @@ const TABLE_CONFIG = {
         primaryKey: 'id',
         table: 'users',
         from:   'users u LEFT JOIN clients c ON u.client_id = c.id',
-        select: 'u.id, c.slug AS client_slug, u.name, u.email, u.role, u.created_at',
+        select: 'u.id, COALESCE(c.slug, \'(pending)\') AS client_slug, u.name, u.email, u.role, u.created_at',
         columns: ['id', 'client_slug', 'name', 'email', 'role', 'created_at'],
         sortMap: { id: 'u.id', client_slug: 'c.slug', name: 'u.name', email: 'u.email', role: 'u.role', created_at: 'u.created_at' },
         writable: ['client_id', 'name', 'email', 'role'],
