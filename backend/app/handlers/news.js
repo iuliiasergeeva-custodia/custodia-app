@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const db = require('../db');
+const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 
 // Cloudinary setup (optional - falls back to filesystem if not configured)
@@ -45,7 +46,7 @@ if (process.env.NODE_ENV === 'development') {
     console.log('🔑 [NEWS] Admin key loaded:', ADMIN_KEY ? 'YES (length: ' + ADMIN_KEY.length + ')' : 'NO');
 }
 
-function checkAdminKey(req, res, next) {
+function requireAuth(req, res, next) {
     const providedKey = req.header('X-ADMIN-KEY');
     
     if (!ADMIN_KEY) {
@@ -317,8 +318,16 @@ publicRouter.get('/', async (req, res) => {
 // Admin router for /api/admin/news/*
 const adminRouter = express.Router();
 
+// All admin news routes require a logged-in admin
+adminRouter.use(requireAuth, (req, res, next) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Forbidden: admin only' });
+    }
+    next();
+});
+
 // GET /api/admin/news - Get all posts (admin, same as public but requires auth)
-adminRouter.get('/', checkAdminKey, async (req, res) => {
+adminRouter.get('/', async (req, res) => {
     try {
         const posts = await getAllPosts();
         res.json(posts);
@@ -332,7 +341,7 @@ adminRouter.get('/', checkAdminKey, async (req, res) => {
 });
 
 // POST /api/admin/news/upload - Upload media files
-adminRouter.post('/upload', checkAdminKey, upload.array('files', 10), async (req, res) => {
+adminRouter.post('/upload', upload.array('files', 10), async (req, res) => {
     try {
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({
@@ -420,7 +429,7 @@ adminRouter.post('/upload', checkAdminKey, upload.array('files', 10), async (req
 });
 
 // POST /api/admin/news - Create or update news post
-adminRouter.post('/', checkAdminKey, async (req, res) => {
+adminRouter.post('/', async (req, res) => {
     try {
         const { id, title, date, excerpt, content, media } = req.body;
         
@@ -467,7 +476,7 @@ adminRouter.post('/', checkAdminKey, async (req, res) => {
 });
 
 // DELETE /api/admin/news/:id - Delete news post
-adminRouter.delete('/:id', checkAdminKey, async (req, res) => {
+adminRouter.delete('/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const deletedId = await deletePost(id);

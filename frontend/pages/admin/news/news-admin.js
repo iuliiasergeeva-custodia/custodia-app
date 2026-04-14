@@ -1,427 +1,279 @@
-// Admin News Editor JavaScript
+// News admin — uses JWT cookie auth (same as main admin page)
 
-const ADMIN_KEY_STORAGE = 'admin_key';
+let currentMedia = [];
+let allPosts = [];
 
-// Initialize
-document.addEventListener('DOMContentLoaded', function() {
-    checkAuth();
-    initLoginForm();
-    initPostForm();
-    initLogout();
+// ── Boot ─────────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', async function () {
+    // Auth check: redirect to login if not an admin
+    const res = await fetch('/api/auth/me', { credentials: 'include' });
+    if (res.status === 401) {
+        window.location.replace('/pages/auth/login?redirect=/pages/admin/news');
+        return;
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!data.user || data.user.role !== 'admin') {
+        window.location.replace('/pages/dashboard');
+        return;
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+    document.getElementById('newPostBtn').addEventListener('click', showForm);
+    document.getElementById('cancelBtn').addEventListener('click', resetForm);
+    document.getElementById('mediaFiles').addEventListener('change', handleFileUpload);
+    document.getElementById('postForm').addEventListener('submit', handleSave);
+
+    await loadPosts();
 });
 
-// Check if user is authenticated
-function checkAuth() {
-    const adminKey = sessionStorage.getItem(ADMIN_KEY_STORAGE);
-    if (adminKey) {
-        showAdminInterface();
-        loadPosts();
-    } else {
-        showLoginGate();
+// ── Auth ─────────────────────────────────────────────────────────────────────
+
+async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    window.location.replace('/pages/auth/login');
+}
+
+// ── Form visibility ───────────────────────────────────────────────────────────
+
+function showForm() {
+    document.getElementById('postFormSection').style.display = 'block';
+    document.getElementById('postFormSection').scrollIntoView({ behavior: 'smooth' });
+}
+
+function resetForm() {
+    document.getElementById('postForm').reset();
+    document.getElementById('postId').value = '';
+    document.getElementById('formTitle').textContent = 'Create new post';
+    document.getElementById('cancelBtn').style.display = 'none';
+    document.getElementById('postFormSection').style.display = 'none';
+    document.getElementById('formError').style.display = 'none';
+    document.getElementById('formSuccess').style.display = 'none';
+    currentMedia = [];
+    renderMediaPreviews();
+}
+
+// ── File upload ───────────────────────────────────────────────────────────────
+
+async function handleFileUpload(e) {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    const progress = document.getElementById('uploadProgress');
+    progress.style.display = 'inline';
+
+    try {
+        const formData = new FormData();
+        files.forEach(f => formData.append('files', f));
+
+        const res = await fetch('/api/admin/news/upload', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData,
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Upload failed');
+        }
+
+        const result = await res.json();
+        currentMedia = [...currentMedia, ...result.media];
+        renderMediaPreviews();
+    } catch (err) {
+        showError(err.message);
+    } finally {
+        progress.style.display = 'none';
+        e.target.value = '';
     }
 }
 
-// Show login gate
-function showLoginGate() {
-    document.getElementById('loginGate').style.display = 'flex';
-    document.getElementById('adminInterface').style.display = 'none';
-}
+function renderMediaPreviews() {
+    const container = document.getElementById('uploadedMedia');
+    if (!container) return;
 
-// Show admin interface
-function showAdminInterface() {
-    document.getElementById('loginGate').style.display = 'none';
-    document.getElementById('adminInterface').style.display = 'block';
-}
-
-// Initialize login form
-function initLoginForm() {
-    const loginForm = document.getElementById('loginForm');
-    const loginError = document.getElementById('loginError');
-    
-    loginForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const password = document.getElementById('adminPassword').value;
-        
-        // Store in sessionStorage (simple auth check)
-        // The actual validation happens on the backend
-        sessionStorage.setItem(ADMIN_KEY_STORAGE, password);
-        
-        // Test the key by trying to fetch posts (which requires auth)
-        try {
-            console.log('🔐 [ADMIN] Attempting login with password length:', password.length);
-            const response = await fetch('/api/admin/news', {
-                method: 'GET',
-                headers: {
-                    'X-ADMIN-KEY': password
-                }
-            });
-            
-            console.log('🔐 [ADMIN] Response status:', response.status);
-            
-            if (response.ok) {
-                // Key is valid
-                showAdminInterface();
-                loadPosts();
-                loginError.style.display = 'none';
-            } else {
-                // Invalid key - get error message
-                const errorData = await response.json().catch(() => ({}));
-                console.error('❌ [ADMIN] Login failed:', errorData);
-                sessionStorage.removeItem(ADMIN_KEY_STORAGE);
-                loginError.textContent = errorData.message || 'Invalid admin password. Please try again.';
-                loginError.style.display = 'block';
+    container.innerHTML = currentMedia.map((m, i) => `
+        <div class="news-media-item">
+            ${m.type === 'image'
+                ? `<img src="${m.src}" alt="preview">`
+                : `<video src="${m.src}" muted></video>`
             }
-        } catch (error) {
-            console.error('❌ [ADMIN] Login error:', error);
-            sessionStorage.removeItem(ADMIN_KEY_STORAGE);
-            loginError.textContent = 'Error connecting to server. Please try again.';
-            loginError.style.display = 'block';
-        }
-    });
-}
+            <button type="button" class="news-media-remove" data-index="${i}" title="Remove">✕</button>
+        </div>
+    `).join('');
 
-// Initialize logout
-function initLogout() {
-    document.getElementById('logoutBtn').addEventListener('click', function() {
-        sessionStorage.removeItem(ADMIN_KEY_STORAGE);
-        showLoginGate();
-        document.getElementById('loginForm').reset();
-        document.getElementById('postForm').reset();
-        document.getElementById('uploadedMedia').innerHTML = '';
-    });
-}
-
-// Get admin key from storage
-function getAdminKey() {
-    return sessionStorage.getItem(ADMIN_KEY_STORAGE);
-}
-
-// Global variable for current media (needed for edit functionality)
-let currentMedia = [];
-
-// Initialize post form
-function initPostForm() {
-    const postForm = document.getElementById('postForm');
-    const mediaFiles = document.getElementById('mediaFiles');
-    const cancelBtn = document.getElementById('cancelBtn');
-    
-    // Handle file selection
-    mediaFiles.addEventListener('change', async function(e) {
-        const files = Array.from(e.target.files);
-        if (files.length === 0) return;
-        
-        const uploadProgress = document.getElementById('uploadProgress');
-        const uploadedMediaDiv = document.getElementById('uploadedMedia');
-        
-        uploadProgress.style.display = 'block';
-        
-        try {
-            const formData = new FormData();
-            files.forEach(file => formData.append('files', file));
-            
-            const response = await fetch('/api/admin/news/upload', {
-                method: 'POST',
-                headers: {
-                    'X-ADMIN-KEY': getAdminKey()
-                },
-                body: formData
-            });
-            
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Upload failed');
-            }
-            
-            const result = await response.json();
-            currentMedia = [...currentMedia, ...result.media];
+    container.querySelectorAll('.news-media-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+            currentMedia.splice(parseInt(btn.dataset.index), 1);
             renderMediaPreviews();
-            
-        } catch (error) {
-            alert('Error uploading files: ' + error.message);
-        } finally {
-            uploadProgress.style.display = 'none';
-            mediaFiles.value = '';
-        }
-    });
-    
-    // Render media previews (make it accessible globally)
-    window.renderMediaPreviews = function() {
-        const uploadedMediaDiv = document.getElementById('uploadedMedia');
-        if (!uploadedMediaDiv) return;
-        
-        uploadedMediaDiv.innerHTML = currentMedia.map((media, index) => {
-            if (media.type === 'image') {
-                return `
-                    <div class="media-preview">
-                        <img src="${media.src}" alt="Preview">
-                        <button type="button" class="remove-media" data-index="${index}">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                `;
-            } else {
-                return `
-                    <div class="media-preview">
-                        <video src="${media.src}" muted></video>
-                        <button type="button" class="remove-media" data-index="${index}">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                `;
-            }
-        }).join('');
-        
-        // Add remove handlers
-        uploadedMediaDiv.querySelectorAll('.remove-media').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const index = parseInt(this.dataset.index);
-                currentMedia.splice(index, 1);
-                window.renderMediaPreviews();
-            });
         });
-    };
-    
-    // Also keep local reference for convenience
-    const renderMediaPreviews = window.renderMediaPreviews;
-    
-    // Handle form submission
-    postForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const postId = document.getElementById('postId').value;
-        const title = document.getElementById('postTitle').value;
-        const date = document.getElementById('postDate').value;
-        const excerpt = document.getElementById('postExcerpt').value;
-        const content = document.getElementById('postContent').value;
-        
-        const saveBtn = document.getElementById('saveBtn');
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Saving...';
-        
-        try {
-            const payload = {
-                title,
-                content,
-                media: currentMedia
-            };
-            
-            if (postId) payload.id = postId;
-            if (date) payload.date = new Date(date).toISOString();
-            if (excerpt) payload.excerpt = excerpt;
-            
-            const response = await fetch('/api/admin/news', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-ADMIN-KEY': getAdminKey()
-                },
-                body: JSON.stringify(payload)
-            });
-            
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to save post');
-            }
-            
-            // Reset form
-            postForm.reset();
-            currentMedia = [];
-            renderMediaPreviews();
-            document.getElementById('postId').value = '';
-            document.getElementById('formTitle').textContent = 'Create New Post';
-            cancelBtn.style.display = 'none';
-            
-            // Reload posts list
-            loadPosts();
-            
-            // Show success message
-            showSuccess('Post saved successfully!');
-            
-        } catch (error) {
-            alert('Error saving post: ' + error.message);
-        } finally {
-            saveBtn.disabled = false;
-            saveBtn.textContent = 'Save Post';
-        }
     });
-    
-    // Handle cancel
-    cancelBtn.addEventListener('click', function() {
-        postForm.reset();
-        currentMedia = [];
-        renderMediaPreviews();
-        document.getElementById('postId').value = '';
-        document.getElementById('formTitle').textContent = 'Create New Post';
-        cancelBtn.style.display = 'none';
-    });
-    
-    // Edit post handler (accessible globally)
-    window.editPost = function(post) {
-        if (!post || !post.id) {
-            console.error('Invalid post data:', post);
-            alert('Error: Invalid post data');
-            return;
-        }
-        
-        console.log('Editing post:', post.id, post.title);
-        
-        try {
-            document.getElementById('postId').value = post.id;
-            document.getElementById('postTitle').value = post.title || '';
-            document.getElementById('postContent').value = post.content || '';
-            document.getElementById('postExcerpt').value = post.excerpt || '';
-            
-            if (post.date) {
-                const date = new Date(post.date);
-                const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-                document.getElementById('postDate').value = localDate.toISOString().slice(0, 16);
-            } else {
-                document.getElementById('postDate').value = '';
-            }
-            
-            currentMedia = Array.isArray(post.media) ? [...post.media] : [];
-            console.log('Setting currentMedia:', currentMedia);
-            window.renderMediaPreviews();
-            
-            document.getElementById('formTitle').textContent = 'Edit Post';
-            cancelBtn.style.display = 'inline-block';
-            
-            // Scroll to form
-            const form = document.querySelector('.post-form');
-            if (form) {
-                form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        } catch (error) {
-            console.error('Error in editPost:', error);
-            alert('Error loading post: ' + error.message);
-        }
-    };
 }
 
-// Store posts globally for edit functionality
-let allPosts = [];
+// ── Save post ─────────────────────────────────────────────────────────────────
 
-// Load posts list
-async function loadPosts() {
-    const postsList = document.getElementById('postsList');
-    postsList.innerHTML = '<div class="loading">Loading posts...</div>';
-    
+async function handleSave(e) {
+    e.preventDefault();
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    hideMessages();
+
+    const postId  = document.getElementById('postId').value;
+    const title   = document.getElementById('postTitle').value;
+    const dateVal = document.getElementById('postDate').value;
+    const excerpt = document.getElementById('postExcerpt').value;
+    const content = document.getElementById('postContent').value;
+
+    const payload = { title, content, media: currentMedia };
+    if (postId)  payload.id      = postId;
+    if (dateVal) payload.date    = new Date(dateVal).toISOString();
+    if (excerpt) payload.excerpt = excerpt;
+
     try {
-        const response = await fetch('/api/news', {
-            headers: {
-                'X-ADMIN-KEY': getAdminKey()
-            }
+        const res = await fetch('/api/admin/news', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
         });
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch posts');
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to save post');
         }
-        
-        allPosts = await response.json();
-        
-        if (allPosts.length === 0) {
-            postsList.innerHTML = '<div class="empty-state">No posts yet. Create your first post above!</div>';
+
+        showSuccess('Post saved successfully!');
+        resetForm();
+        await loadPosts();
+    } catch (err) {
+        showError(err.message);
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save post';
+    }
+}
+
+// ── Load posts list ───────────────────────────────────────────────────────────
+
+async function loadPosts() {
+    const list = document.getElementById('postsList');
+    list.innerHTML = '<div class="adm-placeholder"><p>Loading…</p></div>';
+
+    try {
+        const res = await fetch('/api/news', { credentials: 'include' });
+        if (!res.ok) throw new Error('Failed to fetch posts');
+        allPosts = await res.json();
+
+        const meta = document.getElementById('topbarMeta');
+        if (meta) meta.textContent = `${allPosts.length} post${allPosts.length !== 1 ? 's' : ''}`;
+
+        if (!allPosts.length) {
+            list.innerHTML = '<div class="adm-placeholder"><p>No posts yet. Click "+ New post" to create one.</p></div>';
             return;
         }
-        
-        postsList.innerHTML = allPosts.map((post, index) => {
-            const date = post.date ? new Date(post.date).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            }) : 'No date';
-            
-            // Store post ID and use event listener instead of inline onclick
+
+        list.innerHTML = allPosts.map(post => {
+            const date = post.date
+                ? new Date(post.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                : 'No date';
             return `
-                <div class="post-item">
-                    <div class="post-item-info">
-                        <div class="post-item-title">${escapeHtml(post.title)}</div>
-                        <div class="post-item-meta">${date} • ${post.media ? post.media.length : 0} media file(s)</div>
+                <div class="news-post-row">
+                    <div class="news-post-info">
+                        <div class="news-post-title">${escapeHtml(post.title)}</div>
+                        <div class="news-post-meta">${date} · ${post.media ? post.media.length : 0} media</div>
                     </div>
-                    <div class="post-item-actions">
-                        <button class="btn btn-secondary btn-icon edit-post-btn" data-post-id="${post.id}" title="Edit">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-danger btn-icon" onclick="deletePost('${post.id}')" title="Delete">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                    <div class="news-post-actions">
+                        <button class="adm-btn edit-btn" data-id="${post.id}"><i class="fas fa-pen"></i> Edit</button>
+                        <button class="adm-btn news-delete-btn" data-id="${post.id}"><i class="fas fa-trash"></i> Delete</button>
                     </div>
                 </div>
             `;
         }).join('');
-        
-        // Add event listeners to edit buttons
-        postsList.querySelectorAll('.edit-post-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const postId = this.getAttribute('data-post-id');
-                const post = allPosts.find(p => p.id === postId);
-                if (post) {
-                    console.log('Found post to edit:', post);
-                    window.editPost(post);
-                } else {
-                    console.error('Post not found:', postId, 'Available posts:', allPosts.map(p => p.id));
-                    alert('Error: Post not found. Please refresh the page.');
-                }
+
+        list.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const post = allPosts.find(p => p.id === btn.dataset.id);
+                if (post) editPost(post);
             });
         });
-        
-    } catch (error) {
-        console.error('Error loading posts:', error);
-        postsList.innerHTML = '<div class="empty-state">Error loading posts. Please refresh the page.</div>';
-    }
-}
 
-// Delete post
-window.deletePost = async function(postId) {
-    if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/api/admin/news/${postId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-ADMIN-KEY': getAdminKey()
-            }
+        list.querySelectorAll('.news-delete-btn').forEach(btn => {
+            btn.addEventListener('click', () => deletePost(btn.dataset.id));
         });
-        
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to delete post');
-        }
-        
-        loadPosts();
-        showSuccess('Post deleted successfully!');
-        
-    } catch (error) {
-        alert('Error deleting post: ' + error.message);
-    }
-};
 
-// Show success message
-function showSuccess(message) {
-    const existing = document.querySelector('.success-message');
-    if (existing) existing.remove();
-    
-    const successDiv = document.createElement('div');
-    successDiv.className = 'success-message';
-    successDiv.textContent = message;
-    
-    const form = document.getElementById('postForm');
-    form.insertBefore(successDiv, form.firstChild);
-    
-    setTimeout(() => {
-        successDiv.remove();
-    }, 3000);
+    } catch (err) {
+        list.innerHTML = `<div class="adm-placeholder"><p>Error loading posts: ${escapeHtml(err.message)}</p></div>`;
+    }
 }
 
-// Escape HTML
-function escapeHtml(text) {
-    if (typeof text === 'object') {
-        return JSON.stringify(text).replace(/"/g, '&quot;');
+// ── Edit ──────────────────────────────────────────────────────────────────────
+
+function editPost(post) {
+    showForm();
+    document.getElementById('postId').value         = post.id;
+    document.getElementById('postTitle').value      = post.title || '';
+    document.getElementById('postContent').value    = post.content || '';
+    document.getElementById('postExcerpt').value    = post.excerpt || '';
+    document.getElementById('formTitle').textContent = 'Edit post';
+    document.getElementById('cancelBtn').style.display = 'inline-block';
+
+    if (post.date) {
+        const d = new Date(post.date);
+        const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+        document.getElementById('postDate').value = local.toISOString().slice(0, 16);
+    } else {
+        document.getElementById('postDate').value = '';
     }
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+
+    currentMedia = Array.isArray(post.media) ? [...post.media] : [];
+    renderMediaPreviews();
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+
+async function deletePost(postId) {
+    if (!confirm('Delete this post? This cannot be undone.')) return;
+
+    try {
+        const res = await fetch(`/api/admin/news/${postId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to delete post');
+        }
+
+        await loadPosts();
+    } catch (err) {
+        alert('Error deleting post: ' + err.message);
+    }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function showError(msg) {
+    const el = document.getElementById('formError');
+    el.textContent = msg;
+    el.style.display = 'block';
+}
+
+function showSuccess(msg) {
+    const el = document.getElementById('formSuccess');
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+function hideMessages() {
+    document.getElementById('formError').style.display   = 'none';
+    document.getElementById('formSuccess').style.display = 'none';
+}
+
+function escapeHtml(text) {
+    const d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
 }

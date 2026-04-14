@@ -61,11 +61,15 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend', 'pages', 'landing', 'index.html'));
 });
 
-// Admin page — must be registered BEFORE express.static to prevent static bypass
+// Admin pages — must be registered BEFORE express.static to prevent static bypass
 // express.static would otherwise redirect /pages/admin → /pages/admin/ and serve HTML without auth
 app.get(['/pages/admin', '/pages/admin/'], requireAuth, (req, res) => {
     if (req.user.role !== 'admin') return res.redirect(302, '/pages/dashboard');
     res.sendFile(path.join(__dirname, 'frontend', 'pages', 'admin', 'index.html'));
+});
+app.get(['/pages/admin/news', '/pages/admin/news/'], requireAuth, (req, res) => {
+    if (req.user.role !== 'admin') return res.redirect(302, '/pages/dashboard');
+    res.sendFile(path.join(__dirname, 'frontend', 'pages', 'admin', 'news', 'index.html'));
 });
 
 // Serve static files from frontend
