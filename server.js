@@ -21,6 +21,7 @@ if (missingVars.length > 0) {
 const ingestLocations = require('./backend/app/handlers/ingestLocations');
 const adminRouter = require('./backend/app/handlers/admin');
 const newsRouter = require('./backend/app/handlers/news');
+const expensesRouter = require('./backend/app/handlers/expenses');
 const authHandler = require('./backend/app/handlers/auth');
 const { requireAuth } = require('./backend/app/middleware/auth');
 const myriotaWebhook = require('./backend/app/handlers/myriotaWebhook');
@@ -70,6 +71,10 @@ app.get(['/pages/admin', '/pages/admin/'], requireAuth, (req, res) => {
 app.get(['/pages/admin/news', '/pages/admin/news/'], requireAuth, (req, res) => {
     if (req.user.role !== 'admin') return res.redirect(302, '/pages/dashboard');
     res.sendFile(path.join(__dirname, 'frontend', 'pages', 'admin', 'news', 'index.html'));
+});
+app.get(['/pages/admin/expenses', '/pages/admin/expenses/'], requireAuth, (req, res) => {
+    if (req.user.role !== 'admin') return res.redirect(302, '/pages/dashboard');
+    res.sendFile(path.join(__dirname, 'frontend', 'pages', 'admin', 'expenses', 'index.html'));
 });
 
 // Serve static files from frontend
@@ -280,7 +285,8 @@ app.use('/api/admin/news', (req, res, next) => {
     console.log('📍 [ROUTE] Request to /api/admin/news - using news router');
     next();
 });
-app.use('/api/admin/news', newsRouter.admin);  // Must come before /api/admin
+app.use('/api/admin/news', newsRouter.admin);      // Must come before /api/admin
+app.use('/api/admin/expenses', expensesRouter);    // Must come before /api/admin
 
 app.use('/api/admin', (req, res, next) => {
     const cookieKeys = Object.keys(req.cookies || {}).join(',') || '(none)';

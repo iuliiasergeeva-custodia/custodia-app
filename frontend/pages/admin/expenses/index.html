@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expenses | Custodia Admin</title>
+    <link rel="icon" type="image/svg+xml" href="/frontend/assets/images/logo_tab.svg">
+    <link rel="icon" type="image/x-icon" href="/frontend/assets/images/favicon.ico">
+    <link rel="stylesheet" href="/frontend/pages/admin/admin.css">
+    <link rel="stylesheet" href="/frontend/pages/admin/expenses/expenses.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+<div class="adm-layout">
+
+    <!-- Sidebar -->
+    <aside class="adm-sidebar">
+        <div class="adm-brand">
+            <div class="adm-brand-icon">⚙</div>
+            <span class="adm-brand-name">Admin</span>
+            <span class="adm-brand-badge">root</span>
+        </div>
+
+        <div class="adm-sidebar-label">SECTION</div>
+        <nav class="adm-table-nav">
+            <a href="/pages/admin" class="adm-table-nav-item">
+                <span class="adm-table-dot" style="background:#f59e0b"></span>
+                <span class="adm-table-name">Dashboard</span>
+            </a>
+            <a href="/pages/admin/news" class="adm-table-nav-item">
+                <span class="adm-table-dot" style="background:#3b82f6"></span>
+                <span class="adm-table-name">News Editor</span>
+            </a>
+            <a href="/pages/admin/expenses" class="adm-table-nav-item adm-table-nav-item--active">
+                <span class="adm-table-dot" style="background:#22c55e"></span>
+                <span class="adm-table-name">Expenses</span>
+            </a>
+        </nav>
+
+        <div class="adm-sidebar-footer">
+            <button class="adm-btn" id="logoutBtn" style="width:100%;margin-top:auto">Logout</button>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="adm-main">
+        <div class="adm-topbar">
+            <div class="adm-topbar-left">
+                <h1 class="adm-topbar-title">Expenses</h1>
+                <span class="adm-topbar-meta" id="topbarMeta"></span>
+            </div>
+            <div class="adm-topbar-actions">
+                <button class="adm-btn" id="exportCsvBtn"><i class="fas fa-download"></i> Export CSV</button>
+                <button class="adm-btn adm-btn-primary" id="newExpenseBtn">+ New expense</button>
+            </div>
+        </div>
+
+        <div class="adm-content" id="admContent">
+
+            <!-- Summary cards -->
+            <div class="exp-summary" id="summaryCards">
+                <div class="exp-card">
+                    <div class="exp-card-label">Total expenses</div>
+                    <div class="exp-card-value" id="sumTotal">—</div>
+                </div>
+                <div class="exp-card">
+                    <div class="exp-card-label">Total (USD)</div>
+                    <div class="exp-card-value" id="sumTotalUsd">—</div>
+                </div>
+                <div class="exp-card">
+                    <div class="exp-card-label">Total (SAR)</div>
+                    <div class="exp-card-value" id="sumTotalSar">—</div>
+                </div>
+                <div class="exp-card">
+                    <div class="exp-card-label">KAUST fund</div>
+                    <div class="exp-card-value" id="sumKaust">—</div>
+                </div>
+                <div class="exp-card">
+                    <div class="exp-card-label">Personal fund</div>
+                    <div class="exp-card-value" id="sumPersonal">—</div>
+                </div>
+                <div class="exp-card exp-card--warn">
+                    <div class="exp-card-label">Pending reimb.</div>
+                    <div class="exp-card-value" id="sumPendingReimb">—</div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="exp-filters" id="filtersBar">
+                <div class="exp-filter-group">
+                    <label class="exp-filter-label">From</label>
+                    <input type="date" class="exp-filter-input" id="fDateFrom">
+                </div>
+                <div class="exp-filter-group">
+                    <label class="exp-filter-label">To</label>
+                    <input type="date" class="exp-filter-input" id="fDateTo">
+                </div>
+                <div class="exp-filter-group">
+                    <label class="exp-filter-label">Paid by</label>
+                    <select class="exp-filter-input" id="fPaidBy">
+                        <option value="">All</option>
+                        <option>Julia</option>
+                        <option>Gilberto</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+                <div class="exp-filter-group">
+                    <label class="exp-filter-label">Fund</label>
+                    <select class="exp-filter-input" id="fFund">
+                        <option value="">All</option>
+                        <option value="personal">Personal</option>
+                        <option value="KAUST">KAUST</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="exp-filter-group">
+                    <label class="exp-filter-label">Category</label>
+                    <select class="exp-filter-input" id="fCategory">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div class="exp-filter-group">
+                    <label class="exp-filter-label">Item status</label>
+                    <select class="exp-filter-input" id="fItemStatus">
+                        <option value="">All</option>
+                        <option value="ordered">Ordered</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="received">Received</option>
+                    </select>
+                </div>
+                <div class="exp-filter-group">
+                    <label class="exp-filter-label">Reimb. status</label>
+                    <select class="exp-filter-input" id="fReimbStatus">
+                        <option value="">All</option>
+                        <option value="submitted">Submitted</option>
+                        <option value="approved">Approved</option>
+                        <option value="received">Received</option>
+                    </select>
+                </div>
+                <button class="adm-btn exp-filter-clear" id="clearFiltersBtn">Clear</button>
+            </div>
+
+            <!-- Table -->
+            <div class="exp-table-wrap">
+                <table class="exp-table" id="expTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th>Paid by</th>
+                            <th class="exp-th-right">Amount</th>
+                            <th class="exp-th-right">USD</th>
+                            <th class="exp-th-right">SAR</th>
+                            <th>Fund</th>
+                            <th>Item status</th>
+                            <th>Reimb.</th>
+                            <th>Comment</th>
+                            <th class="exp-th-actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="expTableBody">
+                        <tr><td colspan="12" class="exp-empty">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<!-- Create / Edit Modal -->
+<div class="adm-modal" id="expModal" hidden>
+    <div class="adm-modal-backdrop" id="modalBackdrop"></div>
+    <div class="adm-modal-box exp-modal-box">
+        <div class="adm-modal-header">
+            <h2 class="adm-modal-title" id="modalTitle">New expense</h2>
+            <button class="adm-modal-close" id="modalClose" aria-label="Close">✕</button>
+        </div>
+        <div class="adm-modal-body">
+            <form id="expForm" autocomplete="off">
+                <input type="hidden" id="fId">
+
+                <!-- Row: Date + Category -->
+                <div class="exp-form-row">
+                    <div class="exp-form-field">
+                        <label class="exp-label" for="fDate">Date <span class="exp-req">*</span></label>
+                        <input class="exp-input" type="date" id="fDate" required>
+                    </div>
+                    <div class="exp-form-field">
+                        <label class="exp-label" for="fCategoryField">Category <span class="exp-req">*</span></label>
+                        <select class="exp-input" id="fCategoryField" required>
+                            <option value="">Select…</option>
+                            <option>Travel</option>
+                            <option>Accommodation</option>
+                            <option>Electronics</option>
+                            <option>Enclosure / Hardware</option>
+                            <option>Lab Supplies</option>
+                            <option>Software / Subscriptions</option>
+                            <option>Food & Meals</option>
+                            <option>Shipping & Logistics</option>
+                            <option>Office Supplies</option>
+                            <option>Tools & Equipment</option>
+                            <option>Maintenance & Repair</option>
+                            <option>Printing & Documents</option>
+                            <option>Communication</option>
+                            <option>Visa & Government Fees</option>
+                            <option>Conference & Events</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div class="exp-form-field exp-form-field--full">
+                    <label class="exp-label" for="fDesc">Description <span class="exp-req">*</span></label>
+                    <input class="exp-input" type="text" id="fDesc" placeholder="What was purchased?" required>
+                </div>
+
+                <!-- Vendor -->
+                <div class="exp-form-field exp-form-field--full">
+                    <label class="exp-label" for="fVendor">Vendor / Supplier</label>
+                    <input class="exp-input" type="text" id="fVendor" placeholder="Optional">
+                </div>
+
+                <!-- Row: Paid by + Paid by other (conditional) -->
+                <div class="exp-form-row">
+                    <div class="exp-form-field">
+                        <label class="exp-label" for="fPaidByField">Paid by <span class="exp-req">*</span></label>
+                        <select class="exp-input" id="fPaidByField" required>
+                            <option value="">Select…</option>
+                            <option>Julia</option>
+                            <option>Gilberto</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    <div class="exp-form-field" id="paidByOtherWrap" style="display:none">
+                        <label class="exp-label" for="fPaidByOther">Specify who <span class="exp-req">*</span></label>
+                        <input class="exp-input" type="text" id="fPaidByOther" placeholder="Name">
+                    </div>
+                </div>
+
+                <!-- Row: Amount + Currency -->
+                <div class="exp-form-row">
+                    <div class="exp-form-field">
+                        <label class="exp-label" for="fAmount">Amount <span class="exp-req">*</span></label>
+                        <input class="exp-input" type="number" id="fAmount" min="0" step="0.01" placeholder="0.00" required>
+                    </div>
+                    <div class="exp-form-field">
+                        <label class="exp-label" for="fCurrency">Currency <span class="exp-req">*</span></label>
+                        <select class="exp-input" id="fCurrency" required>
+                            <option value="USD">USD – US Dollar</option>
+                            <option value="SAR">SAR – Saudi Riyal</option>
+                            <option value="EUR">EUR – Euro</option>
+                            <option value="GBP">GBP – Brit. Pound</option>
+                            <option value="AED">AED – UAE Dirham</option>
+                            <option value="JPY">JPY – Japanese Yen</option>
+                            <option value="CNY">CNY – Chinese Yuan</option>
+                            <option value="KWD">KWD – Kuwaiti Dinar</option>
+                            <option value="OTHER">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Exchange rate + computed preview -->
+                <div class="exp-form-row" id="rateRow">
+                    <div class="exp-form-field">
+                        <label class="exp-label" for="fRate">Exchange rate (1 [currency] = ? USD)</label>
+                        <input class="exp-input" type="number" id="fRate" min="0" step="0.000001" placeholder="1.0">
+                    </div>
+                    <div class="exp-form-field exp-converted-wrap">
+                        <label class="exp-label">Converted</label>
+                        <div class="exp-converted" id="convertedPreview">—</div>
+                    </div>
+                </div>
+
+                <!-- Row: Fund + Reimbursement (conditional) -->
+                <div class="exp-form-row">
+                    <div class="exp-form-field">
+                        <label class="exp-label" for="fFundField">Fund <span class="exp-req">*</span></label>
+                        <select class="exp-input" id="fFundField" required>
+                            <option value="">Select…</option>
+                            <option value="personal">Personal</option>
+                            <option value="KAUST">KAUST</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="exp-form-field" id="reimbWrap" style="display:none">
+                        <label class="exp-label" for="fReimbStatus">Reimbursement status</label>
+                        <select class="exp-input" id="fReimbStatus">
+                            <option value="">Not submitted</option>
+                            <option value="submitted">Submitted</option>
+                            <option value="approved">Approved</option>
+                            <option value="received">Received</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Item Status -->
+                <div class="exp-form-field exp-form-field--full">
+                    <label class="exp-label" for="fItemStatus">Item / Delivery status</label>
+                    <select class="exp-input" id="fItemStatus">
+                        <option value="">N/A</option>
+                        <option value="ordered">Ordered</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="received">Received</option>
+                    </select>
+                </div>
+
+                <!-- Comment -->
+                <div class="exp-form-field exp-form-field--full">
+                    <label class="exp-label" for="fComment">Comment</label>
+                    <textarea class="exp-input exp-textarea" id="fComment" rows="3" placeholder="Any additional notes…"></textarea>
+                </div>
+
+                <div id="formError" class="exp-form-error" style="display:none"></div>
+            </form>
+        </div>
+        <div class="adm-modal-footer">
+            <button class="adm-btn" id="modalCancel">Cancel</button>
+            <button class="adm-btn adm-btn-primary" id="modalSave">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="adm-modal" id="deleteModal" hidden>
+    <div class="adm-modal-backdrop" id="deleteBackdrop"></div>
+    <div class="adm-modal-box" style="max-width:400px">
+        <div class="adm-modal-header">
+            <h2 class="adm-modal-title">Delete expense?</h2>
+            <button class="adm-modal-close" id="deleteCancelBtn">✕</button>
+        </div>
+        <div class="adm-modal-body">
+            <p style="color:var(--text-2);line-height:1.6" id="deleteConfirmText">This action cannot be undone.</p>
+        </div>
+        <div class="adm-modal-footer">
+            <button class="adm-btn" id="deleteCancelBtn2">Cancel</button>
+            <button class="adm-btn" id="deleteConfirmBtn" style="background:var(--red);color:#fff;border-color:var(--red)">Delete</button>
+        </div>
+    </div>
+</div>
+
+<script src="/frontend/pages/admin/expenses/expenses.js" type="module"></script>
+</body>
+</html>

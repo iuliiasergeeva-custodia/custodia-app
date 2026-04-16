@@ -1,0 +1,272 @@
+/* ── Summary cards ────────────────────────────────────────────────────────── */
+
+.exp-summary {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.exp-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    min-width: 130px;
+    flex: 1;
+}
+
+.exp-card--warn {
+    border-color: rgba(255,87,87,0.3);
+    background: rgba(255,87,87,0.05);
+}
+
+.exp-card-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.exp-card-value {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-1);
+}
+
+/* ── Filters ──────────────────────────────────────────────────────────────── */
+
+.exp-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.exp-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.exp-filter-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.exp-filter-input {
+    background: var(--bg-app);
+    border: 1px solid var(--border-mid);
+    border-radius: 6px;
+    color: var(--text-1);
+    font-size: 0.8125rem;
+    padding: 5px 8px;
+    height: 30px;
+    min-width: 100px;
+}
+
+.exp-filter-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.exp-filter-clear {
+    align-self: flex-end;
+    height: 30px;
+    padding: 0 12px;
+    font-size: 0.8rem;
+}
+
+/* ── Table ────────────────────────────────────────────────────────────────── */
+
+.exp-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-surface);
+}
+
+.exp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+}
+
+.exp-table th {
+    padding: 9px 12px;
+    text-align: left;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    background: var(--bg-sidebar);
+}
+
+.exp-th-right { text-align: right; }
+.exp-th-actions { width: 80px; }
+
+.exp-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-1);
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.exp-table td.exp-td-desc {
+    white-space: normal;
+    max-width: 200px;
+    word-break: break-word;
+}
+
+.exp-table td.exp-td-comment {
+    white-space: normal;
+    max-width: 160px;
+    word-break: break-word;
+    color: var(--text-2);
+    font-size: 0.78rem;
+}
+
+.exp-table tr:last-child td { border-bottom: none; }
+
+.exp-table tr:hover td { background: var(--bg-hover); }
+
+.exp-td-right { text-align: right; font-variant-numeric: tabular-nums; }
+
+.exp-empty {
+    text-align: center;
+    padding: 40px 0;
+    color: var(--text-3);
+}
+
+/* ── Status badges ────────────────────────────────────────────────────────── */
+
+.exp-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: capitalize;
+}
+
+.exp-badge--ordered   { background: rgba(251,191,36,0.15);  color: #fbbf24; }
+.exp-badge--shipped   { background: rgba(59,130,246,0.15);  color: #60a5fa; }
+.exp-badge--received  { background: rgba(34,197,94,0.15);   color: #4ade80; }
+.exp-badge--submitted { background: rgba(168,85,247,0.15);  color: #c084fc; }
+.exp-badge--approved  { background: rgba(34,197,94,0.15);   color: #4ade80; }
+.exp-badge--kaust     { background: rgba(196,165,116,0.18); color: var(--accent); }
+.exp-badge--personal  { background: rgba(255,255,255,0.06); color: var(--text-2); }
+.exp-badge--other     { background: rgba(255,255,255,0.06); color: var(--text-2); }
+
+/* ── Row actions ──────────────────────────────────────────────────────────── */
+
+.exp-row-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.exp-icon-btn {
+    background: none;
+    border: 1px solid var(--border-mid);
+    border-radius: 5px;
+    color: var(--text-2);
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.exp-icon-btn:hover { color: var(--text-1); border-color: var(--text-2); }
+.exp-icon-btn--del:hover { color: var(--red); border-color: var(--red); }
+
+/* ── Modal form ───────────────────────────────────────────────────────────── */
+
+.exp-modal-box {
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.exp-form-row {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.exp-form-row .exp-form-field { flex: 1; }
+
+.exp-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 14px;
+}
+
+.exp-form-field--full { width: 100%; }
+
+.exp-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.exp-req { color: var(--red); }
+
+.exp-input {
+    background: var(--bg-app);
+    border: 1px solid var(--border-mid);
+    border-radius: 6px;
+    color: var(--text-1);
+    font-size: 0.875rem;
+    padding: 7px 10px;
+    width: 100%;
+    transition: border-color 0.15s;
+}
+
+.exp-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.exp-textarea {
+    resize: vertical;
+    min-height: 70px;
+    font-family: inherit;
+}
+
+.exp-converted-wrap { justify-content: flex-end; }
+
+.exp-converted {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--accent);
+    padding: 7px 0;
+    line-height: 1.5;
+}
+
+.exp-form-error {
+    background: var(--red-dim);
+    border: 1px solid rgba(255,87,87,0.3);
+    border-radius: 6px;
+    color: var(--red);
+    font-size: 0.8125rem;
+    padding: 8px 12px;
+    margin-top: 6px;
+}
