@@ -87,7 +87,7 @@ router.get('/summary', async (req, res) => {
                 COALESCE(SUM(amount_usd), 0)::numeric(12,2)        AS total_usd,
                 COALESCE(SUM(CASE WHEN fund = 'KAUST'     THEN amount_usd ELSE 0 END), 0)::numeric(12,2) AS kaust_usd,
                 COALESCE(SUM(CASE WHEN fund = 'personal'  THEN amount_usd ELSE 0 END), 0)::numeric(12,2) AS personal_usd,
-                COALESCE(SUM(CASE WHEN reimbursement_status IS NULL AND fund = 'KAUST' THEN amount_usd ELSE 0 END), 0)::numeric(12,2) AS pending_reimb_usd
+                COALESCE(SUM(CASE WHEN fund = 'KAUST' AND (reimbursement_status IS DISTINCT FROM 'received') THEN amount_usd ELSE 0 END), 0)::numeric(12,2) AS pending_reimb_usd
             FROM expenses
         `);
         res.json({ success: true, summary: result.rows[0] });
