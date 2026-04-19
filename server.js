@@ -77,6 +77,11 @@ app.get(['/pages/admin/expenses', '/pages/admin/expenses/'], requireAuth, (req, 
     res.sendFile(path.join(__dirname, 'frontend', 'pages', 'admin', 'expenses', 'index.html'));
 });
 
+// Quote page — public, no auth required
+app.get(['/pages/quote', '/pages/quote/'], (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend', 'pages', 'quote', 'index.html'));
+});
+
 // Serve static files from frontend
 app.use(express.static(path.join(__dirname, 'frontend')));
 app.use('/frontend', express.static(path.join(__dirname, 'frontend')));
@@ -271,6 +276,142 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
         res.status(500).json({
             error: 'Failed to send message. Please try again later.'
         });
+    }
+});
+
+// Quote submission endpoint
+const quoteLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
+
+app.post('/api/quote/submit', quoteLimiter, async (req, res) => {
+    try {
+        const { contact, devices, specs } = req.body;
+
+        if (!contact || !contact.email || !contact.first || !contact.last || !contact.org) {
+            return res.status(400).json({ success: false, error: 'Missing required contact fields' });
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(contact.email)) {
+            return res.status(400).json({ success: false, error: 'Invalid email address' });
+        }
+
+        const DEVICE_LABELS = {
+            lora:      'LoRa tracking collar',
+            satellite: 'Hybrid satellite collar',
+            repeater:  'LoRa repeater',
+            camera:    'AI camera trap',
+        };
+
+        function row(k, v) {
+            return `<tr><td style="padding:4px 10px 4px 0;color:#666;width:160px">${escapeHtml(k)}</td><td style="padding:4px 0;font-weight:600;color:#1F1F1F">${escapeHtml(String(v))}</td></tr>`;
+        }
+
+        function deviceBlock(device) {
+            const s = specs[device];
+            if (!s) return '';
+            let rows = '';
+            let qty = '';
+
+            if (device === 'lora' || device === 'satellite') {
+                qty = `×${s.qty}`;
+                rows = [
+                    row('Battery', `${s.battery} mAh`),
+                    row('GPS fixes/day', s.gps),
+                    row('TX/day', s.tx),
+                    row('Material', s.material === 'nylon' ? 'Nylon + neoprene' : 'Biothane'),
+                    row('Neck circ.', `${s.neck} cm`),
+                    row('Drop-off', s.dropoff ? 'Yes' : 'No'),
+                    device === 'satellite' && s.country ? row('Country', s.country) : '',
+                    s.species ? row('Species', s.species) : '',
+                ].join('');
+            } else if (device === 'repeater') {
+                qty = `×${s.count}`;
+                rows = [
+                    row('Count', s.count),
+                    row('Mounting', s.mounting),
+                    s.species ? row('Use case', s.species) : '',
+                ].join('');
+            } else if (device === 'camera') {
+                qty = `×${s.count}`;
+                const aiList = [
+                    s.ai_species  ? 'Species counting' : '',
+                    s.ai_human    ? 'Intrusion alerts' : '',
+                    s.ai_tamper   ? 'Tamper detection' : '',
+                    s.ai_gunshot  ? 'Gunshot detection' : '',
+                ].filter(Boolean).join(', ') || 'None';
+                rows = [
+                    row('Count', s.count),
+                    row('Battery target', `${s.battery_target} months`),
+                    row('Night vision', s.night_vision === 'ir' ? 'IR only' : 'Colour night'),
+                    row('Trigger', s.trigger),
+                    row('Storage', s.storage === 'cloud' ? 'SD + cloud sync' : 'SD card only'),
+                    row('Image TX', s.transmission ? 'Yes' : 'No'),
+                    row('AI features', aiList),
+                    s.species ? row('Species', s.species) : '',
+                ].join('');
+            }
+
+            return `
+            <div style="background:#fdf8f4;border:1px solid #e8ddd4;border-radius:6px;padding:16px;margin-bottom:12px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                    <strong style="font-size:15px;color:#1F1F1F">${escapeHtml(DEVICE_LABELS[device] || device)}</strong>
+                    <span style="background:rgba(138,106,79,0.15);color:#8A6A4F;font-size:12px;font-weight:700;padding:2px 8px;border-radius:10px">${qty}</span>
+                </div>
+                <table style="border-collapse:collapse;width:100%">${rows}</table>
+            </div>`;
+        }
+
+        const deviceBlocks = (devices || []).map(deviceBlock).join('');
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: process.env.EMAIL_USER,
+            replyTo: contact.email,
+            subject: `New quote request — ${escapeHtml(contact.first)} ${escapeHtml(contact.last)} (${escapeHtml(contact.org)})`,
+            html: `
+            <div style="font-family:'Open Sans',Arial,sans-serif;max-width:640px;margin:0 auto;background:#F4F4F2">
+                <div style="background:#1F1F1F;padding:20px 28px">
+                    <h2 style="color:#F4F4F2;margin:0;font-size:18px">New quote request</h2>
+                    <p style="color:rgba(244,244,242,0.6);margin:4px 0 0;font-size:13px">Custodia · ${new Date().toUTCString()}</p>
+                </div>
+                <div style="padding:24px 28px">
+                    <h3 style="font-size:13px;font-weight:700;letter-spacing:0.06em;color:#8C8C8C;text-transform:uppercase;margin:0 0 10px">Contact</h3>
+                    <table style="border-collapse:collapse;width:100%;margin-bottom:24px">
+                        ${row('Name', `${contact.first} ${contact.last}`)}
+                        ${row('Organisation', contact.org)}
+                        ${row('Email', contact.email)}
+                        ${contact.country ? row('Country', contact.country) : ''}
+                        ${contact.timeline ? row('Timeline', contact.timeline) : ''}
+                    </table>
+                    <h3 style="font-size:13px;font-weight:700;letter-spacing:0.06em;color:#8C8C8C;text-transform:uppercase;margin:0 0 10px">Devices &amp; Specifications</h3>
+                    ${deviceBlocks}
+                    ${contact.notes ? `
+                    <h3 style="font-size:13px;font-weight:700;letter-spacing:0.06em;color:#8C8C8C;text-transform:uppercase;margin:16px 0 10px">Notes</h3>
+                    <div style="background:#fff;border:1px solid #D6D6D4;border-radius:6px;padding:14px;color:#1F1F1F;white-space:pre-wrap;font-size:14px">${escapeHtml(contact.notes)}</div>
+                    ` : ''}
+                </div>
+                <div style="border-top:1px solid #D6D6D4;padding:16px 28px">
+                    <p style="color:#8C8C8C;font-size:12px;margin:0">Sent from the Custodia quote form · <a href="https://custodia.world/pages/quote" style="color:#8A6A4F">custodia.world/pages/quote</a></p>
+                </div>
+            </div>`,
+        };
+
+        if (process.env.EMAIL_TEST_MODE === 'true') {
+            console.log('📧 [TEST MODE] Quote request logged:', JSON.stringify({ contact, devices }, null, 2));
+        } else {
+            const emailPromise = transporter.sendMail(mailOptions);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Email timeout')), 15000)
+            );
+            await Promise.race([emailPromise, timeoutPromise]);
+        }
+
+        console.log(`✅ [QUOTE] Request from ${contact.first} ${contact.last} <${contact.email}> — devices: ${(devices || []).join(', ')}`);
+        res.json({ success: true });
+
+    } catch (err) {
+        console.error('❌ [QUOTE] Submit error:', err);
+        res.status(500).json({ success: false, error: 'Failed to send quote request. Please try again.' });
     }
 });
 

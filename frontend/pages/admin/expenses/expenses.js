@@ -241,8 +241,8 @@ function openModal(id) {
         document.getElementById('fRate').value = e.exchange_rate_to_usd;
         document.getElementById('fFundField').value = e.fund;
         document.getElementById('reimbWrap').style.display = e.fund === 'KAUST' ? '' : 'none';
-        document.getElementById('fReimbStatus').value = e.reimbursement_status || '';
-        document.getElementById('fItemStatus').value = e.item_status || '';
+        document.getElementById('mReimbStatus').value = e.reimbursement_status || '';
+        document.getElementById('mItemStatus').value = e.item_status || '';
         document.getElementById('fComment').value = e.comment || '';
         updateConvertedPreview();
     }
@@ -268,7 +268,7 @@ function onPaidByChange() {
 function onFundChange() {
     const val = document.getElementById('fFundField').value;
     document.getElementById('reimbWrap').style.display = val === 'KAUST' ? '' : 'none';
-    if (val !== 'KAUST') document.getElementById('fReimbStatus').value = '';
+    if (val !== 'KAUST') document.getElementById('mReimbStatus').value = '';
 }
 
 function onCurrencyChange() {
@@ -307,8 +307,8 @@ async function handleSave() {
         amount:               document.getElementById('fAmount').value,
         currency:             document.getElementById('fCurrency').value,
         exchange_rate_to_usd: document.getElementById('fRate').value || '1',
-        item_status:          document.getElementById('fItemStatus').value,
-        reimbursement_status: fund === 'KAUST' ? document.getElementById('fReimbStatus').value : '',
+        item_status:          document.getElementById('mItemStatus').value,
+        reimbursement_status: fund === 'KAUST' ? document.getElementById('mReimbStatus').value : '',
         comment:              document.getElementById('fComment').value.trim(),
     };
 
