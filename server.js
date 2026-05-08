@@ -753,6 +753,7 @@ app.use((req, res) => {
 });
 
 // Start server
+require('./backend/app/handlers/skyloTCP');
 app.listen(PORT, () => {
     console.log(`\n🚀 Server is running on port ${PORT}`);
     console.log(`📄 Landing Page: http://localhost:${PORT}/`);
