@@ -1858,12 +1858,22 @@ function selectAnimal(animalId, locationOptional, options = {}) {
     
     const id = animal.id;
     selectedAnimalId = id;
-    if (locationOptional && typeof locationOptional.lat === 'number' && typeof locationOptional.lng === 'number') {
-        selectedLocation = { lat: locationOptional.lat, lng: locationOptional.lng };
+    if (locationOptional != null && locationOptional.lat != null && locationOptional.lng != null) {
+        const la = Number(locationOptional.lat);
+        const ln = Number(locationOptional.lng);
+        if (Number.isFinite(la) && Number.isFinite(ln)) {
+            selectedLocation = { lat: la, lng: ln };
+        } else if (animal.locations && animal.locations.length > 0) {
+            const sorted = [...animal.locations].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            const last = sorted[sorted.length - 1];
+            selectedLocation = { lat: Number(last.lat), lng: Number(last.lng) };
+        } else {
+            selectedLocation = null;
+        }
     } else if (animal.locations && animal.locations.length > 0) {
         const sorted = [...animal.locations].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
         const last = sorted[sorted.length - 1];
-        selectedLocation = { lat: last.lat, lng: last.lng };
+        selectedLocation = { lat: Number(last.lat), lng: Number(last.lng) };
     } else {
         selectedLocation = null;
     }
@@ -1897,8 +1907,8 @@ function selectAnimal(animalId, locationOptional, options = {}) {
     
     if (map && animal.locations && animal.locations.length > 0) {
         let panTarget = null;
-        if (options.panToLocation && locationOptional && typeof locationOptional.lat === 'number' && typeof locationOptional.lng === 'number') {
-            panTarget = locationOptional;
+        if (options.panToLocation && locationOptional != null && Number.isFinite(Number(locationOptional.lat)) && Number.isFinite(Number(locationOptional.lng))) {
+            panTarget = { lat: Number(locationOptional.lat), lng: Number(locationOptional.lng) };
         } else if (locationOptional == null) {
             const sortedLocations = [...animal.locations].sort((a, b) => {
                 return new Date(a.timestamp) - new Date(b.timestamp);
@@ -2043,27 +2053,30 @@ function updateMap() {
     }
     
     animals.forEach(animal => {
+        const isMapSelectedTracker = selectedAnimalId != null && String(animal.id) === String(selectedAnimalId);
+
         // Filter by tracker selection - STRICT CHECK
         if (!selectedTrackerIds.includes(String(animal.id))) {
             skippedCount++;
             console.log(`[updateMap] SKIPPING ${animal.id} (${animal.name}) - NOT in selected list`);
             return; // Skip this animal if not selected
         }
-        
-        // Filter by status
-        if (statusFilter !== 'all' && animal.status !== statusFilter) {
+
+        // Status / type / family filters apply to the map — except for the tracker currently
+        // selected in the sidebar/detail card, so its pins always render (map already panned there).
+        if (!isMapSelectedTracker && statusFilter !== 'all' && animal.status !== statusFilter) {
             skippedCount++;
             console.log(`[updateMap] SKIPPING ${animal.id} (${animal.name}) - Status ${animal.status} doesn't match filter ${statusFilter}`);
             return; // Skip this animal if status doesn't match
         }
 
-        if (!matchesFilter(animal.type, typeFilter)) {
+        if (!isMapSelectedTracker && !matchesFilter(animal.type, typeFilter)) {
             skippedCount++;
             console.log(`[updateMap] SKIPPING ${animal.id} (${animal.name}) - Type ${animal.type} doesn't match filter ${typeFilter}`);
             return;
         }
 
-        if (!matchesFilter(animal.family, familyFilter)) {
+        if (!isMapSelectedTracker && !matchesFilter(animal.family, familyFilter)) {
             skippedCount++;
             console.log(`[updateMap] SKIPPING ${animal.id} (${animal.name}) - Family ${animal.family} doesn't match filter ${familyFilter}`);
             return;
@@ -2113,6 +2126,19 @@ function updateMap() {
                 return true;
             });
             console.log(`[updateMap] ${animal.id} - After date filter: ${filteredLocations.length} (was ${beforeFilter})`);
+        }
+
+        // Date bar defaults to [earliest … today] even when the user did not "choose" a filter.
+        // Fixes after "today" (bad device clock, e.g. 2050) or outside that window would draw no pins.
+        if (filteredLocations.length === 0 && animal.locations.length > 0) {
+            if (selectedAnimalId != null && String(animal.id) === String(selectedAnimalId) && selectedLocation) {
+                const hit = animal.locations.find(l => isSameLocation(l, selectedLocation));
+                if (hit) filteredLocations = [hit];
+            }
+            if (filteredLocations.length === 0) {
+                filteredLocations = [...animal.locations];
+            }
+            console.warn(`[updateMap] ${animal.id} - Date range hid all fixes; map fallback shows ${filteredLocations.length} point(s)`);
         }
         
         if (filteredLocations.length > 0) {
@@ -3152,7 +3178,7 @@ function renderMarkersOnly(animal, sortedLocations, iconColor) {
     const animalMarkers = [];
     
     sortedLocations.forEach((location, index) => {
-        const isSelected = selectedAnimalId != null && selectedLocation != null && isSameLocation(location, selectedLocation) && animal.id === selectedAnimalId;
+        const isSelected = selectedAnimalId != null && selectedLocation != null && isSameLocation(location, selectedLocation) && String(animal.id) === String(selectedAnimalId);
         const isFaded = selectedAnimalId != null && !isSelected;
         const baseSize = index === sortedLocations.length - 1 ? 24 : 18;
         const size = isSelected ? Math.max(baseSize + 10, 32) : baseSize;
@@ -3204,7 +3230,7 @@ function renderPath(animal, sortedLocations, iconColor) {
             const prevLocation = sortedLocations[index - 1];
             distanceFromPrevious = calculateDistance(prevLocation.lat, prevLocation.lng, location.lat, location.lng);
         }
-        const isSelected = selectedAnimalId != null && selectedLocation != null && isSameLocation(location, selectedLocation) && animal.id === selectedAnimalId;
+        const isSelected = selectedAnimalId != null && selectedLocation != null && isSameLocation(location, selectedLocation) && String(animal.id) === String(selectedAnimalId);
         const isFaded = selectedAnimalId != null && !isSelected;
         const baseSize = index === sortedLocations.length - 1 ? 24 : 16;
         const size = isSelected ? Math.max(baseSize + 10, 32) : baseSize;
@@ -3282,7 +3308,7 @@ function renderPath(animal, sortedLocations, iconColor) {
     markers[animal.id] = animalMarkers;
     
     if (pathCoordinates.length > 1) {
-        const lineOpacity = selectedAnimalId != null && animal.id !== selectedAnimalId ? 0.3 : 0.7;
+        const lineOpacity = selectedAnimalId != null && String(animal.id) !== String(selectedAnimalId) ? 0.3 : 0.7;
         const polyline = L.polyline(pathCoordinates, {
             color: iconColor,
             weight: 3,
@@ -3307,7 +3333,7 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
     const showDistances = showDistanceCheckbox && showDistanceCheckbox.checked;
     
     sortedLocations.forEach((location, index) => {
-        const isSelected = selectedAnimalId != null && selectedLocation != null && isSameLocation(location, selectedLocation) && animal.id === selectedAnimalId;
+        const isSelected = selectedAnimalId != null && selectedLocation != null && isSameLocation(location, selectedLocation) && String(animal.id) === String(selectedAnimalId);
         const isFaded = selectedAnimalId != null && !isSelected;
         const baseSize = index === sortedLocations.length - 1 ? 24 : 16;
         const size = isSelected ? Math.max(baseSize + 10, 32) : baseSize;
@@ -3339,7 +3365,7 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
         pathCoordinates.push([location.lat, location.lng]);
     });
     
-    const arrowOpacity = selectedAnimalId != null && animal.id !== selectedAnimalId ? 0.35 : 1;
+    const arrowOpacity = selectedAnimalId != null && String(animal.id) !== String(selectedAnimalId) ? 0.35 : 1;
     // Add directional arrows and distance labels after all markers are created
     sortedLocations.forEach((location, index) => {
         if (index < sortedLocations.length - 1) {
@@ -3441,7 +3467,7 @@ function renderPathWithDirections(animal, sortedLocations, iconColor) {
     markers[animal.id] = animalMarkers;
     
     if (pathCoordinates.length > 1) {
-        const lineOpacity = selectedAnimalId != null && animal.id !== selectedAnimalId ? 0.3 : 0.7;
+        const lineOpacity = selectedAnimalId != null && String(animal.id) !== String(selectedAnimalId) ? 0.3 : 0.7;
         const polyline = L.polyline(pathCoordinates, {
             color: iconColor,
             weight: 3,
