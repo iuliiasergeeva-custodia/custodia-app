@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get a Quote – Custodia</title>
+    <link rel="icon" type="image/svg+xml" href="/frontend/assets/images/logo_tab.svg">
+    <link rel="icon" type="image/x-icon" href="/frontend/assets/images/favicon.ico">
+    <link rel="stylesheet" href="/frontend/styles/variables.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Alice&family=Montserrat:wght@500;600;700&family=Open+Sans:ital,wght@0,400;0,600;0,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/frontend/pages/quote/quote.css">
+</head>
+<body>
+
+<!-- Header -->
+<header class="q-header">
+    <a href="/" class="q-logo">
+        <img src="/frontend/assets/images/custodia_logo_header_white.webp" alt="Custodia" class="q-logo-img">
+    </a>
+    <a href="/" class="q-back-link"><i class="fas fa-arrow-left"></i> Back to site</a>
+</header>
+
+<!-- Main -->
+<main class="q-main">
+
+    <!-- Step indicator -->
+    <div class="q-steps" id="stepIndicator">
+        <div class="q-step q-step--active" id="si-1">
+            <span class="q-step-num">1</span>
+            <span class="q-step-label">Devices</span>
+        </div>
+        <div class="q-step-line"></div>
+        <div class="q-step" id="si-2">
+            <span class="q-step-num">2</span>
+            <span class="q-step-label">Specifications</span>
+        </div>
+        <div class="q-step-line"></div>
+        <div class="q-step" id="si-3">
+            <span class="q-step-num">3</span>
+            <span class="q-step-label">Review &amp; submit</span>
+        </div>
+        <div class="q-step-line"></div>
+        <div class="q-step" id="si-4">
+            <span class="q-step-num">4</span>
+            <span class="q-step-label">Done</span>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- STEP 1 — Choose devices                                  -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="q-panel" id="step1">
+        <div class="q-panel-inner">
+            <h1 class="q-title">What devices are you interested in?</h1>
+            <p class="q-subtitle">Select one or more — you'll configure specs and quantities on the next step.</p>
+
+            <div class="q-device-grid">
+
+                <!-- LoRa collar -->
+                <div class="q-device-card" id="card-lora" data-device="lora" onclick="toggleDevice('lora')">
+                    <div class="q-device-check" id="check-lora"><i class="fas fa-check"></i></div>
+                    <img class="q-device-img" src="/frontend/assets/images/lora_tracker.png" alt="LoRa tracking collar">
+                    <div class="q-device-info">
+                        <div class="q-device-name">LoRa tracking collar</div>
+                        <div class="q-device-desc">From 120 g · up to 2+ yrs · scalable to hundreds of animals</div>
+                        <div class="q-device-unique">Ultra-low power, cost-efficient for large deployments</div>
+                    </div>
+                </div>
+
+                <!-- Satellite collar -->
+                <div class="q-device-card" id="card-satellite" data-device="satellite" onclick="toggleDevice('satellite')">
+                    <div class="q-device-check" id="check-satellite"><i class="fas fa-check"></i></div>
+                    <img class="q-device-img" src="/frontend/assets/images/satellite_lora_tracker.png" alt="Hybrid satellite collar">
+                    <div class="q-device-info">
+                        <div class="q-device-name">Hybrid satellite collar</div>
+                        <div class="q-device-desc">Works anywhere on Earth · &lt;15 min latency · multi-year battery</div>
+                        <div class="q-device-unique">Satellite scale without satellite-level costs</div>
+                    </div>
+                </div>
+
+                <!-- LoRa repeater -->
+                <div class="q-device-card" id="card-repeater" data-device="repeater" onclick="toggleDevice('repeater')">
+                    <div class="q-device-check" id="check-repeater"><i class="fas fa-check"></i></div>
+                    <img class="q-device-img" src="/frontend/assets/images/lora_repeater.png" alt="LoRa repeater">
+                    <div class="q-device-info">
+                        <div class="q-device-name">LoRa repeater</div>
+                        <div class="q-device-desc">Solar-powered · 10 km coverage · 6 units cover ~1,000 km²</div>
+                        <div class="q-device-unique">Minimal infrastructure, zero per-tracker cost increase</div>
+                    </div>
+                </div>
+
+                <!-- AI camera trap -->
+                <div class="q-device-card" id="card-camera" data-device="camera" onclick="toggleDevice('camera')">
+                    <div class="q-device-check" id="check-camera"><i class="fas fa-check"></i></div>
+                    <img class="q-device-img" src="/frontend/assets/images/ai_camera_trap.png" alt="AI camera trap">
+                    <div class="q-device-info">
+                        <div class="q-device-name">AI camera trap</div>
+                        <div class="q-device-desc">On-device species detection · poaching alerts · auto reports</div>
+                        <div class="q-device-unique">No manual retrieval, no video review — real-time intelligence</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="q-dashboard-note">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard from <strong>$50/month</strong> — base plan includes 3 users &amp; 50 trackers. More users and trackers can be added at any time for an additional cost.</span>
+            </div>
+
+            <div class="q-step1-footer">
+                <span class="q-selection-count" id="selectionCount">0 products selected</span>
+                <button class="q-btn q-btn-primary" id="step1Next" onclick="goToStep(2)" disabled>
+                    Configure specs <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- STEP 2 — Specifications                                  -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="q-panel" id="step2" style="display:none">
+        <div class="q-panel-inner q-panel-inner--wide">
+
+            <!-- Device tabs (shown only if multiple selected) -->
+            <div class="q-spec-tabs" id="specTabs"></div>
+
+            <!-- ─── LoRa collar specs ─── -->
+            <div class="q-spec-panel" id="spec-lora" style="display:none">
+                <div class="q-spec-layout">
+                    <!-- Left: controls -->
+                    <div class="q-spec-controls">
+                        <h2 class="q-spec-title">Configure your LoRa tracking collar</h2>
+                        <p class="q-spec-hint">Adjust parameters below — battery life and price update instantly.</p>
+
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label"><i class="fas fa-battery-three-quarters"></i> BATTERY</div>
+                            <div class="q-slider-row">
+                                <div class="q-slider-label">Battery capacity <span class="q-slider-val" id="lora-battery-val">3000 mAh</span></div>
+                                <input type="range" class="q-slider" id="lora-battery" min="1000" max="5000" step="500" value="3000">
+                                <div class="q-slider-hint">Larger = longer life, heavier collar</div>
+                            </div>
+                            <div class="q-slider-row">
+                                <div class="q-slider-label">GPS fixes per day <span class="q-slider-val" id="lora-gps-val">12 /day</span></div>
+                                <input type="range" class="q-slider" id="lora-gps" min="1" max="96" step="1" value="12">
+                                <div class="q-slider-hint">Every 2 hrs = 12 · every 15 min = 96</div>
+                            </div>
+                            <div class="q-slider-row">
+                                <div class="q-slider-label">LoRa transmissions per day <span class="q-slider-val" id="lora-tx-val">12 /day</span></div>
+                                <input type="range" class="q-slider" id="lora-tx" min="1" max="96" step="1" value="12">
+                                <div class="q-slider-hint">Typically equal to or fewer than GPS fixes</div>
+                            </div>
+                        </div>
+
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label"><i class="fas fa-shield-alt"></i> MATERIAL</div>
+                            <div class="q-toggle-group" id="lora-material">
+                                <button class="q-toggle q-toggle--active" data-val="nylon" onclick="setToggle('lora-material','nylon',updateLora)">
+                                    Nylon + neoprene
+                                    <span class="q-toggle-sub">Lightweight · waterproof</span>
+                                </button>
+                                <button class="q-toggle" data-val="biothane" onclick="setToggle('lora-material','biothane',updateLora)">
+                                    Biothane
+                                    <span class="q-toggle-sub">Premium · odour-resistant</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label"><i class="fas fa-plus-circle"></i> DIMENSIONS &amp; ADD-ONS</div>
+                            <div class="q-slider-row">
+                                <div class="q-slider-label">Neck circumference <span class="q-slider-val" id="lora-neck-val">45 cm</span></div>
+                                <input type="range" class="q-slider" id="lora-neck" min="15" max="120" step="1" value="45">
+                                <div class="q-slider-hint-range"><span>Gazelle ~25</span><span>Camel ~60</span><span>Bovine ~100</span></div>
+                            </div>
+                            <div class="q-slider-row">
+                                <div class="q-slider-label">Collar width <span class="q-slider-val" id="lora-width-val">30 mm</span></div>
+                                <input type="range" class="q-slider" id="lora-width" min="15" max="50" step="5" value="30">
+                            </div>
+                            <div class="q-toggle-row">
+                                <div class="q-toggle-label">
+                                    <span class="q-toggle-name">Drop-off mechanism</span>
+                                    <span class="q-toggle-desc">Remotely triggered release</span>
+                                </div>
+                                <label class="q-switch">
+                                    <input type="checkbox" id="lora-dropoff" onchange="updateLora()">
+                                    <span class="q-switch-track"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label">SPECIES</div>
+                            <input type="text" class="q-text-input" id="lora-species" placeholder="e.g. Arabian oryx, cheetah, camel…" oninput="updateLora()">
+                        </div>
+                    </div>
+
+                    <!-- Right: summary panel -->
+                    <div class="q-spec-summary">
+                        <div class="q-qty-section">
+                            <div class="q-spec-section-label">QUANTITY</div>
+                            <div class="q-qty-grid" id="lora-qty">
+                                <button class="q-qty-btn q-qty-btn--active" data-qty="1" onclick="setQty('lora',1)">1<span>No discount</span></button>
+                                <button class="q-qty-btn" data-qty="5" onclick="setQty('lora',5)">5<span>1% off</span></button>
+                                <button class="q-qty-btn" data-qty="10" onclick="setQty('lora',10)">10<span>2% off</span></button>
+                                <button class="q-qty-btn" data-qty="25" onclick="setQty('lora',25)">25<span>3% off</span></button>
+                                <button class="q-qty-btn" data-qty="50" onclick="setQty('lora',50)">50<span>4% off</span></button>
+                                <button class="q-qty-btn" data-qty="100" onclick="setQty('lora',100)">100+<span>5% off</span></button>
+                            </div>
+                        </div>
+
+                        <div class="q-battery-card">
+                            <div class="q-battery-label">ESTIMATED BATTERY LIFE</div>
+                            <div class="q-battery-value" id="lora-battery-life">32</div>
+                            <div class="q-battery-unit">months</div>
+                        </div>
+
+                        <div class="q-price-card">
+                            <div class="q-price-row">
+                                <span class="q-price-label">Estimated total</span>
+                                <span class="q-price-value" id="lora-total">$256</span>
+                            </div>
+                            <div class="q-price-detail" id="lora-price-detail">$256 per unit × 1</div>
+                            <div class="q-price-note">Final quote confirmed on request</div>
+                        </div>
+
+                        <div class="q-config-summary">
+                            <div class="q-spec-section-label">YOUR CONFIGURATION</div>
+                            <div class="q-config-rows" id="lora-config-rows"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── Satellite collar specs ─── -->
+            <div class="q-spec-panel" id="spec-satellite" style="display:none">
+                <div class="q-spec-layout">
+                    <div class="q-spec-controls">
+                        <h2 class="q-spec-title">Configure your hybrid satellite collar</h2>
+                        <p class="q-spec-hint">LoRa + satellite uplink — works anywhere on Earth.</p>
+
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label"><i class="fas fa-battery-three-quarters"></i> BATTERY</div>
+                            <div class="q-slider-row">
+                                <div class="q-slider-label">Battery capacity <span class="q-slider-val" id="sat-battery-val">3000 mAh</span></div>
+                                <input type="range" class="q-slider" id="sat-battery" min="1000" max="5000" step="500" value="3000">
+                                <div class="q-slider-hint">Larger = longer life, heavier collar</div>
+                            </div>
+                            <div class="q-slider-row">
+                                <div class="q-slider-label">GPS fixes per day <span class="q-slider-val" id="sat-gps-val">12 /day</span></div>
+                                <input type="range" class="q-slider" id="sat-gps" min="1" max="96" step="1" value="12">
+                                <div class="q-slider-hint">Every 2 hrs = 12 · every 15 min = 96</div>
+                            </div>
+                            <div class="q-slider-row">
+                                <div class="q-slider-label">Transmissions per day <span class="q-slider-val" id="sat-tx-val">12 /day</span></div>
+                                <input type="range" class="q-slider" id="sat-tx" min="1" max="48" step="1" value="12">
+                                <div class="q-slider-hint">Satellite uplink — each transmission incurs airtime cost</div>
+                            </div>
+                        </div>
+
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label"><i class="fas fa-shield-alt"></i> MATERIAL</div>
+                            <div class="q-toggle-group" id="sat-material">
+                                <button class="q-toggle q-toggle--active" data-val="nylon" onclick="setToggle('sat-material','nylon',updateSat)">
+                                    Nylon + neoprene
+                                    <span class="q-toggle-sub">Lightweight · waterproof</span>
+                                </button>
+                                <button class="q-toggle" data-val="biothane" onclick="setToggle('sat-material','biothane',updateSat)">
+                                    Biothane
+                                    <span class="q-toggle-sub">Premium · odour-resistant</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label"><i class="fas fa-plus-circle"></i> DIMENSIONS &amp; ADD-ONS</div>
+                            <div class="q-slider-row">
+                                <div class="q-slider-label">Neck circumference <span class="q-slider-val" id="sat-neck-val">45 cm</span></div>
+                                <input type="range" class="q-slider" id="sat-neck" min="15" max="120" step="1" value="45">
+                                <div class="q-slider-hint-range"><span>Gazelle ~25</span><span>Camel ~60</span><span>Bovine ~100</span></div>
+                            </div>
+                            <div class="q-slider-row">
+                                <div class="q-slider-label">Collar width <span class="q-slider-val" id="sat-width-val">30 mm</span></div>
+                                <input type="range" class="q-slider" id="sat-width" min="15" max="50" step="5" value="30">
+                            </div>
+                            <div class="q-toggle-row">
+                                <div class="q-toggle-label">
+                                    <span class="q-toggle-name">Drop-off mechanism</span>
+                                    <span class="q-toggle-desc">Remotely triggered release</span>
+                                </div>
+                                <label class="q-switch">
+                                    <input type="checkbox" id="sat-dropoff" onchange="updateSat()">
+                                    <span class="q-switch-track"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label">DEPLOYMENT COUNTRY</div>
+                            <input type="text" class="q-text-input" id="sat-country" placeholder="e.g. Saudi Arabia, Kenya, India…" oninput="updateSat()">
+                            <div class="q-slider-hint" style="margin-top:6px">Determines satellite provider and airtime pricing</div>
+                        </div>
+
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label">SPECIES</div>
+                            <input type="text" class="q-text-input" id="sat-species" placeholder="e.g. Arabian oryx, cheetah, camel…" oninput="updateSat()">
+                        </div>
+                    </div>
+
+                    <div class="q-spec-summary">
+                        <div class="q-qty-section">
+                            <div class="q-spec-section-label">QUANTITY</div>
+                            <div class="q-qty-grid" id="sat-qty">
+                                <button class="q-qty-btn q-qty-btn--active" data-qty="1" onclick="setQty('sat',1)">1<span>No discount</span></button>
+                                <button class="q-qty-btn" data-qty="5" onclick="setQty('sat',5)">5<span>1% off</span></button>
+                                <button class="q-qty-btn" data-qty="10" onclick="setQty('sat',10)">10<span>2% off</span></button>
+                                <button class="q-qty-btn" data-qty="25" onclick="setQty('sat',25)">25<span>3% off</span></button>
+                                <button class="q-qty-btn" data-qty="50" onclick="setQty('sat',50)">50<span>4% off</span></button>
+                                <button class="q-qty-btn" data-qty="100" onclick="setQty('sat',100)">100+<span>5% off</span></button>
+                            </div>
+                        </div>
+
+                        <div class="q-battery-card">
+                            <div class="q-battery-label">ESTIMATED BATTERY LIFE</div>
+                            <div class="q-battery-value" id="sat-battery-life">28</div>
+                            <div class="q-battery-unit">months</div>
+                        </div>
+
+                        <div class="q-price-card">
+                            <div class="q-price-row">
+                                <span class="q-price-label">Estimated total</span>
+                                <span class="q-price-value" id="sat-total">$380</span>
+                            </div>
+                            <div class="q-price-detail" id="sat-price-detail">$380 per unit × 1</div>
+                            <div class="q-price-note">Final quote confirmed on request</div>
+                        </div>
+
+                        <div class="q-config-summary">
+                            <div class="q-spec-section-label">YOUR CONFIGURATION</div>
+                            <div class="q-config-rows" id="sat-config-rows"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── LoRa repeater specs ─── -->
+            <div class="q-spec-panel" id="spec-repeater" style="display:none">
+                <div class="q-spec-layout q-spec-layout--single">
+                    <h2 class="q-spec-title">Configure your LoRa repeater</h2>
+                    <p class="q-spec-hint">Each repeater covers ~7 km radius. 6 repeaters can cover ~1,000 km². We can help calculate how many you need based on your reserve map.</p>
+
+                    <div class="q-spec-two-col">
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label">NUMBER OF REPEATERS</div>
+                            <input type="number" class="q-number-input" id="rep-count" min="1" max="999" value="1" oninput="updateRep()">
+                            <div class="q-slider-hint" style="margin-top:8px">Each repeater covers ~7 km radius (line of sight).</div>
+                        </div>
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label">MOUNTING TYPE</div>
+                            <div class="q-toggle-group q-toggle-group--row" id="rep-mounting">
+                                <button class="q-toggle q-toggle--sm q-toggle--active" data-val="pole" onclick="setToggle('rep-mounting','pole',updateRep)">Pole</button>
+                                <button class="q-toggle q-toggle--sm" data-val="tree" onclick="setToggle('rep-mounting','tree',updateRep)">Tree</button>
+                                <button class="q-toggle q-toggle--sm" data-val="vehicle" onclick="setToggle('rep-mounting','vehicle',updateRep)">Vehicle</button>
+                            </div>
+                            <div class="q-mounting-desc" id="rep-mounting-desc">
+                                <b>Pole:</b> standalone solar pole, best for open terrain. <b>Tree:</b> strap-mounted, minimal footprint. <b>Vehicle:</b> mobile repeater for patrol vehicles.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="q-spec-section" style="margin-top:16px">
+                        <div class="q-spec-section-label">SPECIES / USE CASE</div>
+                        <input type="text" class="q-text-input" id="rep-species" placeholder="e.g. wildlife monitoring, livestock, anti-poaching…" oninput="updateRep()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── AI camera trap specs ─── -->
+            <div class="q-spec-panel" id="spec-camera" style="display:none">
+                <div class="q-spec-layout q-spec-layout--single">
+                    <h2 class="q-spec-title">Configure your AI camera traps</h2>
+
+                    <div class="q-spec-two-col">
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label">NUMBER OF CAMERAS</div>
+                            <input type="number" class="q-number-input" id="cam-count" min="1" max="999" value="1" oninput="updateCam()">
+                            <div class="q-slider-hint" style="margin-top:8px">Total camera traps for your deployment area.</div>
+                        </div>
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label">BATTERY LIFE TARGET</div>
+                            <div class="q-toggle-group q-toggle-group--row" id="cam-battery">
+                                <button class="q-toggle q-toggle--sm" data-val="3" onclick="setToggle('cam-battery','3',updateCam)">3 months</button>
+                                <button class="q-toggle q-toggle--sm q-toggle--active" data-val="6" onclick="setToggle('cam-battery','6',updateCam)">6 months</button>
+                                <button class="q-toggle q-toggle--sm" data-val="12" onclick="setToggle('cam-battery','12',updateCam)">12 months</button>
+                            </div>
+                            <div class="q-slider-hint" style="margin-top:8px">Determines battery pack size. 6–12 months is recommended for remote sites where access is difficult. Longer = heavier unit.</div>
+                        </div>
+                    </div>
+
+                    <div class="q-spec-two-col">
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label">NIGHT VISION MODE</div>
+                            <div class="q-toggle-group q-toggle-group--row" id="cam-nightvision">
+                                <button class="q-toggle q-toggle--sm" data-val="ir" onclick="setToggle('cam-nightvision','ir',updateCam)">IR only</button>
+                                <button class="q-toggle q-toggle--sm q-toggle--active" data-val="colour" onclick="setToggle('cam-nightvision','colour',updateCam)">Colour night</button>
+                            </div>
+                            <div class="q-mounting-desc"><b>IR only:</b> invisible flash, doesn't disturb animals. <b>Colour night:</b> higher detail with visible light flash.</div>
+                        </div>
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label">TRIGGER SENSITIVITY</div>
+                            <div class="q-toggle-group q-toggle-group--row" id="cam-trigger">
+                                <button class="q-toggle q-toggle--sm" data-val="low" onclick="setToggle('cam-trigger','low',updateCam)">Low</button>
+                                <button class="q-toggle q-toggle--sm q-toggle--active" data-val="medium" onclick="setToggle('cam-trigger','medium',updateCam)">Medium</button>
+                                <button class="q-toggle q-toggle--sm" data-val="high" onclick="setToggle('cam-trigger','high',updateCam)">High</button>
+                            </div>
+                            <div class="q-mounting-desc"><b>Low:</b> only large/close animals. <b>Medium:</b> balanced. <b>High:</b> small or distant animals, more false triggers.</div>
+                        </div>
+                    </div>
+
+                    <div class="q-spec-two-col">
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label">STORAGE TYPE</div>
+                            <div class="q-toggle-group q-toggle-group--row" id="cam-storage">
+                                <button class="q-toggle q-toggle--sm q-toggle--active" data-val="cloud" onclick="setToggle('cam-storage','cloud',updateCam)">SD + cloud sync</button>
+                                <button class="q-toggle q-toggle--sm" data-val="sd" onclick="setToggle('cam-storage','sd',updateCam)">SD card only</button>
+                            </div>
+                            <div class="q-mounting-desc"><b>SD + cloud:</b> images sent to your Custodia dashboard automatically. <b>SD only:</b> requires physical retrieval.</div>
+                        </div>
+                        <div class="q-spec-section">
+                            <div class="q-spec-section-label">IMAGE TRANSMISSION TO DASHBOARD</div>
+                            <div class="q-toggle-row">
+                                <div class="q-toggle-label">
+                                    <span class="q-toggle-name">Send images to dashboard</span>
+                                    <span class="q-toggle-desc">Requires at least one repeater in range.</span>
+                                </div>
+                                <label class="q-switch">
+                                    <input type="checkbox" id="cam-transmission" checked onchange="updateCam()">
+                                    <span class="q-switch-track"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="q-spec-section">
+                        <div class="q-spec-section-label">AI FEATURES</div>
+                        <div class="q-ai-feature">
+                            <div class="q-ai-info">
+                                <span class="q-ai-name">Species counting &amp; categorisation</span>
+                                <span class="q-ai-desc">AI identifies each individual animal in frame and labels them. Builds population counts over time.</span>
+                            </div>
+                            <label class="q-switch">
+                                <input type="checkbox" id="cam-ai-species" checked onchange="updateCam()">
+                                <span class="q-switch-track"></span>
+                            </label>
+                        </div>
+                        <div class="q-ai-feature">
+                            <div class="q-ai-info">
+                                <span class="q-ai-name">Human presence / intrusion alerts</span>
+                                <span class="q-ai-desc">Detects humans in frame and sends an immediate alert. Critical for anti-poaching and perimeter security.</span>
+                            </div>
+                            <label class="q-switch">
+                                <input type="checkbox" id="cam-ai-human" onchange="updateCam()">
+                                <span class="q-switch-track"></span>
+                            </label>
+                        </div>
+                        <div class="q-ai-feature">
+                            <div class="q-ai-info">
+                                <span class="q-ai-name">Tamper &amp; theft detection</span>
+                                <span class="q-ai-desc">Camera sends alert if physically moved or obstructed. Protects your hardware in unsupervised locations.</span>
+                            </div>
+                            <label class="q-switch">
+                                <input type="checkbox" id="cam-ai-tamper" checked onchange="updateCam()">
+                                <span class="q-switch-track"></span>
+                            </label>
+                        </div>
+                        <div class="q-ai-feature">
+                            <div class="q-ai-info">
+                                <span class="q-ai-name">Gunshot acoustic detection</span>
+                                <span class="q-ai-desc">Microphone detects gunshot sounds and immediately triggers an alert — a key anti-poaching early-warning tool.</span>
+                            </div>
+                            <label class="q-switch">
+                                <input type="checkbox" id="cam-ai-gunshot" onchange="updateCam()">
+                                <span class="q-switch-track"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="q-spec-section">
+                        <div class="q-spec-section-label">SPECIES</div>
+                        <input type="text" class="q-text-input" id="cam-species" placeholder="e.g. Arabian leopard, oryx, general wildlife…" oninput="updateCam()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="q-step-nav">
+                <button class="q-btn q-btn-secondary" onclick="goToStep(1)"><i class="fas fa-arrow-left"></i> Back</button>
+                <div class="q-spec-tab-nav" id="specTabNav"></div>
+                <button class="q-btn q-btn-primary" id="step2Next" onclick="nextSpecOrReview()">Review &amp; submit <i class="fas fa-arrow-right"></i></button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- STEP 3 — Review & Submit                                 -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="q-panel" id="step3" style="display:none">
+        <div class="q-panel-inner">
+            <h1 class="q-title">Review &amp; submit</h1>
+            <p class="q-subtitle">Check your configuration and fill in your contact details.</p>
+
+            <!-- Device summary cards -->
+            <div class="q-review-cards" id="reviewCards"></div>
+
+            <div class="q-dashboard-note" style="margin-bottom:28px">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard from <strong>$50/month</strong> — base plan includes 3 users &amp; 50 trackers. Additional users and trackers available at extra cost.</span>
+            </div>
+
+            <!-- Contact form -->
+            <div class="q-contact-section">
+                <h2 class="q-contact-title">Your contact details</h2>
+                <div class="q-form-row">
+                    <div class="q-form-group">
+                        <label>First name <span class="q-req">*</span></label>
+                        <input type="text" class="q-input" id="cf-first" placeholder="Julia" required>
+                    </div>
+                    <div class="q-form-group">
+                        <label>Last name <span class="q-req">*</span></label>
+                        <input type="text" class="q-input" id="cf-last" placeholder="Sergeeva" required>
+                    </div>
+                </div>
+                <div class="q-form-row">
+                    <div class="q-form-group">
+                        <label>Organisation <span class="q-req">*</span></label>
+                        <input type="text" class="q-input" id="cf-org" placeholder="Custodia" required>
+                    </div>
+                    <div class="q-form-group">
+                        <label>Email <span class="q-req">*</span></label>
+                        <input type="email" class="q-input" id="cf-email" placeholder="julia@custodia.world" required>
+                    </div>
+                </div>
+                <div class="q-form-row">
+                    <div class="q-form-group">
+                        <label>Country / region</label>
+                        <input type="text" class="q-input" id="cf-country" placeholder="Saudi Arabia">
+                    </div>
+                    <div class="q-form-group">
+                        <label>Deployment timeline</label>
+                        <select class="q-input q-select" id="cf-timeline">
+                            <option>As soon as possible</option>
+                            <option>1–3 months</option>
+                            <option>3–6 months</option>
+                            <option>6–12 months</option>
+                            <option>Exploring options</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="q-form-group">
+                    <label>Additional notes</label>
+                    <textarea class="q-input q-textarea" id="cf-notes" rows="4" placeholder="Tell us about your project, species, reserve size, or any special requirements…"></textarea>
+                </div>
+
+                <div id="submitError" class="q-form-error" style="display:none"></div>
+            </div>
+
+            <div class="q-step-nav">
+                <button class="q-btn q-btn-secondary" onclick="goToStep(2)"><i class="fas fa-arrow-left"></i> Back</button>
+                <button class="q-btn q-btn-primary" id="submitBtn" onclick="handleSubmit()">Submit quote request <i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- STEP 4 — Done                                            -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="q-panel" id="step4" style="display:none">
+        <div class="q-panel-inner q-panel-inner--centered">
+            <div class="q-done-icon"><i class="fas fa-check"></i></div>
+            <h1 class="q-done-title">Quote request submitted</h1>
+            <p class="q-done-subtitle">We'll send a personalised quote to your email within 24 hours.</p>
+            <button class="q-btn q-btn-secondary" onclick="resetQuote()">Start a new quote</button>
+        </div>
+    </section>
+
+</main>
+
+<script src="/frontend/pages/quote/quote.js"></script>
+</body>
+</html>

@@ -47,6 +47,7 @@ app.use(cors({
     credentials: true,
 }));
 app.use(express.json());
+app.use('/api/skylo/ingest', express.text({ type: '*/*' }));
 app.use(cookieParser());
 
 // Request logging middleware (for debugging)
@@ -439,6 +440,10 @@ app.use('/api/admin', adminRouter);
 app.use('/api/news', newsRouter);
 app.post('/api/locations', ingestLocations);
 
+// Skylo satellite HTTP ingestion endpoint
+const skyloIngest = require('./backend/app/handlers/skyloIngest');
+app.post('/api/skylo/ingest', skyloIngest);
+
 // Tracker management (requires auth; scoped to user's client)
 app.get('/api/trackers/:slug', requireAuth, async (req, res) => {
     try {
@@ -753,7 +758,6 @@ app.use((req, res) => {
 });
 
 // Start server
-require('./backend/app/handlers/skyloTCP');
 app.listen(PORT, () => {
     console.log(`\n🚀 Server is running on port ${PORT}`);
     console.log(`📄 Landing Page: http://localhost:${PORT}/`);

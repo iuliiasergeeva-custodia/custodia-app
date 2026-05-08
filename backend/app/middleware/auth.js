@@ -81,8 +81,10 @@ async function requireAuth(req, res, next) {
 }
 
 function sendUnauthorized(req, res) {
+    // Inside routers mounted under /api/..., req.path is only the suffix (often "/"), not "/api/...".
+    const isApi = (req.originalUrl || '').split('?')[0].startsWith('/api/');
     const wantsJson = req.headers.accept && req.headers.accept.includes('application/json');
-    if (wantsJson || req.path.startsWith('/api/')) {
+    if (wantsJson || isApi) {
         return res.status(401).json({ error: 'Unauthorized', message: 'Authentication required' });
     }
     return res.redirect(302, '/pages/auth/login?redirect=' + encodeURIComponent(req.originalUrl || '/pages/dashboard'));
