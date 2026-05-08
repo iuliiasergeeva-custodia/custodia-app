@@ -1845,8 +1845,9 @@ function isSameLocation(a, b) {
  * Select animal and focus on map
  * @param {string|number} animalId
  * @param {{ lat: number, lng: number }} [locationOptional] - when provided (e.g. from marker click), this location is highlighted; otherwise last location is used
+ * @param {{ panToLocation?: boolean }} [options] - if panToLocation is true, map pans/zooms to locationOptional (e.g. location log). Marker clicks omit this so the view stays put.
  */
-function selectAnimal(animalId, locationOptional) {
+function selectAnimal(animalId, locationOptional, options = {}) {
     // Support both string (from dataset) and number ids
     const animal = animals.find(a => a.id == animalId || String(a.id) === String(animalId));
     
@@ -1894,16 +1895,22 @@ function selectAnimal(animalId, locationOptional) {
     updateMap();
     updateStatistics();
     
-    // Only zoom/pan when selecting from the sidebar; keep current view when clicking a marker on the map
-    if (locationOptional == null && animal.locations && animal.locations.length > 0 && map) {
-        const sortedLocations = [...animal.locations].sort((a, b) => {
-            return new Date(a.timestamp) - new Date(b.timestamp);
-        });
-        const lastLocation = sortedLocations[sortedLocations.length - 1];
-        map.setView([lastLocation.lat, lastLocation.lng], 13, {
-            animate: true,
-            duration: 0.5
-        });
+    if (map && animal.locations && animal.locations.length > 0) {
+        let panTarget = null;
+        if (options.panToLocation && locationOptional && typeof locationOptional.lat === 'number' && typeof locationOptional.lng === 'number') {
+            panTarget = locationOptional;
+        } else if (locationOptional == null) {
+            const sortedLocations = [...animal.locations].sort((a, b) => {
+                return new Date(a.timestamp) - new Date(b.timestamp);
+            });
+            panTarget = sortedLocations[sortedLocations.length - 1];
+        }
+        if (panTarget) {
+            map.setView([panTarget.lat, panTarget.lng], 13, {
+                animate: true,
+                duration: 0.5
+            });
+        }
     }
     
     renderAnimalList();
@@ -3746,7 +3753,7 @@ function initDetailCardTabs() {
                 const loc = _detailLocSorted[n - 1];
                 _detailLocCurrentIdx = n - 1;
                 const a = animals.find(x => String(x.id) === String(detailCardAnimalId));
-                if (a && loc) selectAnimal(a.id, loc);
+                if (a && loc) selectAnimal(a.id, loc, { panToLocation: true });
             }
             e.target.value = '';
         }
@@ -3758,7 +3765,7 @@ function navigateDetailLoc(delta) {
     if (newIdx === _detailLocCurrentIdx) return;
     const loc = _detailLocSorted[newIdx];
     const a = animals.find(x => String(x.id) === String(detailCardAnimalId));
-    if (a && loc) { _detailLocCurrentIdx = newIdx; selectAnimal(a.id, loc); }
+    if (a && loc) { _detailLocCurrentIdx = newIdx; selectAnimal(a.id, loc, { panToLocation: true }); }
 }
 
 // ── Activity bar chart ──────────────────────────────────────────────────────
@@ -3855,7 +3862,7 @@ function renderDetailLocationsTab(animal, sortedDesc, currentIdx) {
             if (e.target.closest('.tdc-loc-delete-btn')) return;
             _detailLocCurrentIdx = idx;
             const a = animals.find(x => String(x.id) === String(detailCardAnimalId));
-            if (a) selectAnimal(a.id, loc);
+            if (a) selectAnimal(a.id, loc, { panToLocation: true });
         });
 
         if (isAdmin && loc.id) {

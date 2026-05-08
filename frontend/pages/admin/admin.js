@@ -23,6 +23,21 @@ const TABLE_COLORS = {
     repeaters: '#f97316',
 };
 
+/** Seconds from fix `timestamp` to DB `created_at` (positive ≈ ingest delay; negative if stored before fix time). */
+function formatLatencySeconds(sec) {
+    if (sec === null || sec === undefined || sec === '') return '—';
+    const n = Number(sec);
+    if (!Number.isFinite(n)) return String(sec);
+    const neg = n < 0;
+    const abs = Math.abs(n);
+    let body;
+    if (abs < 60) body = `${abs.toFixed(1)} s`;
+    else if (abs < 3600) body = `${(abs / 60).toFixed(1)} min`;
+    else if (abs < 86400) body = `${(abs / 3600).toFixed(1)} h`;
+    else body = `${(abs / 86400).toFixed(1)} d`;
+    return (neg ? '-' : '') + body;
+}
+
 // Writable field config per table (for modal form generation)
 const TABLE_FIELDS = {
     clients:   ['name', 'slug'],
@@ -468,6 +483,10 @@ function renderTable(table, cfg) {
             if (col === 'timestamp' || col === 'created_at' || col === 'last_seen') {
                 const d = new Date(val);
                 const formatted = isNaN(d) ? val : d.toISOString().replace('T', ' ').slice(0, 16);
+                return `<td title="${escHtml(String(val))}">${escHtml(formatted)}</td>`;
+            }
+            if (col === 'latency') {
+                const formatted = formatLatencySeconds(val);
                 return `<td title="${escHtml(String(val))}">${escHtml(formatted)}</td>`;
             }
             return `<td title="${escHtml(String(val))}">${escHtml(String(val))}</td>`;
