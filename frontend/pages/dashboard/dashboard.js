@@ -1040,7 +1040,13 @@ function formatTimezoneLabel(timezone) {
         }).formatToParts(new Date());
         const offsetPart = parts.find(p => p.type === 'timeZoneName');
         const offset = offsetPart ? offsetPart.value : '';
-        return `${timezone.replace(/_/g, ' ')} (${offset})`;
+
+        if (timezone === 'UTC') return 'UTC';
+        // Etc/GMT zones aren't real place names; just show the offset.
+        if (timezone.startsWith('Etc/GMT')) return offset || timezone;
+
+        const city = timezone.split('/').pop().replace(/_/g, ' ');
+        return offset ? `${city} (${offset})` : city;
     } catch (e) {
         return timezone;
     }
@@ -1075,7 +1081,7 @@ function refreshTimezoneSelectorUI() {
     const zones = new Set(COMMON_TIMEZONES);
     zones.add(autoDetectedTimezone);
 
-    const options = [`<option value="auto">Auto (${formatTimezoneLabel(autoDetectedTimezone)})</option>`];
+    const options = [`<option value="auto">Auto · ${formatTimezoneLabel(autoDetectedTimezone)}</option>`];
     Array.from(zones).sort().forEach(tz => {
         options.push(`<option value="${escapeHtml(tz)}">${escapeHtml(formatTimezoneLabel(tz))}</option>`);
     });

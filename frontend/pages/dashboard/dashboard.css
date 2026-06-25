@@ -1203,19 +1203,82 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .timezone-select-wrap {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 6px;
-    color: rgba(255, 255, 255, 0.7);
+    height: 34px;
+    padding: 0 28px 0 10px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.75);
+    margin-right: 8px;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.timezone-select-wrap:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.timezone-select-wrap:focus-within {
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.timezone-select-icon {
+    font-size: 0.8rem;
+    flex-shrink: 0;
+}
+
+.timezone-select-chevron {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.65rem;
+    pointer-events: none;
+    opacity: 0.6;
 }
 
 .timezone-select {
-    width: auto;
-    max-width: 200px;
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    max-width: 130px;
+    padding: 0;
+    text-overflow: ellipsis;
+}
+
+.timezone-select:focus {
+    outline: none;
+}
+
+.timezone-select option {
+    background: #1e2229;
+    color: #f1f5f9;
 }
 
 [data-theme="light"] .timezone-select-wrap {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.12);
     color: #475569;
+}
+
+[data-theme="light"] .timezone-select-wrap:hover {
+    background: rgba(0, 0, 0, 0.09);
+    color: #1e293b;
+}
+
+[data-theme="light"] .timezone-select option {
+    background: #fff;
+    color: #1e293b;
 }
 
 /* Repeater coverage: toggle aligned with other filter inputs */
