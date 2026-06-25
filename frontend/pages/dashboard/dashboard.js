@@ -1093,6 +1093,21 @@ function refreshTimezoneSelectorUI() {
  * Handle user selecting a timezone from the dropdown: persist the choice
  * and re-render every part of the dashboard that displays timestamps.
  */
+/**
+ * Re-detect the auto timezone from a specific animal's most recent location
+ * (or from all locations when animal is null, e.g. on deselect).
+ * No-ops if the user has explicitly overridden the timezone.
+ */
+function applyAutoTimezoneForSelection(animal) {
+    if (userTimezoneOverride) return;
+
+    autoDetectedTimezone = (animal && animal.locations && animal.locations.length > 0)
+        ? getTimezoneForLocations(animal.locations)
+        : getTimezoneForLocations(locations);
+    detectedTimezone = autoDetectedTimezone;
+    refreshTimezoneSelectorUI();
+}
+
 function handleTimezoneChange(event) {
     const value = event.target.value;
     userTimezoneOverride = value === 'auto' ? null : value;
@@ -2006,6 +2021,9 @@ function selectAnimal(animalId, locationOptional, options = {}) {
         selectedLocation = null;
     }
     
+    // Auto-detect timezone from this tracker's most recent location (unless overridden)
+    applyAutoTimezoneForSelection(animal);
+
     // Show detail card immediately so it's visible even if later steps throw
     updateTrackerDetailCard(animal);
     
@@ -2909,7 +2927,9 @@ function initModalEventListeners() {
             hideTrackerDetailCard();
             selectedAnimalId = null;
             selectedLocation = null;
+            applyAutoTimezoneForSelection(null);
             updateMap();
+            updateStatistics();
             renderAnimalList();
         });
     }

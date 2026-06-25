@@ -1207,13 +1207,13 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
     display: flex;
     align-items: center;
     gap: 6px;
-    height: 34px;
-    padding: 0 28px 0 10px;
-    background: rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+    margin-left: auto;
+    padding: 5px 26px 5px 10px;
+    background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 8px;
-    color: rgba(255, 255, 255, 0.75);
-    margin-right: 8px;
+    color: rgba(255, 255, 255, 0.7);
     transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 
