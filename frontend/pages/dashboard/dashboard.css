@@ -1202,6 +1202,22 @@ input.filter-select[type="date"]::-webkit-calendar-picker-indicator:hover {
     outline: none;
 }
 
+.timezone-select-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.timezone-select {
+    width: auto;
+    max-width: 200px;
+}
+
+[data-theme="light"] .timezone-select-wrap {
+    color: #475569;
+}
+
 /* Repeater coverage: toggle aligned with other filter inputs */
 .filters-horizontal-row .filter-field-toggle {
     min-width: 0;

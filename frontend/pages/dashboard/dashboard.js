@@ -19,7 +19,10 @@ let selectedAnimalId = null;
 let selectedLocation = null; // { lat, lng } or null
 let animalColors = {}; // Store color assignments for each animal
 let animalLabelsVisible = {}; // Track which animals have labels visible
-let detectedTimezone = 'UTC'; // Detected timezone based on location coordinates
+let detectedTimezone = 'UTC'; // Timezone actually used for display (auto-detected or user-selected)
+let autoDetectedTimezone = 'UTC'; // Timezone auto-detected from the most recent location's coordinates
+let userTimezoneOverride = null; // IANA timezone the user explicitly selected, or null for "auto"
+const TIMEZONE_OVERRIDE_STORAGE_KEY = 'custodia_timezone_override';
 let totalDbLocationCount = null; // Total unfiltered location count from database
 let allSelectedTrackerIds = new Set(); // When sidebar tracker filter is removed, all trackers are selected
 
@@ -623,6 +626,7 @@ function initDashboard() {
     initMobileSidebarToggle();
     initTrackerMultiselect();
     initSidebarQuickFilters();
+    initTimezoneSelector();
     loadMockData();
 }
 
@@ -896,15 +900,20 @@ function formatDistance(km) {
  * Returns IANA timezone identifier (e.g., 'Asia/Riyadh' for Saudi Arabia)
  */
 function detectTimezoneFromCoordinates(lat, lng) {
+    // Known regions get a named IANA zone (handles DST correctly where relevant)
     // Saudi Arabia region: approximately 16-32°N, 34-55°E
-    // Riyadh is approximately 24.7136°N, 46.6753°E
     if (lat >= 16 && lat <= 32 && lng >= 34 && lng <= 55) {
         return 'Asia/Riyadh'; // KSA timezone (UTC+3)
     }
-    
-    // Default to UTC if we can't determine
-    // In the future, this could be expanded with more regions or use a timezone lookup library
-    return 'UTC';
+
+    if (isNaN(lat) || isNaN(lng)) return 'UTC';
+
+    // Fallback: estimate a fixed-offset zone from longitude (15° per hour).
+    // Not DST-aware, but gives a real, valid IANA identifier for any location.
+    const offsetHours = Math.max(-12, Math.min(14, Math.round(lng / 15)));
+    if (offsetHours === 0) return 'UTC';
+    // IANA Etc/GMT zones use inverted sign: Etc/GMT-3 === UTC+3
+    return `Etc/GMT${offsetHours > 0 ? '-' + offsetHours : '+' + (-offsetHours)}`;
 }
 
 /**
@@ -929,23 +938,32 @@ function getAverageCenterFromLocations(locations) {
 
 /**
  * Get timezone for locations (detected from coordinates)
- * If multiple locations exist, uses the first valid location's coordinates
+ * Uses the most recent (last) location's coordinates, so the default timezone
+ * reflects where the tracked animal/asset currently is.
  */
 function getTimezoneForLocations(locations) {
     if (!locations || locations.length === 0) {
         return 'UTC';
     }
-    
-    // Find first valid location with coordinates
+
+    let latest = null;
+    let latestTime = -Infinity;
+
     for (const location of locations) {
-        const lat = location.lat;
-        const lng = location.lng || location.lon;
-        if (!isNaN(lat) && !isNaN(lng)) {
-            return detectTimezoneFromCoordinates(lat, lng);
+        const lat = parseFloat(location.latitude || location.lat);
+        const lng = parseFloat(location.longitude || location.lng || location.lon);
+        if (isNaN(lat) || isNaN(lng)) continue;
+
+        const t = new Date(location.timestamp || location.time).getTime();
+        const time = isNaN(t) ? 0 : t;
+        if (time >= latestTime) {
+            latestTime = time;
+            latest = { lat, lng };
         }
     }
-    
-    return 'UTC';
+
+    if (!latest) return 'UTC';
+    return detectTimezoneFromCoordinates(latest.lat, latest.lng);
 }
 
 /**
@@ -988,8 +1006,110 @@ function formatDateInTimezone(date, timezone, options = {}) {
     };
     
     const formatOptions = { ...defaultOptions, ...options };
-    
+
     return dateObj.toLocaleString('en-US', formatOptions);
+}
+
+/**
+ * Common IANA timezones offered in the timezone dropdown, grouped roughly by region.
+ * The auto-detected timezone (from the latest location) is always added if missing.
+ */
+const COMMON_TIMEZONES = [
+    'UTC',
+    'Asia/Riyadh', 'Asia/Dubai', 'Asia/Qatar', 'Asia/Kuwait', 'Asia/Baghdad',
+    'Asia/Jerusalem', 'Asia/Istanbul', 'Asia/Karachi', 'Asia/Kolkata', 'Asia/Dhaka',
+    'Asia/Bangkok', 'Asia/Jakarta', 'Asia/Singapore', 'Asia/Hong_Kong', 'Asia/Shanghai',
+    'Asia/Tokyo', 'Asia/Seoul',
+    'Europe/London', 'Europe/Lisbon', 'Europe/Paris', 'Europe/Berlin', 'Europe/Madrid',
+    'Europe/Rome', 'Europe/Athens', 'Europe/Moscow',
+    'Africa/Cairo', 'Africa/Nairobi', 'Africa/Lagos', 'Africa/Johannesburg',
+    'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+    'America/Sao_Paulo', 'America/Mexico_City',
+    'Australia/Sydney', 'Australia/Perth',
+    'Pacific/Auckland'
+];
+
+/**
+ * Human-friendly label for a timezone (shows current UTC offset)
+ */
+function formatTimezoneLabel(timezone) {
+    try {
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone,
+            timeZoneName: 'shortOffset'
+        }).formatToParts(new Date());
+        const offsetPart = parts.find(p => p.type === 'timeZoneName');
+        const offset = offsetPart ? offsetPart.value : '';
+        return `${timezone.replace(/_/g, ' ')} (${offset})`;
+    } catch (e) {
+        return timezone;
+    }
+}
+
+/**
+ * Populate the timezone dropdown with common zones plus the auto-detected one.
+ * Selection priority: stored user override > auto-detected timezone > UTC.
+ */
+function initTimezoneSelector() {
+    const select = document.getElementById('timezoneSelect');
+    if (!select) return;
+
+    try {
+        userTimezoneOverride = localStorage.getItem(TIMEZONE_OVERRIDE_STORAGE_KEY) || null;
+    } catch (e) {
+        userTimezoneOverride = null;
+    }
+
+    select.addEventListener('change', handleTimezoneChange);
+    refreshTimezoneSelectorUI();
+}
+
+/**
+ * Rebuild the dropdown options (so the auto-detected zone is always listed)
+ * and sync the selected value with the active timezone state.
+ */
+function refreshTimezoneSelectorUI() {
+    const select = document.getElementById('timezoneSelect');
+    if (!select) return;
+
+    const zones = new Set(COMMON_TIMEZONES);
+    zones.add(autoDetectedTimezone);
+
+    const options = [`<option value="auto">Auto (${formatTimezoneLabel(autoDetectedTimezone)})</option>`];
+    Array.from(zones).sort().forEach(tz => {
+        options.push(`<option value="${escapeHtml(tz)}">${escapeHtml(formatTimezoneLabel(tz))}</option>`);
+    });
+    select.innerHTML = options.join('');
+    select.value = userTimezoneOverride || 'auto';
+}
+
+/**
+ * Handle user selecting a timezone from the dropdown: persist the choice
+ * and re-render every part of the dashboard that displays timestamps.
+ */
+function handleTimezoneChange(event) {
+    const value = event.target.value;
+    userTimezoneOverride = value === 'auto' ? null : value;
+
+    try {
+        if (userTimezoneOverride) {
+            localStorage.setItem(TIMEZONE_OVERRIDE_STORAGE_KEY, userTimezoneOverride);
+        } else {
+            localStorage.removeItem(TIMEZONE_OVERRIDE_STORAGE_KEY);
+        }
+    } catch (e) {
+        // localStorage unavailable; selection still applies for this session
+    }
+
+    detectedTimezone = userTimezoneOverride || autoDetectedTimezone;
+
+    updateMap();
+    updateStatistics();
+    renderAnimalList();
+    if (selectedAnimalId) {
+        const animal = animals.find(a => a.id === selectedAnimalId);
+        if (animal) updateTrackerDetailCard(animal);
+    }
 }
 
 /**
@@ -1175,9 +1295,11 @@ function filterIsolatedLocationsForTracker(trackerLocations, trackerId) {
  * Process locations to create animals list
  */
 function processLocations(locations) {
-    // Detect timezone from first valid location coordinates
-    detectedTimezone = getTimezoneForLocations(locations);
-    console.log('[processLocations] Detected timezone:', detectedTimezone);
+    // Detect timezone from the most recent location's coordinates
+    autoDetectedTimezone = getTimezoneForLocations(locations);
+    detectedTimezone = userTimezoneOverride || autoDetectedTimezone;
+    console.log('[processLocations] Auto-detected timezone:', autoDetectedTimezone, '| Active timezone:', detectedTimezone);
+    refreshTimezoneSelectorUI();
     
     // Group locations by tracker ID
     const animalMap = new Map();
