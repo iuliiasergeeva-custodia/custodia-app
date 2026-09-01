@@ -1,4 +1,5 @@
 const express = require('express');
+const compression = require('compression');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -29,6 +30,9 @@ const myriotaWebhook = require('./backend/app/handlers/myriotaWebhook');
 const app = express();
 // Use PORT from environment, or default to 3000 for local development
 const PORT = process.env.PORT || 3000;
+
+// Compress all responses (CSV/JSON payloads shrink ~75-85%)
+app.use(compression());
 
 // Security headers
 app.use(helmet({ contentSecurityPolicy: false }));
