@@ -667,11 +667,10 @@ function initMap() {
             positron: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
             osm: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
         };
-        const mapTileUrl = MAP_TILE_OPTIONS.voyagerNoLabels; // clearer contrast than Positron
+        const mapTileUrl = MAP_TILE_OPTIONS.osm; // CARTO basemaps now require an API key; plain OSM needs none
         L.tileLayer(mapTileUrl, {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 20
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
         }).addTo(map);
         
         console.log('Map initialized successfully');
