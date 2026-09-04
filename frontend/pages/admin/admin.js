@@ -42,7 +42,7 @@ function formatLatencySeconds(sec) {
 const TABLE_FIELDS = {
     clients:   ['name', 'slug'],
     users:     ['client_id', 'name', 'email', 'role', 'password'],
-    trackers:  ['client_id', 'slug', 'animal_type', 'animal_name', 'family',
+    trackers:  ['client_id', 'device_id', 'slug', 'animal_type', 'animal_name', 'family',
                 'expected_battery_life', 'frequency_acquisition', 'frequency_sending',
                 'last_seen', 'last_battery_voltage', 'initial_battery_voltage'],
     locations: ['tracker_id', 'repeater_id', 'longitude', 'latitude', 'timestamp',

@@ -38,13 +38,6 @@ function normalizeNumber(value) {
     return Number.isFinite(num) ? num : null;
 }
 
-function normalizeTrackerSlug(slug) {
-    if (typeof slug !== 'string') {
-        return null;
-    }
-    return slug.trim();
-}
-
 async function getDefaultClientId(client) {
     const preferred = await client.query(
         `SELECT id FROM clients WHERE slug = $1 LIMIT 1`,
@@ -71,16 +64,14 @@ async function getDefaultClientId(client) {
     return inserted.rows[0].id;
 }
 
-async function findOrCreateTracker(client, trackerSlug, packetTimestamp, batteryVoltage) {
-    const normalized = normalizeTrackerSlug(trackerSlug);
-    if (!normalized) {
-        throw new Error('Invalid tracker ID');
+async function findOrCreateTracker(client, deviceId, packetTimestamp, batteryVoltage) {
+    if (!Number.isFinite(deviceId)) {
+        throw new Error('Invalid tracker device_id');
     }
 
-    const altSlug = normalized.toLowerCase();
     const result = await client.query(
-        `SELECT id, slug, client_id, initial_battery_voltage FROM trackers WHERE slug = $1 OR slug = $2 LIMIT 1`,
-        [normalized, altSlug]
+        `SELECT id, slug, client_id, initial_battery_voltage FROM trackers WHERE device_id = $1 LIMIT 1`,
+        [deviceId]
     );
 
     if (result.rowCount > 0) {
@@ -105,12 +96,13 @@ async function findOrCreateTracker(client, trackerSlug, packetTimestamp, battery
     }
 
     const defaultClientId = await getDefaultClientId(client);
+    const slug = `lora_${deviceId}`;
 
     const insertResult = await client.query(
-        `INSERT INTO trackers (client_id, slug, last_seen, last_battery_voltage, initial_battery_voltage)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO trackers (client_id, device_id, slug, last_seen, last_battery_voltage, initial_battery_voltage)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id, slug`,
-        [defaultClientId, normalized, packetTimestamp, batteryVoltage, batteryVoltage]
+        [defaultClientId, deviceId, slug, packetTimestamp, batteryVoltage, batteryVoltage]
     );
 
     return {
@@ -134,12 +126,10 @@ function normalizePackets(payload, errors) {
             packetErrors.push(`packets[${index}] must be an object`);
         }
 
-        const deviceId = packet.device_id;
-        if (deviceId === undefined || deviceId === null || Number.isNaN(Number(deviceId))) {
+        const deviceId = Number(packet.device_id);
+        if (packet.device_id === undefined || packet.device_id === null || Number.isNaN(deviceId)) {
             packetErrors.push(`packets[${index}].device_id is required and must be numeric`);
         }
-
-        const trackerSlug = String(Number(deviceId) - 1000).padStart(3, '0');
 
         const timestamp = normalizeTimestamp(packet.timestamp !== undefined ? Number(packet.timestamp) * 1000 : null);
         if (!timestamp) {
@@ -169,7 +159,7 @@ function normalizePackets(payload, errors) {
         }
 
         return {
-            tracker_id: trackerSlug,
+            device_id: deviceId,
             timestamp_utc: timestamp,
             latitude,
             longitude,
@@ -284,7 +274,7 @@ module.exports = async function ingestLocations(req, res) {
             for (const packet of packets) {
                 const trackerInfo = await findOrCreateTracker(
                     client,
-                    packet.tracker_id,
+                    packet.device_id,
                     packet.timestamp_utc,
                     packet.battery_voltage
                 );
@@ -346,7 +336,9 @@ module.exports = async function ingestLocations(req, res) {
             await client.query('COMMIT');
 
             // Check coverage for inserted locations; send email alert if any are in border zone (6.5–7 km) or out of coverage (> 7 km)
-            if (insertedLocations.length > 0) {
+            // TEMPORARILY DISABLED while testing new trackers — flip back to true to re-enable.
+            const COVERAGE_ALERTS_ENABLED = false;
+            if (COVERAGE_ALERTS_ENABLED && insertedLocations.length > 0) {
                 try {
                     const repeaterRows = await client.query(
                         `SELECT repeater_id, latitude, longitude FROM repeaters WHERE latitude IS NOT NULL AND longitude IS NOT NULL`
