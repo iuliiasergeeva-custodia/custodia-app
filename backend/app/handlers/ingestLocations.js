@@ -70,7 +70,7 @@ async function findOrCreateTracker(client, deviceId, packetTimestamp, batteryVol
     }
 
     const result = await client.query(
-        `SELECT id, slug, client_id, initial_battery_voltage FROM trackers WHERE device_id = $1 LIMIT 1`,
+        `SELECT id, slug, client_id, initial_battery_voltage FROM trackers WHERE device_id = $1 AND type = 'lora' LIMIT 1`,
         [deviceId]
     );
 
@@ -99,8 +99,8 @@ async function findOrCreateTracker(client, deviceId, packetTimestamp, batteryVol
     const slug = `lora_${deviceId}`;
 
     const insertResult = await client.query(
-        `INSERT INTO trackers (client_id, device_id, slug, last_seen, last_battery_voltage, initial_battery_voltage)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO trackers (client_id, device_id, type, slug, last_seen, last_battery_voltage, initial_battery_voltage)
+         VALUES ($1, $2, 'lora', $3, $4, $5, $6)
          RETURNING id, slug`,
         [defaultClientId, deviceId, slug, packetTimestamp, batteryVoltage, batteryVoltage]
     );

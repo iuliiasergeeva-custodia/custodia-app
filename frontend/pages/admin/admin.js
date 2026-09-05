@@ -47,7 +47,7 @@ const TABLE_FIELDS = {
                 'last_seen', 'last_battery_voltage', 'initial_battery_voltage'],
     locations: ['tracker_id', 'repeater_id', 'longitude', 'latitude', 'timestamp',
                 'battery_voltage', 'fix_number'],
-    repeaters: ['repeater_id', 'last_seen'],
+    repeaters: ['repeater_id', 'client_id', 'latitude', 'longitude', 'last_seen'],
 };
 
 // Fields rendered as <select>

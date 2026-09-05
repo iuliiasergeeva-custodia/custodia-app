@@ -50,20 +50,45 @@ function parseHexPayload(raw) {
     return records;
 }
 
+async function getDefaultClientId() {
+    const preferred = await db.query(
+        `SELECT id FROM clients WHERE slug = $1 LIMIT 1`,
+        ['custodia']
+    );
+    if (preferred.rows.length > 0) return preferred.rows[0].id;
+
+    const anyClient = await db.query(`SELECT id FROM clients ORDER BY id LIMIT 1`);
+    if (anyClient.rows.length > 0) return anyClient.rows[0].id;
+
+    const inserted = await db.query(
+        `INSERT INTO clients (name, slug)
+         VALUES ($1, $2)
+         ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
+         RETURNING id`,
+        ['Default Client', 'default-client']
+    );
+    return inserted.rows[0].id;
+}
+
 async function getOrCreateTracker(device_id) {
     const existing = await db.query(
-        'SELECT id FROM trackers WHERE device_id = $1',
+        `SELECT id FROM trackers WHERE device_id = $1 AND type = 'skylo'`,
         [device_id]
     );
     if (existing.rows.length > 0) return existing.rows[0].id;
 
+    const clientId = await getDefaultClientId();
     const slug = `skylo_${device_id}`;
+    // Conflict target is (device_id, type) — the columns uniqueness is scoped
+    // to, and the ones a concurrent insert for the same device could race on.
+    // Conflicting on slug instead would silently repoint an unrelated
+    // existing tracker's device_id to this packet's device_id.
     const inserted = await db.query(
-        `INSERT INTO trackers (client_id, device_id, slug, created_at)
-         VALUES (1, $1, $2, NOW())
-         ON CONFLICT (slug) DO UPDATE SET device_id = EXCLUDED.device_id
+        `INSERT INTO trackers (client_id, device_id, type, slug, created_at)
+         VALUES ($1, $2, 'skylo', $3, NOW())
+         ON CONFLICT (device_id, type) DO UPDATE SET device_id = EXCLUDED.device_id
          RETURNING id`,
-        [device_id, slug]
+        [clientId, device_id, slug]
     );
     console.log(`🆕 [Skylo] Auto-created tracker: slug=${slug}, device_id=${device_id}`);
     return inserted.rows[0].id;

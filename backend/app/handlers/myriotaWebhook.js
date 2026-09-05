@@ -88,16 +88,18 @@ async function myriotaWebhook(req, res) {
 
                 let trackerId = trackerCache.get(deviceId);
                 if (!trackerId) {
-                    // Step 1: tracker lookup / creation by device_id
+                    // Step 1: tracker lookup / creation by device_id (scoped to
+                    // type='myriota' — device_id alone is not globally unique
+                    // across ingestion sources)
                     const existing = await db.query(
-                        'SELECT id FROM trackers WHERE device_id = $1',
+                        `SELECT id FROM trackers WHERE device_id = $1 AND type = 'myriota'`,
                         [deviceId]
                     );
                     if (existing.rows.length > 0) {
                         trackerId = existing.rows[0].id;
                         await db.query(
-                            'UPDATE trackers SET updated_at = NOW(), last_seen = $2, last_battery_voltage = $3 WHERE device_id = $1',
-                            [deviceId, timestamp, batteryVoltage]
+                            'UPDATE trackers SET updated_at = NOW(), last_seen = $2, last_battery_voltage = $3 WHERE id = $1',
+                            [trackerId, timestamp, batteryVoltage]
                         );
                     } else {
                         // Determine client_id for new trackers (similar to sign‑up logic)
@@ -120,8 +122,8 @@ async function myriotaWebhook(req, res) {
 
                         const slug = `myriota_${deviceId}`;
                         const insertedTracker = await db.query(
-                            `INSERT INTO trackers (client_id, device_id, slug, updated_at, last_seen, last_battery_voltage, initial_battery_voltage)
-                             VALUES ($1, $2, $3, NOW(), $4, $5, $5)
+                            `INSERT INTO trackers (client_id, device_id, type, slug, updated_at, last_seen, last_battery_voltage, initial_battery_voltage)
+                             VALUES ($1, $2, 'myriota', $3, NOW(), $4, $5, $5)
                              RETURNING id`,
                             [clientId, deviceId, slug, timestamp, batteryVoltage]
                         );
@@ -130,8 +132,8 @@ async function myriotaWebhook(req, res) {
                     trackerCache.set(deviceId, trackerId);
                 } else {
                     await db.query(
-                        'UPDATE trackers SET updated_at = NOW(), last_seen = $2, last_battery_voltage = $3 WHERE device_id = $1',
-                        [deviceId, timestamp, batteryVoltage]
+                        'UPDATE trackers SET updated_at = NOW(), last_seen = $2, last_battery_voltage = $3 WHERE id = $1',
+                        [trackerId, timestamp, batteryVoltage]
                     );
                 }
 

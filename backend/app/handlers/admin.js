@@ -54,13 +54,16 @@ const TABLE_CONFIG = {
         primaryKey: 'id',
         table: 'trackers',
         from:   'trackers t LEFT JOIN clients c ON t.client_id = c.id',
-        select: 't.id, c.slug AS client_slug, t.device_id, t.slug, t.animal_type, t.animal_name, t.family, t.last_seen, t.last_battery_voltage, t.created_at',
-        columns: ['id', 'client_slug', 'device_id', 'slug', 'animal_type', 'animal_name', 'family', 'last_seen', 'last_battery_voltage', 'created_at'],
+        select: 't.id, c.slug AS client_slug, t.device_id, t.type, t.slug, t.animal_type, t.animal_name, t.family, t.last_seen, t.last_battery_voltage, t.created_at',
+        columns: ['id', 'client_slug', 'device_id', 'type', 'slug', 'animal_type', 'animal_name', 'family', 'last_seen', 'last_battery_voltage', 'created_at'],
         sortMap: {
-            id: 't.id', client_slug: 'c.slug', device_id: 't.device_id', slug: 't.slug', animal_type: 't.animal_type',
+            id: 't.id', client_slug: 'c.slug', device_id: 't.device_id', type: 't.type', slug: 't.slug', animal_type: 't.animal_type',
             animal_name: 't.animal_name', family: 't.family', last_seen: 't.last_seen',
             last_battery_voltage: 't.last_battery_voltage', created_at: 't.created_at',
         },
+        // Note: `type` (ingestion source) is intentionally not writable — it's
+        // assigned once at creation from the API that ingested the tracker,
+        // same as device_id and id, and should never be hand-edited.
         writable: [
             'client_id', 'device_id', 'slug', 'animal_type', 'animal_name', 'family',
             'expected_battery_life', 'frequency_acquisition', 'frequency_sending',

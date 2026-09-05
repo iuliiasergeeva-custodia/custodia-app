@@ -31,7 +31,8 @@ CREATE TABLE users (
 CREATE TABLE trackers (
     id SERIAL PRIMARY KEY,
     client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
-    device_id INTEGER UNIQUE,
+    device_id INTEGER,
+    type VARCHAR(20), -- ingestion source: 'lora' | 'myriota' | 'skylo'; set once at creation, never changed
     slug VARCHAR(50) UNIQUE NOT NULL,
     animal_type VARCHAR(50),
     animal_name VARCHAR(100),
@@ -43,7 +44,8 @@ CREATE TABLE trackers (
     updated_at TIMESTAMP,
     last_battery_voltage DECIMAL(5,2),
     initial_battery_voltage DECIMAL(5,2),
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW(),
+    CONSTRAINT trackers_device_id_type_key UNIQUE (device_id, type)
 );
 
 -- ==============================

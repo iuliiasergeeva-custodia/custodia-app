@@ -516,6 +516,7 @@ app.get('/api/locations', requireAuth, async (req, res) => {
                 SELECT
                     l.id as location_id,
                     t.slug as tracker_id,
+                    t.type as tracker_type,
                     c.slug as client_slug,
                     t.animal_type,
                     t.animal_name,
@@ -537,6 +538,7 @@ app.get('/api/locations', requireAuth, async (req, res) => {
                 SELECT
                     l.id as location_id,
                     t.slug as tracker_id,
+                    t.type as tracker_type,
                     c.slug as client_slug,
                     t.animal_type,
                     t.animal_name,
@@ -561,7 +563,7 @@ app.get('/api/locations', requireAuth, async (req, res) => {
         // If no data, return empty CSV with header
         if (result.rows.length === 0) {
             console.warn('⚠️  [DATABASE] No locations found in database. Database may need to be seeded.');
-            const csvHeader = 'location_id,tracker_id,client_slug,animal_type,animal_name,family,initial_battery_voltage,latitude,longitude,timestamp,battery_voltage,fix_number\n';
+            const csvHeader = 'location_id,tracker_id,tracker_type,client_slug,animal_type,animal_name,family,initial_battery_voltage,latitude,longitude,timestamp,battery_voltage,fix_number\n';
             res.setHeader('Content-Type', 'text/csv');
             res.setHeader('X-Data-Source', 'database');
             res.setHeader('X-Location-Count', '0');
@@ -570,7 +572,7 @@ app.get('/api/locations', requireAuth, async (req, res) => {
         }
 
         // Convert to CSV format
-        const csvHeader = 'location_id,tracker_id,client_slug,animal_type,animal_name,family,initial_battery_voltage,latitude,longitude,timestamp,battery_voltage,fix_number\n';
+        const csvHeader = 'location_id,tracker_id,tracker_type,client_slug,animal_type,animal_name,family,initial_battery_voltage,latitude,longitude,timestamp,battery_voltage,fix_number\n';
         const csvRows = result.rows.map(row => {
             const timestamp = new Date(row.timestamp).toISOString();
             const rowClientSlug = row.client_slug || 'unknown';
@@ -578,7 +580,7 @@ app.get('/api/locations', requireAuth, async (req, res) => {
             const animalName = row.animal_name || '';
             const family = row.family || '';
             const initialBatteryVoltage = row.initial_battery_voltage || '';
-            return `${row.location_id},${row.tracker_id},${rowClientSlug},${animalType},${animalName},${family},${initialBatteryVoltage},${row.latitude},${row.longitude},${timestamp},${row.battery_voltage || ''},${row.fix_number || ''}`;
+            return `${row.location_id},${row.tracker_id},${row.tracker_type || ''},${rowClientSlug},${animalType},${animalName},${family},${initialBatteryVoltage},${row.latitude},${row.longitude},${timestamp},${row.battery_voltage || ''},${row.fix_number || ''}`;
         }).join('\n');
 
         // Add header to response to identify data source

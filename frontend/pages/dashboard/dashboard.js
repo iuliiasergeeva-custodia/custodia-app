@@ -1343,6 +1343,9 @@ function processLocations(locations) {
                 batteryVoltage: null,
                 batteryPercent: null,
                 initialBatteryVoltage,
+                // Fixed once per tracker, assigned by whichever API ingested it —
+                // not inferred from the (editable) name/slug.
+                connectivity: classifyConnectivity(location.tracker_type),
                 status: 'active'
             });
         }
@@ -1472,6 +1475,18 @@ function updateHeaderStatusCounts() {
     const alertEl = document.getElementById('headerAlertCount');
     if (activeEl) activeEl.textContent = activeCount;
     if (alertEl) alertEl.textContent = alertCount;
+}
+
+/**
+ * Classify a tracker's connectivity from `tracker_type` — the API that ingested
+ * it ('lora' | 'myriota' | 'skylo'), assigned once at tracker creation — not by
+ * guessing from the tracker's editable name/slug.
+ */
+function classifyConnectivity(trackerType) {
+    const t = (trackerType || '').toLowerCase();
+    if (t === 'myriota' || t === 'skylo') return 'satellite';
+    if (t === 'lora') return 'lora';
+    return null;
 }
 
 /**
@@ -4135,11 +4150,13 @@ function updateTrackerDetailCard(animal) {
     setEl('tdcAvgDay', animal.avgDistancePerDay != null ? formatDistance(animal.avgDistancePerDay) : '--');
     setEl('tdcLocCount', sortedAsc.length);
 
-    // Connectivity: Satellite (Myriota) or LoRa
-    const nl = (animal.name || '').toLowerCase();
-    const tl = (animal.type || '').toLowerCase();
-    const isSatellite = nl.includes('myriota') || tl.includes('myriota') || nl.includes('satellite') || tl.includes('satellite');
-    setEl('tdcConnectivity', isSatellite ? '🛰️ Satellite' : '📶 LoRa');
+    // Connectivity: Satellite (Myriota/Skylo) or LoRa — based on which API the
+    // most recent location actually arrived through (animal.connectivity),
+    // not the tracker's editable name/slug.
+    const connectivityLabel = animal.connectivity === 'satellite' ? '🛰️ Satellite'
+        : animal.connectivity === 'lora' ? '📶 LoRa'
+        : '❔ Unknown';
+    setEl('tdcConnectivity', connectivityLabel);
 
     // Activity chart
     requestAnimationFrame(() => drawDetailActivityChart(sortedAsc));
