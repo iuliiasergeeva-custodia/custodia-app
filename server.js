@@ -35,7 +35,11 @@ const PORT = process.env.PORT || 3000;
 app.use(compression());
 
 // Security headers
-app.use(helmet({ contentSecurityPolicy: false }));
+// OSM tile servers reject requests without a Referer, so don't use helmet's default no-referrer
+app.use(helmet({
+    contentSecurityPolicy: false,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+}));
 
 // CORS: whitelist specific origins (set ALLOWED_ORIGINS env var in production)
 const allowedOrigins = process.env.ALLOWED_ORIGINS

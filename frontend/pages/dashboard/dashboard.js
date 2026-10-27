@@ -665,7 +665,7 @@ function initMap() {
             voyager: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
             positronNoLabels: 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
             positron: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-            osm: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+            osm: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
         };
         const mapTileUrl = MAP_TILE_OPTIONS.osm; // CARTO basemaps now require an API key; plain OSM needs none
         L.tileLayer(mapTileUrl, {
